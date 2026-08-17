@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Futa App Icon Maskable">
+  <rect width="512" height="512" fill="#0a7a5f" />
+  <circle cx="256" cy="256" r="150" fill="#ffffff" opacity="0.95" />
+  <path d="M172 256c0-46 38-84 84-84s84 38 84 84-38 84-84 84-84-38-84-84z" fill="none" stroke="#0a7a5f" stroke-width="22"/>
+  <path d="M202 220l54 44 54-44" fill="none" stroke="#0a7a5f" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

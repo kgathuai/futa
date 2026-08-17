@@ -1,0 +1,31 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import { ChatPage } from './pages/ChatPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { FriendliesPage } from './pages/FriendliesPage'
+import { HomePage } from './pages/HomePage'
+import { ResultsPage } from './pages/ResultsPage'
+import { TeamPage } from './pages/TeamPage'
+import { TeamDashboardPage } from './pages/TeamDashboardPage'
+import { TournamentsPage } from './pages/TournamentsPage'
+
+function App() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
+        <Route path="/matches" element={<HomePage />} />
+        <Route path="/friendlies" element={<FriendliesPage />} />
+        <Route path="/team-dashboard" element={<TeamDashboardPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/team" element={<TeamPage />} />
+        <Route path="/tournaments" element={<TournamentsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  )
+}
+
+export default App
