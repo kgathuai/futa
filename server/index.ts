@@ -21,6 +21,139 @@ interface RequestUser {
   email: string
 }
 
+interface MatchWithInteractions {
+  likedByAccountIds?: string[]
+  ratedByAccountIds?: string[]
+  comments?: unknown
+  [key: string]: unknown
+}
+
+interface PublicCommentReply {
+  id: string
+  text: string
+  authorName: string
+  likes: number
+  likedByMe: boolean
+  createdAt: string
+}
+
+interface PublicComment {
+  id: string
+  text: string
+  authorName: string
+  likes: number
+  likedByMe: boolean
+  createdAt: string
+  replies: PublicCommentReply[]
+}
+
+const normalizePublicComments = (comments: unknown, viewerAccountId?: string): PublicComment[] => {
+  if (!Array.isArray(comments)) {
+    return []
+  }
+
+  return comments
+    .map((entry, index) => {
+      if (typeof entry === 'string') {
+        const text = entry.trim()
+        if (!text || text === 'Match announced.') {
+          return null
+        }
+
+        const splitIndex = text.indexOf(':')
+        const authorName = splitIndex > 0 ? text.slice(0, splitIndex).trim() : 'Unknown'
+        const body = splitIndex > 0 ? text.slice(splitIndex + 1).trim() : text
+
+        return {
+          id: `legacy-${index + 1}`,
+          text: body,
+          authorName: authorName || 'Unknown',
+          likes: 0,
+          likedByMe: false,
+          createdAt: new Date(0).toISOString(),
+          replies: [],
+        } satisfies PublicComment
+      }
+
+      if (!entry || typeof entry !== 'object') {
+        return null
+      }
+
+      const raw = entry as {
+        id?: unknown
+        text?: unknown
+        authorName?: unknown
+        likes?: unknown
+        likedByAccountIds?: unknown
+        createdAt?: unknown
+        replies?: unknown
+      }
+
+      const text = typeof raw.text === 'string' ? raw.text.trim() : ''
+      if (!text) {
+        return null
+      }
+
+      const likedByAccountIds = Array.isArray(raw.likedByAccountIds)
+        ? raw.likedByAccountIds.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+        : []
+
+      const replies = Array.isArray(raw.replies)
+        ? raw.replies
+            .map((reply, replyIndex) => {
+              if (!reply || typeof reply !== 'object') {
+                return null
+              }
+
+              const rawReply = reply as {
+                id?: unknown
+                text?: unknown
+                authorName?: unknown
+                likes?: unknown
+                likedByAccountIds?: unknown
+                createdAt?: unknown
+              }
+
+              const replyText = typeof rawReply.text === 'string' ? rawReply.text.trim() : ''
+              if (!replyText) {
+                return null
+              }
+
+              const replyLikedBy = Array.isArray(rawReply.likedByAccountIds)
+                ? rawReply.likedByAccountIds.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+                : []
+
+              return {
+                id: typeof rawReply.id === 'string' && rawReply.id.trim() ? rawReply.id : `reply-${index + 1}-${replyIndex + 1}`,
+                text: replyText,
+                authorName:
+                  typeof rawReply.authorName === 'string' && rawReply.authorName.trim()
+                    ? rawReply.authorName.trim()
+                    : 'Unknown',
+                likes: Number.isFinite(rawReply.likes as number) ? Math.max(0, Number(rawReply.likes)) : 0,
+                likedByMe: Boolean(viewerAccountId && replyLikedBy.includes(viewerAccountId)),
+                createdAt:
+                  typeof rawReply.createdAt === 'string' && rawReply.createdAt.trim()
+                    ? rawReply.createdAt
+                    : new Date(0).toISOString(),
+              } satisfies PublicCommentReply
+            })
+            .filter((reply): reply is PublicCommentReply => reply !== null)
+        : []
+
+      return {
+        id: typeof raw.id === 'string' && raw.id.trim() ? raw.id : `comment-${index + 1}`,
+        text,
+        authorName: typeof raw.authorName === 'string' && raw.authorName.trim() ? raw.authorName.trim() : 'Unknown',
+        likes: Number.isFinite(raw.likes as number) ? Math.max(0, Number(raw.likes)) : 0,
+        likedByMe: Boolean(viewerAccountId && likedByAccountIds.includes(viewerAccountId)),
+        createdAt: typeof raw.createdAt === 'string' && raw.createdAt.trim() ? raw.createdAt : new Date(0).toISOString(),
+        replies,
+      } satisfies PublicComment
+    })
+    .filter((comment): comment is PublicComment => comment !== null)
+}
+
 const sanitizeAccount = (account: AccountRecord) => ({
   id: account.id,
   name: account.name,
@@ -29,6 +162,20 @@ const sanitizeAccount = (account: AccountRecord) => ({
   sport: account.sport,
   email: account.email,
 })
+
+const sanitizeMatchForViewer = (match: MatchWithInteractions, viewerAccountId?: string) => {
+  const likedBy = Array.isArray(match.likedByAccountIds) ? match.likedByAccountIds : []
+  const ratedBy = Array.isArray(match.ratedByAccountIds) ? match.ratedByAccountIds : []
+  const comments = normalizePublicComments(match.comments, viewerAccountId)
+  const { likedByAccountIds, ratedByAccountIds, ...rest } = match
+
+  return {
+    ...rest,
+    comments,
+    likedByMe: viewerAccountId ? likedBy.includes(viewerAccountId) : false,
+    ratedByMe: viewerAccountId ? ratedBy.includes(viewerAccountId) : false,
+  }
+}
 
 const getBearerToken = (value: string | undefined) => {
   if (!value) {
@@ -69,9 +216,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', mode: 'monolith', db: 'mongodb' })
 })
 
-app.get('/api/matches', async (_req, res) => {
+app.get('/api/matches', async (req, res) => {
+  const viewer = await getRequestUser(req.header('authorization'))
   const matches = await store.getMatches()
-  res.json(matches)
+  res.json(matches.map((match) => sanitizeMatchForViewer(match as MatchWithInteractions, viewer?.id)))
 })
 
 app.get('/api/matches/my', async (req, res) => {
@@ -88,7 +236,7 @@ app.get('/api/matches/my', async (req, res) => {
   }
 
   const matches = await store.getMatchesForTeam(teamName)
-  res.json(matches)
+  res.json(matches.map((match) => sanitizeMatchForViewer(match as MatchWithInteractions, user.id)))
 })
 
 app.post('/api/matches', async (req, res) => {
@@ -128,9 +276,11 @@ app.post('/api/matches', async (req, res) => {
     category: body.category,
     sport: body.sport,
     comment: body.comment,
+    createdByTeam: teamName,
+    createdByAccountId: user.id,
   })
 
-  res.status(201).json(created)
+  res.status(201).json(sanitizeMatchForViewer(created as MatchWithInteractions, user.id))
 })
 
 app.patch('/api/matches/:matchId/kickoff', async (req, res) => {
@@ -159,7 +309,7 @@ app.patch('/api/matches/:matchId/kickoff', async (req, res) => {
     return
   }
 
-  res.json(updated)
+  res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
 })
 
 app.patch('/api/matches/:matchId/score', async (req, res) => {
@@ -182,7 +332,7 @@ app.patch('/api/matches/:matchId/score', async (req, res) => {
     return
   }
 
-  const existingMatch = await store.getMatchForTeam(matchId, teamName)
+  const existingMatch = await store.getMatchForCreatorTeam(matchId, teamName)
   if (!existingMatch) {
     res.status(404).json({ error: 'Match not found.' })
     return
@@ -200,7 +350,150 @@ app.patch('/api/matches/:matchId/score', async (req, res) => {
     return
   }
 
-  res.json(updated)
+  res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
+})
+
+app.post('/api/matches/:matchId/like', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const matchId = req.params.matchId?.trim()
+  if (!matchId) {
+    res.status(400).json({ error: 'Match id is required.' })
+    return
+  }
+
+  const result = await store.likeMatch(matchId, user.id)
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  if (result.status === 'already-liked') {
+    res.status(409).json({ error: 'You can only like a match once.' })
+    return
+  }
+
+  res.json(sanitizeMatchForViewer(result.match as MatchWithInteractions, user.id))
+})
+
+app.post('/api/matches/:matchId/comment', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const matchId = req.params.matchId?.trim()
+  const comment = (req.body as { comment?: string }).comment?.trim()
+
+  if (!matchId || !comment) {
+    res.status(400).json({ error: 'Match id and comment are required.' })
+    return
+  }
+
+  const updated = await store.commentOnMatch(matchId, comment, user.name, user.id)
+  if (!updated) {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
+})
+
+app.post('/api/matches/:matchId/comments/:commentId/like', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const matchId = req.params.matchId?.trim()
+  const commentId = req.params.commentId?.trim()
+  if (!matchId || !commentId) {
+    res.status(400).json({ error: 'Match id and comment id are required.' })
+    return
+  }
+
+  const result = await store.likeCommentOnMatch(matchId, commentId, user.id)
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  if (result.status === 'comment-not-found') {
+    res.status(404).json({ error: 'Comment not found.' })
+    return
+  }
+
+  if (result.status === 'already-liked') {
+    res.status(409).json({ error: 'You can only like a comment once.' })
+    return
+  }
+
+  res.json(sanitizeMatchForViewer(result.match as MatchWithInteractions, user.id))
+})
+
+app.post('/api/matches/:matchId/comments/:commentId/reply', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const matchId = req.params.matchId?.trim()
+  const commentId = req.params.commentId?.trim()
+  const comment = (req.body as { comment?: string }).comment?.trim()
+
+  if (!matchId || !commentId || !comment) {
+    res.status(400).json({ error: 'Match id, comment id and reply text are required.' })
+    return
+  }
+
+  const result = await store.replyToMatchComment(matchId, commentId, comment, user.name, user.id)
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  if (result.status === 'comment-not-found') {
+    res.status(404).json({ error: 'Comment not found.' })
+    return
+  }
+
+  res.json(sanitizeMatchForViewer(result.match as MatchWithInteractions, user.id))
+})
+
+app.post('/api/matches/:matchId/rate', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const matchId = req.params.matchId?.trim()
+  const rating = Number((req.body as { rating?: number }).rating)
+
+  if (!matchId || !Number.isFinite(rating) || rating < 1 || rating > 5) {
+    res.status(400).json({ error: 'Match id and rating between 1 and 5 are required.' })
+    return
+  }
+
+  const result = await store.rateMatch(matchId, rating, user.id)
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  if (result.status === 'already-rated') {
+    res.status(409).json({ error: 'You can only rate a match once.' })
+    return
+  }
+
+  res.json(sanitizeMatchForViewer(result.match as MatchWithInteractions, user.id))
 })
 
 app.delete('/api/matches/:matchId', async (req, res) => {
@@ -418,7 +711,12 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const account = await store.findAccountByEmail(email)
-  if (!account || account.password !== password) {
+  if (!account) {
+    res.status(404).json({ error: 'Account not found. Please register first.' })
+    return
+  }
+
+  if (account.password !== password) {
     res.status(401).json({ error: 'Invalid credentials.' })
     return
   }

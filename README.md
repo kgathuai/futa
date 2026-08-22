@@ -25,6 +25,8 @@ The app is built with React + TypeScript + Vite and configured as an installable
 - React Router
 - Vite
 - vite-plugin-pwa
+- Express 5
+- MongoDB + Mongoose
 
 ## Getting Started
 
@@ -34,19 +36,31 @@ The app is built with React + TypeScript + Vite and configured as an installable
 npm install
 ```
 
-2. Run the app locally:
+2. Ensure MongoDB is running locally (default URI used by the backend):
+
+```bash
+mongodb://127.0.0.1:27017/futa_monolith
+```
+
+Example with Homebrew services:
+
+```bash
+brew services start mongodb-community
+```
+
+3. Run the app locally:
 
 ```bash
 npm run dev
 ```
 
-3. Build for production:
+4. Build for production:
 
 ```bash
 npm run build
 ```
 
-4. Preview production build:
+5. Preview production build:
 
 ```bash
 npm run preview

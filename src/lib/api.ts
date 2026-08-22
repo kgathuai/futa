@@ -1,4 +1,4 @@
-import type { FriendlyRequest, NotificationItem, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { FriendlyRequest, NotificationItem, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
@@ -13,18 +13,32 @@ interface RequestOptions {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const response = await fetch(path, {
-    method: options.method ?? 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-    },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  })
+  let response: Response
+
+  try {
+    response = await fetch(path, {
+      method: options.method ?? 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      },
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    })
+  } catch {
+    throw new Error('Cannot reach the API. Ensure the backend server is running and reachable.')
+  }
 
   if (!response.ok) {
     const errorPayload = (await response.json().catch(() => null)) as { error?: string } | null
-    throw new Error(errorPayload?.error ?? `Request failed: ${response.status}`)
+    if (errorPayload?.error) {
+      throw new Error(errorPayload.error)
+    }
+
+    if (response.status === 502) {
+      throw new Error('Request failed: 502. Backend is unavailable. Ensure MongoDB and the API server are running.')
+    }
+
+    throw new Error(`Request failed: ${response.status}`)
   }
 
   if (response.status === 204) {
@@ -38,7 +52,7 @@ export const api = {
   getToken: () => localStorage.getItem(AUTH_TOKEN_KEY),
   setToken: (token: string) => localStorage.setItem(AUTH_TOKEN_KEY, token),
   clearToken: () => localStorage.removeItem(AUTH_TOKEN_KEY),
-  getMatches: () => request('/api/matches'),
+  getMatches: () => request<MatchAnnouncement[]>('/api/matches', { token: localStorage.getItem(AUTH_TOKEN_KEY) }),
   getMyMatches: (token: string) => request<MatchAnnouncement[]>('/api/matches/my', { token }),
   createMatch: (
     payload: {
@@ -57,7 +71,7 @@ export const api = {
       body: payload,
       token,
     }),
-  getResults: () => request('/api/results'),
+  getResults: () => request<ResultReport[]>('/api/results'),
   getTournaments: () => request<TournamentItem[]>('/api/tournaments'),
   getTeam: () => request<TeamProfile | null>('/api/team'),
   getTeams: () => request<{ teams: TeamSummary[] }>('/api/teams'),
@@ -201,6 +215,34 @@ export const api = {
     request<MatchAnnouncement>(`/api/matches/${matchId}/score`, {
       method: 'PATCH',
       body: { homeScore, awayScore },
+      token,
+    }),
+  likeMatch: (matchId: string, token: string) =>
+    request<MatchAnnouncement>(`/api/matches/${matchId}/like`, {
+      method: 'POST',
+      token,
+    }),
+  commentOnMatch: (matchId: string, comment: string, token: string) =>
+    request<MatchAnnouncement>(`/api/matches/${matchId}/comment`, {
+      method: 'POST',
+      body: { comment },
+      token,
+    }),
+  likeMatchComment: (matchId: string, commentId: string, token: string) =>
+    request<MatchAnnouncement>(`/api/matches/${matchId}/comments/${commentId}/like`, {
+      method: 'POST',
+      token,
+    }),
+  replyToMatchComment: (matchId: string, commentId: string, comment: string, token: string) =>
+    request<MatchAnnouncement>(`/api/matches/${matchId}/comments/${commentId}/reply`, {
+      method: 'POST',
+      body: { comment },
+      token,
+    }),
+  rateMatch: (matchId: string, rating: number, token: string) =>
+    request<MatchAnnouncement>(`/api/matches/${matchId}/rate`, {
+      method: 'POST',
+      body: { rating },
       token,
     }),
   deleteMatch: (matchId: string, token: string) =>

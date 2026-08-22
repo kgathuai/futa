@@ -116,9 +116,7 @@ export function ResultsPage() {
             <Typography variant="overline" color="text.secondary">
               Latest results
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
-              Recently reported scores
-            </Typography>
+            
             <Stack spacing={1.5}>
               {results.map((result) => (
                 <Card key={result.id} variant="outlined">

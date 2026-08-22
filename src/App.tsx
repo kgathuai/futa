@@ -3,7 +3,6 @@ import { Layout } from './components/Layout'
 import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FriendliesPage } from './pages/FriendliesPage'
-import { HomePage } from './pages/HomePage'
 import { ResultsPage } from './pages/ResultsPage'
 import { TeamPage } from './pages/TeamPage'
 import { TeamDashboardPage } from './pages/TeamDashboardPage'
@@ -15,7 +14,7 @@ function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
-        <Route path="/matches" element={<HomePage />} />
+        <Route path="/matches" element={<Navigate to="/" replace />} />
         <Route path="/friendlies" element={<FriendliesPage />} />
         <Route path="/team-dashboard" element={<TeamDashboardPage />} />
         <Route path="/results" element={<ResultsPage />} />

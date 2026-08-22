@@ -14,6 +14,25 @@ export interface TournamentItem {
   registeredTeams: string[]
 }
 
+export interface MatchCommentReply {
+  id: string
+  text: string
+  authorName: string
+  likes: number
+  likedByMe?: boolean
+  createdAt: string
+}
+
+export interface MatchComment {
+  id: string
+  text: string
+  authorName: string
+  likes: number
+  likedByMe?: boolean
+  createdAt: string
+  replies: MatchCommentReply[]
+}
+
 export interface MatchAnnouncement {
   id: string
   homeTeam: string
@@ -25,8 +44,12 @@ export interface MatchAnnouncement {
   awayScore?: number
   category: 'League' | 'Friendly' | 'Cup'
   sport: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+  createdByTeam?: string
+  createdByAccountId?: string
+  likedByMe?: boolean
+  ratedByMe?: boolean
   status: 'scheduled' | 'playing' | 'finished' | 'postponed'
-  comments: string[]
+  comments: MatchComment[]
   engagement: {
     likes: number
     comments: number
@@ -104,4 +127,11 @@ export interface TeamProfile {
 export interface TeamSummary {
   name: string
   logoUrl?: string
+  manager?: string
+  county?: string
+  homeGround?: string
+  level?: TeamLevel
+  bio?: string
+  status?: 'active' | 'inactive'
+  updatedAt?: string
 }

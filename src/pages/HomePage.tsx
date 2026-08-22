@@ -313,6 +313,7 @@ export function HomePage() {
       <Box sx={{ display: 'grid', gap: 1.8, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' } }}>
         {filteredMatches.map((match) => {
           const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes)
+          const firstCommentText = match.comments.find((entry) => entry.text.trim().length > 0)?.text
           return (
             <Card key={match.id} variant="outlined" sx={{ borderRadius: 2.3 }}>
               <CardContent sx={{ p: 2.3, '&:last-child': { pb: 2.3 } }}>
@@ -414,9 +415,11 @@ export function HomePage() {
                 ) : null}
               </Stack>
 
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.9 }}>
-                {match.comments[0]}
-              </Typography>
+              {firstCommentText ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.9 }}>
+                  {firstCommentText}
+                </Typography>
+              ) : null}
 
               <Stack direction="row" spacing={2.2} sx={{ mt: 1.2, color: 'text.secondary' }}>
                 <Typography variant="body2">👍 {match.engagement.likes} likes</Typography>

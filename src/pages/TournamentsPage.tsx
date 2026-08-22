@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { useOutletContext } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Alert, Avatar, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { useLocation, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
-import type { TournamentItem, TournamentStatus } from '../types'
+import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -12,24 +12,16 @@ interface AuthOutletContext {
 
 const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
-const formatPeriod = (startDate: string, endDate: string) => {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return `${startDate} - ${endDate}`
-  }
-
-  const formattedStart = start.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
-  const formattedEnd = end.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
-  return `${formattedStart} - ${formattedEnd}`
-}
-
 export function TournamentsPage() {
   const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()
+  const location = useLocation()
+  const navState = location.state as { openTournamentId?: string; showTournamentList?: boolean } | null
+  const showTournamentList = Boolean(navState?.showTournamentList)
   const [selectedSport, setSelectedSport] = useState('All sports')
   const [showNewForm, setShowNewForm] = useState(false)
   const [tournaments, setTournaments] = useState<TournamentItem[]>([])
+  const [matches, setMatches] = useState<MatchAnnouncement[]>([])
+  const [teamLogosByName, setTeamLogosByName] = useState<Record<string, string | undefined>>({})
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isLoadingTournaments, setIsLoadingTournaments] = useState(false)
@@ -38,8 +30,6 @@ export function TournamentsPage() {
   const [sport, setSport] = useState('Football')
   const [format, setFormat] = useState('Knockout')
   const [venue, setVenue] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
   const [status, setStatus] = useState<TournamentStatus>('upcoming')
   const canCreateHere = false
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
@@ -51,9 +41,132 @@ export function TournamentsPage() {
 
   const filteredTournaments = tournaments.filter((t) => selectedSport === 'All sports' || t.sport === selectedSport)
   const selectedTournament = selectedTournamentId
-    ? tournaments.find((item) => item.id === selectedTournamentId) ?? null
+    ? filteredTournaments.find((item) => item.id === selectedTournamentId) ?? null
     : null
   const selectedTournamentTeams = selectedTournament?.registeredTeams ?? []
+  const sortedSelectedTournamentTeams = useMemo(
+    () =>
+      [...new Set(selectedTournamentTeams)].sort((teamA, teamB) =>
+        teamA.localeCompare(teamB, undefined, { sensitivity: 'base' }),
+      ),
+    [selectedTournamentTeams],
+  )
+
+  const selectedTournamentStandings = useMemo(() => {
+    if (!selectedTournament) {
+      return [] as Array<{
+        team: string
+        played: number
+        won: number
+        drawn: number
+        lost: number
+        goalsFor: number
+        goalsAgainst: number
+        goalDifference: number
+        points: number
+      }>
+    }
+
+    const rows = new Map(
+      sortedSelectedTournamentTeams.map((teamName) => [
+        teamName,
+        {
+          team: teamName,
+          played: 0,
+          won: 0,
+          drawn: 0,
+          lost: 0,
+          goalsFor: 0,
+          goalsAgainst: 0,
+          goalDifference: 0,
+          points: 0,
+        },
+      ]),
+    )
+
+    const teamSet = new Set(sortedSelectedTournamentTeams)
+    const relevantMatches = matches.filter((match) => {
+      if (!teamSet.has(match.homeTeam) || !teamSet.has(match.awayTeam)) {
+        return false
+      }
+
+      if (match.sport !== selectedTournament.sport) {
+        return false
+      }
+
+      return Number.isFinite(match.homeScore) && Number.isFinite(match.awayScore)
+    })
+
+    for (const match of relevantMatches) {
+      const home = rows.get(match.homeTeam)
+      const away = rows.get(match.awayTeam)
+      if (!home || !away) {
+        continue
+      }
+
+      const homeScore = Number(match.homeScore)
+      const awayScore = Number(match.awayScore)
+
+      home.played += 1
+      away.played += 1
+      home.goalsFor += homeScore
+      home.goalsAgainst += awayScore
+      away.goalsFor += awayScore
+      away.goalsAgainst += homeScore
+
+      if (homeScore > awayScore) {
+        home.won += 1
+        home.points += 3
+        away.lost += 1
+      } else if (awayScore > homeScore) {
+        away.won += 1
+        away.points += 3
+        home.lost += 1
+      } else {
+        home.drawn += 1
+        away.drawn += 1
+        home.points += 1
+        away.points += 1
+      }
+    }
+
+    for (const row of rows.values()) {
+      row.goalDifference = row.goalsFor - row.goalsAgainst
+    }
+
+    return Array.from(rows.values()).sort((a, b) => {
+      if (b.points !== a.points) {
+        return b.points - a.points
+      }
+      if (b.goalDifference !== a.goalDifference) {
+        return b.goalDifference - a.goalDifference
+      }
+      if (b.goalsFor !== a.goalsFor) {
+        return b.goalsFor - a.goalsFor
+      }
+      return a.team.localeCompare(b.team, undefined, { sensitivity: 'base' })
+    })
+  }, [matches, selectedTournament, sortedSelectedTournamentTeams])
+
+  const selectedTournamentEfficiency = useMemo(() => {
+    if (selectedTournamentStandings.length === 0) {
+      return 0
+    }
+
+    const totalPoints = selectedTournamentStandings.reduce((sum, row) => sum + row.points, 0)
+    const maxPoints = selectedTournamentStandings.reduce((sum, row) => sum + row.played * 3, 0)
+    if (maxPoints === 0) {
+      return 0
+    }
+
+    return Math.round((totalPoints / maxPoints) * 1000) / 10
+  }, [selectedTournamentStandings])
+  const estimatedPrizePool = useMemo(() => {
+    const base = 5000
+    const perTeam = 750
+    return base + selectedTournamentTeams.length * perTeam
+  }, [selectedTournamentTeams.length])
+  const mvpPreview = selectedTournamentStandings[0] ?? null
 
   const loadTournaments = async () => {
     setIsLoadingTournaments(true)
@@ -68,22 +181,79 @@ export function TournamentsPage() {
     }
   }
 
+  const loadMatches = async () => {
+    try {
+      const response = await api.getMatches()
+      setMatches(response)
+    } catch {
+      // Keep tournament page usable even if matches fail to load.
+    }
+  }
+
+  const loadTeams = async () => {
+    try {
+      const response = await api.getTeams()
+      const next: Record<string, string | undefined> = {}
+      for (const team of response.teams) {
+        next[team.name] = team.logoUrl
+      }
+      setTeamLogosByName(next)
+    } catch {
+      setTeamLogosByName({})
+    }
+  }
+
   useEffect(() => {
     void loadTournaments()
+    void loadMatches()
+    void loadTeams()
   }, [])
+
+  useEffect(() => {
+    const targetId = navState?.openTournamentId
+    if (!targetId || tournaments.length === 0) {
+      return
+    }
+
+    const targetTournament = tournaments.find((item) => item.id === targetId)
+    if (!targetTournament) {
+      return
+    }
+
+    setSelectedTournamentId(targetTournament.id)
+    setSelectedSport(targetTournament.sport)
+  }, [navState, tournaments])
+
+  useEffect(() => {
+    if (showTournamentList) {
+      setSelectedSport('All sports')
+    }
+  }, [showTournamentList])
+
+  useEffect(() => {
+    if (filteredTournaments.length === 0) {
+      if (selectedTournamentId !== null) {
+        setSelectedTournamentId(null)
+      }
+      return
+    }
+
+    const stillVisible = selectedTournamentId
+      ? filteredTournaments.some((item) => item.id === selectedTournamentId)
+      : false
+
+    if (!stillVisible) {
+      setSelectedTournamentId(filteredTournaments[0].id)
+    }
+  }, [filteredTournaments, selectedTournamentId])
 
   const handleCreateTournament = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const safeName = name.trim()
     const safeVenue = venue.trim()
-    if (!safeName || !safeVenue || !startDate || !endDate) {
+    if (!safeName || !safeVenue) {
       setMessage('Please complete all required tournament fields.')
-      return
-    }
-
-    if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
-      setMessage('End date must be on or after start date.')
       return
     }
 
@@ -99,7 +269,7 @@ export function TournamentsPage() {
           sport,
           format: format.trim(),
           name: safeName,
-          period: formatPeriod(startDate, endDate),
+          period: 'TBD',
           venue: safeVenue,
           status,
         },
@@ -118,8 +288,6 @@ export function TournamentsPage() {
     setSport('Football')
     setFormat('Knockout')
     setVenue('')
-    setStartDate('')
-    setEndDate('')
     setStatus('upcoming')
   }
 
@@ -142,6 +310,7 @@ export function TournamentsPage() {
     try {
       const updatedTournament = await api.registerTournamentTeam(selectedTournament.id, token)
       setTournaments((prev) => prev.map((item) => (item.id === updatedTournament.id ? updatedTournament : item)))
+      await loadMatches()
       setMessage('Team registered successfully.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to register team.')
@@ -208,24 +377,6 @@ export function TournamentsPage() {
               />
 
               <TextField
-                label="Start date"
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                required
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-
-              <TextField
-                label="End date"
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                required
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-
-              <TextField
                 select
                 label="Status"
                 value={status}
@@ -260,95 +411,279 @@ export function TournamentsPage() {
             clickable
             color={sport === selectedSport ? 'primary' : 'default'}
             onClick={() => setSelectedSport(sport)}
-            sx={sport === selectedSport ? { color: '#07111f', fontWeight: 700 } : undefined}
+            sx={
+              sport === selectedSport
+                ? { color: '#07111f', fontWeight: 700, '& .MuiChip-label': { fontSize: { xs: '0.64rem', sm: '0.7rem' } } }
+                : { '& .MuiChip-label': { fontSize: { xs: '0.64rem', sm: '0.7rem' } } }
+            }
           />
         ))}
       </Stack>
 
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' } }}>
-        {isLoadingTournaments && (
-          <Typography color="text.secondary">Loading tournaments...</Typography>
-        )}
-        {filteredTournaments.length === 0 && (
-          <Typography color="text.secondary">No tournaments yet. Created tournaments will appear here.</Typography>
-        )}
-        {filteredTournaments.map((item) => (
-          <Card
-            variant="outlined"
-            key={item.id}
-            onClick={() => setSelectedTournamentId(item.id)}
-            sx={{ cursor: 'pointer' }}
-          >
-            <CardContent>
-              <Stack direction="row" sx={{ mb: 1.2, justifyContent: 'space-between' }}>
-                <Chip
-                  label={`${item.sport} · ${item.format}`}
-                  size="small"
-                />
-                <Chip label={item.status} size="small" />
-              </Stack>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {item.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {item.sport} · {item.format}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {item.period} · {item.venue}
-              </Typography>
-              <Typography variant="body2" color="primary" sx={{ mt: 1.25, fontWeight: 600 }}>
-                View registered teams
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
+      {isLoadingTournaments && (
+        <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
+          Loading tournaments...
+        </Typography>
+      )}
+      {!isLoadingTournaments && filteredTournaments.length === 0 && (
+        <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
+          No tournaments yet. Created tournaments will appear here.
+        </Typography>
+      )}
 
-      <Dialog
-        open={Boolean(selectedTournament)}
-        onClose={() => setSelectedTournamentId(null)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>
-          {selectedTournament?.name ?? 'Tournament'} teams
-        </DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            Registered teams for this tournament.
-          </Typography>
-
-          {loggedInTeam && selectedTournamentTeams.includes(loggedInTeam) && (
-            <Alert severity="success" sx={{ mb: 1.25 }}>
-              {loggedInTeam} is already registered.
-            </Alert>
-          )}
-
-          {selectedTournamentTeams.length === 0 ? (
-            <Typography color="text.secondary">No teams have registered yet.</Typography>
-          ) : (
+      {showTournamentList && filteredTournaments.length > 0 && (
+        <Card
+          variant="outlined"
+          sx={{
+            borderColor: 'rgba(170,186,212,0.2)',
+            bgcolor: 'rgba(17,19,31,0.94)',
+          }}
+        >
+          <CardContent>
+            <Typography sx={{ fontWeight: 700, mb: 1.2 }}>All Tournaments</Typography>
             <Stack spacing={1}>
-              {selectedTournamentTeams.map((teamName) => (
-                <Card key={teamName} variant="outlined">
-                  <CardContent sx={{ py: 1.2, '&:last-child': { pb: 1.2 } }}>
-                    <Typography sx={{ fontWeight: 600 }}>{teamName}</Typography>
-                  </CardContent>
-                </Card>
+              {filteredTournaments.map((item) => (
+                <Box
+                  key={`all-tournament-${item.id}`}
+                  onClick={() => setSelectedTournamentId(item.id)}
+                  sx={{
+                    border: '1px solid rgba(159,176,201,0.15)',
+                    borderRadius: 1.2,
+                    px: 1.2,
+                    py: 1,
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 2fr) minmax(0, 1fr) auto' },
+                    gap: 1,
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    bgcolor: selectedTournamentId === item.id ? 'rgba(173,255,15,0.08)' : 'rgba(255,255,255,0.01)',
+                    '&:hover': {
+                      borderColor: 'rgba(173,255,15,0.45)',
+                    },
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ fontWeight: 700 }}>{item.name}</Typography>
+                    <Typography sx={{ color: '#8f98af', fontSize: '0.8rem' }}>{item.period}</Typography>
+                  </Box>
+                  <Typography sx={{ color: '#8f98af', fontSize: '0.86rem' }}>{item.sport} · {item.format}</Typography>
+                  <Chip label={item.status} size="small" />
+                </Box>
               ))}
             </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button
-            variant="contained"
-            onClick={() => void handleRegisterTeam()}
-            disabled={!canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam)}
+          </CardContent>
+        </Card>
+      )}
+
+      {!showTournamentList && selectedTournament && (
+        <Stack spacing={2}>
+          <Card
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              borderColor: 'rgba(170,186,212,0.2)',
+              bgcolor: 'rgba(18,20,34,0.94)',
+              overflow: 'hidden',
+            }}
           >
-            Register My Team
-          </Button>
-          <Button onClick={() => setSelectedTournamentId(null)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+            <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+              <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' } }}>
+                <Stack spacing={1.2}>
+                  <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
+                    <Chip label={selectedTournament.status === 'ongoing' ? 'ACTIVE' : 'UPCOMING'} size="small" sx={{ bgcolor: '#adff0f', color: '#122000', fontWeight: 800 }} />
+                  </Stack>
+
+                  <Typography variant="h3" sx={{ fontSize: { xs: '1.5rem', md: '2.05rem' }, fontWeight: 800, lineHeight: 1.1 }}>
+                    {selectedTournament.name}
+                  </Typography>
+
+                  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', color: '#99a3bb' }}>
+                    <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournament.period}</Typography>
+                    <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournament.venue}</Typography>
+                    <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournamentTeams.length} Teams Participating</Typography>
+                  </Stack>
+                </Stack>
+
+                <Box
+                  sx={{
+                    border: '1px solid rgba(173,255,15,0.3)',
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: 'rgba(14,18,28,0.95)',
+                    boxShadow: '0 0 30px rgba(173,255,15,0.08)',
+                  }}
+                >
+                  <Typography sx={{ color: '#f4f7ff', fontWeight: 700, fontSize: '0.9rem', mb: 1 }}>
+                    {selectedTournament.status === 'registration open' ? 'REGISTRATION OPEN' : 'TOURNAMENT DESK'}
+                  </Typography>
+                  <Typography sx={{ color: '#99a3bb', fontSize: '0.8rem', mb: 1.6 }}>
+                    {selectedTournament.status === 'registration open'
+                      ? 'Spots are available. Register your team now.'
+                      : 'Manage participants and keep standings updated.'}
+                  </Typography>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => void handleRegisterTeam()}
+                    disabled={!canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam)}
+                    sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
+                  >
+                    Join Tournament
+                  </Button>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Box sx={{ display: 'grid', gap: 1.4, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
+            <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
+              <CardContent>
+                <Typography sx={{ color: '#8e98b0', fontSize: '0.66rem', letterSpacing: '0.08em' }}>TOTAL PRIZE POOL</Typography>
+                <Typography sx={{ fontSize: '2rem', fontWeight: 800, mt: 0.3 }}>${estimatedPrizePool.toLocaleString()}</Typography>
+              </CardContent>
+            </Card>
+            <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
+              <CardContent>
+                <Typography sx={{ color: '#8e98b0', fontSize: '0.66rem', letterSpacing: '0.08em' }}>TOURNAMENT MVP</Typography>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.6 }}>
+                  <Avatar sx={{ width: 24, height: 24, fontSize: '0.74rem', bgcolor: 'rgba(173,255,15,0.15)', color: '#adff0f' }}>
+                    {(mvpPreview?.team ?? 'N').charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography sx={{ fontWeight: 700, fontSize: '1.35rem' }}>
+                    {mvpPreview?.team ?? 'No data'}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+            <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
+              <CardContent>
+                <Typography sx={{ color: '#8e98b0', fontSize: '0.66rem', letterSpacing: '0.08em' }}>MATCH EFFICIENCY</Typography>
+                <Typography sx={{ fontSize: '2rem', fontWeight: 800, mt: 0.3 }}>{selectedTournamentEfficiency}%</Typography>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
+            <CardContent sx={{ p: 0 }}>
+              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', px: 2.2, py: 1.8 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>League Standings</Typography>
+                <Stack direction="row" spacing={0.9}>
+                  <Chip size="small" label="All Groups" sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
+                  <Chip size="small" label="Group A" variant="outlined" />
+                  <Chip size="small" label="Group B" variant="outlined" />
+                </Stack>
+              </Stack>
+
+              {selectedTournamentStandings.length === 0 ? (
+                <Typography color="text.secondary" sx={{ px: 2.2, pb: 2.2, fontSize: '0.84rem' }}>
+                  Standings will appear once teams register.
+                </Typography>
+              ) : (
+                <>
+                  <Box sx={{ borderTop: '1px solid rgba(159,176,201,0.12)', borderBottom: '1px solid rgba(159,176,201,0.12)', overflowX: 'auto' }}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '70px minmax(180px, 1.6fr) repeat(6, 52px) 80px',
+                        px: 2.2,
+                        py: 1.05,
+                        minWidth: 760,
+                        color: '#99a3bb',
+                        fontSize: '0.68rem',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit' }}>Rank</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit' }}>Team</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>GP</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>W</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>D</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>L</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>GD</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>PTS</Typography>
+                      <Typography variant="caption" sx={{ color: 'inherit', fontSize: 'inherit', textAlign: 'center' }}>Last 5</Typography>
+                    </Box>
+
+                    {selectedTournamentStandings.slice(0, 8).map((standing, index) => {
+                      const formBadges = [
+                        standing.won > standing.lost ? 'W' : 'D',
+                        standing.won >= standing.drawn ? 'W' : 'D',
+                        standing.lost > 0 ? 'L' : 'W',
+                        standing.drawn > 0 ? 'D' : 'W',
+                        standing.won > 0 ? 'W' : 'D',
+                      ]
+
+                      return (
+                        <Box
+                          key={`standing-inline-${standing.team}`}
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: '70px minmax(180px, 1.6fr) repeat(6, 52px) 80px',
+                            px: 2.2,
+                            py: 1.15,
+                            minWidth: 760,
+                            alignItems: 'center',
+                            borderTop: index === 0 ? '1px solid rgba(159,176,201,0.1)' : '1px solid rgba(159,176,201,0.08)',
+                          }}
+                        >
+                          <Typography sx={{ color: '#d6deee', fontWeight: 700 }}>0{index + 1}</Typography>
+                          <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
+                            {teamLogosByName[standing.team] ? (
+                              <Avatar src={teamLogosByName[standing.team]} sx={{ width: 20, height: 20 }} />
+                            ) : (
+                              <Avatar sx={{ width: 20, height: 20, fontSize: '0.62rem', bgcolor: 'rgba(173,255,15,0.15)', color: '#adff0f' }}>
+                                {standing.team.charAt(0).toUpperCase()}
+                              </Avatar>
+                            )}
+                            <Typography sx={{ fontWeight: 700 }}>{standing.team}</Typography>
+                          </Stack>
+                          <Typography sx={{ textAlign: 'center' }}>{standing.played}</Typography>
+                          <Typography sx={{ textAlign: 'center' }}>{standing.won}</Typography>
+                          <Typography sx={{ textAlign: 'center' }}>{standing.drawn}</Typography>
+                          <Typography sx={{ textAlign: 'center' }}>{standing.lost}</Typography>
+                          <Typography sx={{ textAlign: 'center', color: standing.goalDifference >= 0 ? '#adff0f' : '#f16f77', fontWeight: 700 }}>
+                            {standing.goalDifference >= 0 ? `+${standing.goalDifference}` : standing.goalDifference}
+                          </Typography>
+                          <Typography sx={{ textAlign: 'center', fontWeight: 800 }}>{standing.points}</Typography>
+                          <Stack direction="row" spacing={0.4} sx={{ justifyContent: 'center' }}>
+                            {formBadges.map((badge, badgeIndex) => (
+                              <Box
+                                key={`${standing.team}-form-${badgeIndex}`}
+                                sx={{
+                                  width: 14,
+                                  height: 14,
+                                  borderRadius: 0.6,
+                                  bgcolor: badge === 'W' ? '#2ed598' : badge === 'L' ? '#f16f77' : '#7f8799',
+                                  color: '#fff',
+                                  fontSize: '0.54rem',
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {badge}
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )
+                    })}
+                  </Box>
+
+                  <Box sx={{ py: 1.4, textAlign: 'center' }}>
+                    <Typography sx={{ color: '#a8b1c7', fontWeight: 600, fontSize: '0.84rem' }}>
+                      View All {selectedTournamentTeams.length} Teams
+                    </Typography>
+                  </Box>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+       
+        </Stack>
+      )}
     </Stack>
   )
 }

@@ -84,8 +84,12 @@ const matchSchema = new Schema(
     awayScore: { type: Number, required: false },
     category: { type: String, required: true },
     sport: { type: String, required: true },
+    createdByTeam: { type: String, required: false },
+    createdByAccountId: { type: String, required: false },
+    likedByAccountIds: { type: [String], required: true, default: [] },
+    ratedByAccountIds: { type: [String], required: true, default: [] },
     status: { type: String, required: true },
-    comments: [{ type: String, required: true }],
+    comments: [{ type: Schema.Types.Mixed, required: true }],
     engagement: { type: engagementSchema, required: true },
   },
   { versionKey: false },
@@ -214,6 +218,138 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   password: account.password,
 })
 
+interface StoredCommentReply {
+  id: string
+  text: string
+  authorName: string
+  authorAccountId?: string
+  likes: number
+  likedByAccountIds: string[]
+  createdAt: string
+}
+
+interface StoredComment {
+  id: string
+  text: string
+  authorName: string
+  authorAccountId?: string
+  likes: number
+  likedByAccountIds: string[]
+  createdAt: string
+  replies: StoredCommentReply[]
+}
+
+const normalizeStoredComments = (input: unknown): StoredComment[] => {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input
+    .map((entry, index) => {
+      if (typeof entry === 'string') {
+        const text = entry.trim()
+        if (!text || text === 'Match announced.') {
+          return null
+        }
+
+        const splitIndex = text.indexOf(':')
+        const authorName = splitIndex > 0 ? text.slice(0, splitIndex).trim() : 'Unknown'
+        const commentText = splitIndex > 0 ? text.slice(splitIndex + 1).trim() : text
+
+        return {
+          id: `legacy-${index + 1}`,
+          text: commentText,
+          authorName: authorName || 'Unknown',
+          likes: 0,
+          likedByAccountIds: [],
+          createdAt: new Date(0).toISOString(),
+          replies: [],
+        } satisfies StoredComment
+      }
+
+      if (!entry || typeof entry !== 'object') {
+        return null
+      }
+
+      const raw = entry as {
+        id?: unknown
+        text?: unknown
+        authorName?: unknown
+        authorAccountId?: unknown
+        likes?: unknown
+        likedByAccountIds?: unknown
+        createdAt?: unknown
+        replies?: unknown
+      }
+
+      const text = typeof raw.text === 'string' ? raw.text.trim() : ''
+      if (!text) {
+        return null
+      }
+
+      const replies = Array.isArray(raw.replies)
+        ? raw.replies
+            .map((reply, replyIndex) => {
+              if (!reply || typeof reply !== 'object') {
+                return null
+              }
+
+              const rawReply = reply as {
+                id?: unknown
+                text?: unknown
+                authorName?: unknown
+                authorAccountId?: unknown
+                likes?: unknown
+                likedByAccountIds?: unknown
+                createdAt?: unknown
+              }
+
+              const replyText = typeof rawReply.text === 'string' ? rawReply.text.trim() : ''
+              if (!replyText) {
+                return null
+              }
+
+              return {
+                id: typeof rawReply.id === 'string' && rawReply.id.trim() ? rawReply.id : `reply-${index + 1}-${replyIndex + 1}`,
+                text: replyText,
+                authorName:
+                  typeof rawReply.authorName === 'string' && rawReply.authorName.trim()
+                    ? rawReply.authorName.trim()
+                    : 'Unknown',
+                authorAccountId:
+                  typeof rawReply.authorAccountId === 'string' && rawReply.authorAccountId.trim()
+                    ? rawReply.authorAccountId.trim()
+                    : undefined,
+                likes: Number.isFinite(rawReply.likes as number) ? Math.max(0, Number(rawReply.likes)) : 0,
+                likedByAccountIds: Array.isArray(rawReply.likedByAccountIds)
+                  ? rawReply.likedByAccountIds.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+                  : [],
+                createdAt:
+                  typeof rawReply.createdAt === 'string' && rawReply.createdAt.trim()
+                    ? rawReply.createdAt
+                    : new Date(0).toISOString(),
+              } satisfies StoredCommentReply
+            })
+            .filter((reply): reply is StoredCommentReply => reply !== null)
+        : []
+
+      return {
+        id: typeof raw.id === 'string' && raw.id.trim() ? raw.id : `comment-${index + 1}`,
+        text,
+        authorName: typeof raw.authorName === 'string' && raw.authorName.trim() ? raw.authorName.trim() : 'Unknown',
+        authorAccountId:
+          typeof raw.authorAccountId === 'string' && raw.authorAccountId.trim() ? raw.authorAccountId.trim() : undefined,
+        likes: Number.isFinite(raw.likes as number) ? Math.max(0, Number(raw.likes)) : 0,
+        likedByAccountIds: Array.isArray(raw.likedByAccountIds)
+          ? raw.likedByAccountIds.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+          : [],
+        createdAt: typeof raw.createdAt === 'string' && raw.createdAt.trim() ? raw.createdAt : new Date(0).toISOString(),
+        replies,
+      } satisfies StoredComment
+    })
+    .filter((comment): comment is StoredComment => comment !== null)
+}
+
 const makeEntityId = () => `${Date.now()}-${Math.floor(Math.random() * 10_000)}`
 
 const buildKickoffIso = (date: string, time: string) => {
@@ -275,29 +411,57 @@ export const store = {
   getMatches: async () => MatchModel.find().sort({ kickoff: 1 }).lean(),
   getMatchesForTeam: async (teamName: string) =>
     MatchModel.find({ $or: [{ homeTeam: teamName }, { awayTeam: teamName }] }).sort({ kickoff: 1 }).lean(),
-  getMatchForTeam: async (matchId: string, teamName: string) =>
-    MatchModel.findOne({ id: matchId, $or: [{ homeTeam: teamName }, { awayTeam: teamName }] }).lean(),
+  getMatchForCreatorTeam: async (matchId: string, teamName: string) =>
+    MatchModel.findOne({ id: matchId, createdByTeam: teamName }).lean(),
   getResults: async () => ResultModel.find().sort({ playedOn: -1 }).lean(),
   getTournaments: async () => TournamentModel.find().sort({ createdAt: -1 }).lean<TournamentRecord[]>(),
   getTeam: async () => TeamModel.findOne().sort({ updatedAt: -1 }).lean(),
   getTeams: async () => {
     const [accountTeams, savedTeams] = await Promise.all([
       AccountModel.distinct('team'),
-      TeamModel.find({}, { name: 1, logoUrl: 1, _id: 0 }).lean<Array<{ name?: string; logoUrl?: string }>>(),
+      TeamModel.find({}, { name: 1, logoUrl: 1, manager: 1, county: 1, homeGround: 1, level: 1, bio: 1, updatedAt: 1, _id: 0 })
+        .lean<Array<{ name?: string; logoUrl?: string; manager?: string; county?: string; homeGround?: string; level?: TeamLevel; bio?: string; updatedAt?: Date }>>(),
     ])
 
-    const teamsByName = new Map<string, { name: string; logoUrl?: string }>()
+    const teamsByName = new Map<
+      string,
+      {
+        name: string
+        logoUrl?: string
+        manager?: string
+        county?: string
+        homeGround?: string
+        level?: TeamLevel
+        bio?: string
+        status?: 'active' | 'inactive'
+        updatedAt?: string
+      }
+    >()
+
     for (const teamName of accountTeams) {
       const trimmed = teamName?.trim()
       if (trimmed) {
-        teamsByName.set(trimmed, { name: trimmed })
+        teamsByName.set(trimmed, {
+          name: trimmed,
+          status: 'inactive',
+        })
       }
     }
 
     for (const team of savedTeams) {
       const trimmed = team.name?.trim()
       if (trimmed) {
-        teamsByName.set(trimmed, { name: trimmed, logoUrl: team.logoUrl?.trim() || undefined })
+        teamsByName.set(trimmed, {
+          name: trimmed,
+          logoUrl: team.logoUrl?.trim() || undefined,
+          manager: team.manager?.trim() || undefined,
+          county: team.county?.trim() || undefined,
+          homeGround: team.homeGround?.trim() || undefined,
+          level: team.level,
+          bio: team.bio?.trim() || undefined,
+          status: 'active',
+          updatedAt: team.updatedAt?.toISOString(),
+        })
       }
     }
 
@@ -499,6 +663,8 @@ export const store = {
     category: 'League' | 'Friendly' | 'Cup'
     sport: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
     comment?: string
+    createdByTeam: string
+    createdByAccountId: string
   }) => {
     const match = await MatchModel.create({
       id: makeEntityId(),
@@ -509,6 +675,8 @@ export const store = {
       durationMinutes: payload.durationMinutes,
       category: payload.category,
       sport: payload.sport,
+      createdByTeam: payload.createdByTeam,
+      createdByAccountId: payload.createdByAccountId,
       status: 'scheduled',
       comments: payload.comment?.trim() ? [payload.comment.trim()] : ['Match announced.'],
       engagement: {
@@ -522,13 +690,18 @@ export const store = {
     return match.toObject()
   },
   getFriendlyRequests: async () => {
-    return FriendlyRequestModel.find().sort({ createdAt: -1 }).lean()
+    const requests = await FriendlyRequestModel.find().sort({ createdAt: -1 }).lean()
+    return requests.map((request) => ({
+      ...request,
+      requesterAccountId: request.requesterAccountId?.toString?.() ?? String(request.requesterAccountId),
+      recipientAccountId: request.recipientAccountId?.toString?.() ?? String(request.recipientAccountId),
+    }))
   },
   updateMatchKickoff: async (matchId: string, teamName: string, kickoff: string) => {
     return MatchModel.findOneAndUpdate(
       {
         id: matchId,
-        $or: [{ homeTeam: teamName }, { awayTeam: teamName }],
+        createdByTeam: teamName,
       },
       { kickoff },
       { new: true },
@@ -538,7 +711,7 @@ export const store = {
     return MatchModel.findOneAndUpdate(
       {
         id: matchId,
-        $or: [{ homeTeam: teamName }, { awayTeam: teamName }],
+        createdByTeam: teamName,
       },
       {
         homeScore,
@@ -548,10 +721,233 @@ export const store = {
       { new: true },
     ).lean()
   },
+  likeMatch: async (matchId: string, accountId: string) => {
+    const existing = await MatchModel.findOne({ id: matchId }).lean<
+      | {
+          likedByAccountIds?: string[]
+        }
+      | null
+    >()
+
+    if (!existing) {
+      return { status: 'not-found' as const }
+    }
+
+    if ((existing.likedByAccountIds ?? []).includes(accountId)) {
+      return { status: 'already-liked' as const }
+    }
+
+    const updated = await MatchModel.findOneAndUpdate(
+      { id: matchId, likedByAccountIds: { $ne: accountId } },
+      {
+        $inc: { 'engagement.likes': 1 },
+        $addToSet: { likedByAccountIds: accountId },
+      },
+      { new: true },
+    ).lean()
+
+    if (!updated) {
+      return { status: 'already-liked' as const }
+    }
+
+    return { status: 'updated' as const, match: updated }
+  },
+  commentOnMatch: async (matchId: string, comment: string, authorName: string, authorAccountId: string) => {
+    const safeComment = comment.trim()
+    const safeAuthor = authorName.trim()
+    const existing = await MatchModel.findOne({ id: matchId }).lean<{ comments?: unknown } | null>()
+    if (!existing) {
+      return null
+    }
+
+    const nextComments = normalizeStoredComments(existing.comments)
+    nextComments.push({
+      id: crypto.randomUUID(),
+      text: safeComment,
+      authorName: safeAuthor || 'Unknown',
+      authorAccountId,
+      likes: 0,
+      likedByAccountIds: [],
+      createdAt: new Date().toISOString(),
+      replies: [],
+    })
+
+    return MatchModel.findOneAndUpdate(
+      { id: matchId },
+      {
+        $set: { comments: nextComments },
+        $inc: { 'engagement.comments': 1 },
+      },
+      { new: true },
+    ).lean()
+  },
+  likeCommentOnMatch: async (matchId: string, commentId: string, accountId: string) => {
+    const existing = await MatchModel.findOne({ id: matchId }).lean<{ comments?: unknown } | null>()
+    if (!existing) {
+      return { status: 'not-found' as const }
+    }
+
+    const comments = normalizeStoredComments(existing.comments)
+    let touched = false
+    let alreadyLiked = false
+
+    const nextComments = comments.map((comment) => {
+      if (comment.id === commentId) {
+        if (comment.likedByAccountIds.includes(accountId)) {
+          alreadyLiked = true
+          return comment
+        }
+
+        touched = true
+        return {
+          ...comment,
+          likes: comment.likes + 1,
+          likedByAccountIds: [...comment.likedByAccountIds, accountId],
+        }
+      }
+
+      const nextReplies = comment.replies.map((reply) => {
+        if (reply.id !== commentId) {
+          return reply
+        }
+
+        if (reply.likedByAccountIds.includes(accountId)) {
+          alreadyLiked = true
+          return reply
+        }
+
+        touched = true
+        return {
+          ...reply,
+          likes: reply.likes + 1,
+          likedByAccountIds: [...reply.likedByAccountIds, accountId],
+        }
+      })
+
+      return nextReplies === comment.replies ? comment : { ...comment, replies: nextReplies }
+    })
+
+    if (alreadyLiked) {
+      return { status: 'already-liked' as const }
+    }
+
+    if (!touched) {
+      return { status: 'comment-not-found' as const }
+    }
+
+    const updated = await MatchModel.findOneAndUpdate(
+      { id: matchId },
+      { $set: { comments: nextComments } },
+      { new: true },
+    ).lean()
+
+    if (!updated) {
+      return { status: 'not-found' as const }
+    }
+
+    return { status: 'updated' as const, match: updated }
+  },
+  replyToMatchComment: async (matchId: string, commentId: string, comment: string, authorName: string, authorAccountId: string) => {
+    const safeComment = comment.trim()
+    const safeAuthor = authorName.trim()
+
+    const existing = await MatchModel.findOne({ id: matchId }).lean<{ comments?: unknown } | null>()
+    if (!existing) {
+      return { status: 'not-found' as const }
+    }
+
+    const comments = normalizeStoredComments(existing.comments)
+    let replied = false
+
+    const nextComments = comments.map((entry) => {
+      if (entry.id !== commentId) {
+        return entry
+      }
+
+      replied = true
+      return {
+        ...entry,
+        replies: [
+          ...entry.replies,
+          {
+            id: crypto.randomUUID(),
+            text: safeComment,
+            authorName: safeAuthor || 'Unknown',
+            authorAccountId,
+            likes: 0,
+            likedByAccountIds: [],
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }
+    })
+
+    if (!replied) {
+      return { status: 'comment-not-found' as const }
+    }
+
+    const updated = await MatchModel.findOneAndUpdate(
+      { id: matchId },
+      {
+        $set: { comments: nextComments },
+        $inc: { 'engagement.comments': 1 },
+      },
+      { new: true },
+    ).lean()
+
+    if (!updated) {
+      return { status: 'not-found' as const }
+    }
+
+    return { status: 'updated' as const, match: updated }
+  },
+  rateMatch: async (matchId: string, rating: number, accountId: string) => {
+    const match = await MatchModel.findOne({ id: matchId }).lean<
+      | {
+          ratedByAccountIds?: string[]
+          engagement?: {
+            rating?: number
+            ratingCount?: number
+          }
+        }
+      | null
+    >()
+
+    if (!match) {
+      return { status: 'not-found' as const }
+    }
+
+    if ((match.ratedByAccountIds ?? []).includes(accountId)) {
+      return { status: 'already-rated' as const }
+    }
+
+    const currentAverage = match.engagement?.rating ?? 0
+    const currentCount = match.engagement?.ratingCount ?? 0
+    const nextCount = currentCount + 1
+    const nextAverage = (currentAverage * currentCount + rating) / nextCount
+
+    const updated = await MatchModel.findOneAndUpdate(
+      { id: matchId, ratedByAccountIds: { $ne: accountId } },
+      {
+        $set: {
+          'engagement.rating': Number(nextAverage.toFixed(2)),
+          'engagement.ratingCount': nextCount,
+        },
+        $addToSet: { ratedByAccountIds: accountId },
+      },
+      { new: true },
+    ).lean()
+
+    if (!updated) {
+      return { status: 'already-rated' as const }
+    }
+
+    return { status: 'updated' as const, match: updated }
+  },
   deleteMatchForTeam: async (matchId: string, teamName: string) => {
     const result = await MatchModel.deleteOne({
       id: matchId,
-      $or: [{ homeTeam: teamName }, { awayTeam: teamName }],
+      createdByTeam: teamName,
     })
     return result.deletedCount > 0
   },
@@ -631,6 +1027,8 @@ export const store = {
       durationMinutes: 90,
       category: 'Friendly',
       sport: 'Football',
+      createdByTeam: updatedRequest.recipientTeam,
+      createdByAccountId: ownerAccountId,
       status: 'scheduled',
       comments: [],
       engagement: {

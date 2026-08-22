@@ -19,15 +19,8 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material'
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
-import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined'
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
-import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined'
-import DashboardCustomizeOutlinedIcon from '@mui/icons-material/DashboardCustomizeOutlined'
-import LoginOutlinedIcon from '@mui/icons-material/LoginOutlined'
-import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded'
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -36,11 +29,10 @@ import type { NotificationItem } from '../types'
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
 const links = [
-  { to: '/', label: 'Home', icon: HomeOutlinedIcon },
-  { to: '/matches', label: 'Matches', icon: CalendarMonthOutlinedIcon },
-  { to: '/friendlies', label: 'Friendlies', icon: HandshakeOutlinedIcon },
-  { to: '/team', label: 'Teams', icon: GroupsOutlinedIcon },
-  { to: '/tournaments', label: 'Tournaments', icon: EmojiEventsOutlinedIcon },
+  { to: '/', label: 'Home' },
+  { to: '/friendlies', label: 'Friendlies' },
+  { to: '/team', label: 'Teams' },
+  { to: '/tournaments', label: 'Tournaments' },
 ]
 
 interface AuthOutletContext {
@@ -52,6 +44,7 @@ interface AuthOutletContext {
 
 export function Layout() {
   const location = useLocation()
+  const currentYear = new Date().getFullYear()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register'>('login')
   const [authMessage, setAuthMessage] = useState('')
@@ -199,9 +192,13 @@ export function Layout() {
   }, [loggedInAccountId])
 
   const unreadNotificationCount = notifications.filter((notification) => !notification.read).length
+  const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const canAccessDashboard =
+    Boolean(loggedInUser) &&
+    (normalizedRole === 'coach' || normalizedRole === 'tm' || normalizedRole === 'captain')
 
-  const navLinks = loggedInUser
-    ? [{ to: '/team-dashboard', label: 'Dashboard', icon: DashboardCustomizeOutlinedIcon }, ...links]
+  const navLinks = canAccessDashboard
+    ? [{ to: '/team-dashboard', label: 'Dashboard' }, ...links]
     : links
 
   const handleNotificationRead = async (notificationId: string, alreadyRead: boolean) => {
@@ -225,7 +222,7 @@ export function Layout() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <AppBar
         position="sticky"
         elevation={0}
@@ -247,7 +244,6 @@ export function Layout() {
             <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.25 }}>
               <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                 {navLinks.map((link) => {
-                  const Icon = link.icon
                   const isActive =
                     link.to === '/'
                       ? location.pathname === '/'
@@ -259,7 +255,6 @@ export function Layout() {
                       to={link.to}
                       variant={isActive ? 'contained' : 'text'}
                       color={isActive ? 'primary' : 'inherit'}
-                      startIcon={<Icon sx={{ fontSize: 17 }} />}
                       sx={{
                         borderRadius: 999,
                         fontSize: '0.92rem',
@@ -278,25 +273,37 @@ export function Layout() {
                 })}
               </Stack>
 
-              <IconButton
+              <Button
                 color="inherit"
                 onClick={() => setIsNotificationsOpen((prev) => !prev)}
                 aria-label="Notifications"
-                sx={{ color: 'text.secondary' }}
+                sx={{
+                  color: 'text.secondary',
+                  borderRadius: 999,
+                  minWidth: 0,
+                  px: 1.25,
+                  py: 0.58,
+                }}
               >
                 <Badge badgeContent={unreadNotificationCount} color="primary" overlap="circular" max={99}>
                   <NotificationsNoneOutlinedIcon />
                 </Badge>
-              </IconButton>
+              </Button>
 
-              <IconButton
+              <Button
                 color="inherit"
                 onClick={() => setIsAuthOpen((prev) => !prev)}
                 aria-label="Account"
-                sx={{ color: 'text.secondary' }}
+                sx={{
+                  color: 'text.secondary',
+                  borderRadius: 999,
+                  minWidth: 0,
+                  px: 1.25,
+                  py: 0.58,
+                }}
               >
-                {loggedInUser ? <LoginOutlinedIcon /> : <AccountCircleRoundedIcon />}
-              </IconButton>
+                <AccountCircleRoundedIcon />
+              </Button>
             </Box>
           </Toolbar>
         </Container>
@@ -306,20 +313,23 @@ export function Layout() {
         <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5 }} role="presentation">
           <Stack direction="row" sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              {authView === 'login' ? 'Login' : 'Register'}
+              {loggedInUser ? 'Account' : authView === 'login' ? 'Login' : 'Register'}
             </Typography>
             <IconButton onClick={() => setIsAuthOpen(false)} aria-label="Close authentication drawer">
               <CloseRoundedIcon />
             </IconButton>
           </Stack>
 
-          {loggedInUser && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Signed in: {loggedInUser}
-            </Alert>
-          )}
-
-          {authView === 'login' ? (
+          {loggedInUser ? (
+            <>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Signed in: {loggedInUser}
+              </Alert>
+              <Button onClick={handleLogout} variant="outlined" fullWidth>
+                Logout
+              </Button>
+            </>
+          ) : authView === 'login' ? (
             <Box component="form" onSubmit={handleLogin} sx={{ display: 'grid', gap: 1.5 }}>
               <TextField
                 type="email"
@@ -427,12 +437,6 @@ export function Layout() {
               {authMessage}
             </Alert>
           )}
-
-          {loggedInUser && (
-            <Button onClick={handleLogout} variant="outlined" fullWidth sx={{ mt: 2 }}>
-              Logout
-            </Button>
-          )}
         </Box>
       </Drawer>
 
@@ -485,11 +489,56 @@ export function Layout() {
         </Box>
       </Drawer>
 
-      <Container maxWidth="lg" sx={{ py: 4, px: { xs: 2, md: 3 } }}>
+      <Container maxWidth="lg" sx={{ py: 4, px: { xs: 2, md: 3 }, flex: 1, width: '100%' }}>
         <Outlet
           context={{ loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } satisfies AuthOutletContext}
         />
       </Container>
+
+      <Box
+        component="footer"
+        sx={{
+          borderTop: '1px solid rgba(159,176,201,0.14)',
+          bgcolor: '#0d1524',
+          py: 2.5,
+          mt: 'auto',
+        }}
+      >
+        <Container
+          maxWidth="lg"
+          sx={{
+            px: { xs: 2, md: 3 },
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            gap: 1,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            © {currentYear} Sports Hub. Community football, fixtures, and updates.
+          </Typography>
+          <Stack direction="row" spacing={1.8} sx={{ alignItems: 'center' }}>
+            {links.map((link) => (
+              <Button
+                key={`footer-${link.to}`}
+                component={NavLink}
+                to={link.to}
+                color="inherit"
+                sx={{
+                  minWidth: 0,
+                  p: 0,
+                  color: 'text.secondary',
+                  fontSize: '0.82rem',
+                  '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
+                }}
+              >
+                {link.label}
+              </Button>
+            ))}
+          </Stack>
+        </Container>
+      </Box>
     </Box>
   )
 }
