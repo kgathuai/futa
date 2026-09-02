@@ -8,6 +8,7 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import { api } from '../lib/api'
 import type { TeamSummary } from '../types'
+import { useAutoHide } from '../lib/useAutoHide'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -77,6 +78,7 @@ export function TeamPage() {
   const [logoUrl, setLogoUrl] = useState(teamProfile.logoUrl ?? '')
   const [isDragOver, setIsDragOver] = useState(false)
   const [teamMessage, setTeamMessage] = useState('')
+  useAutoHide(teamMessage, () => setTeamMessage(''))
   const [showCreateTeamForm, setShowCreateTeamForm] = useState(false)
   const [teams, setTeams] = useState<TeamSummary[]>([])
   const [isLoadingTeams, setIsLoadingTeams] = useState(false)
@@ -253,7 +255,7 @@ export function TeamPage() {
                 <Typography variant="overline" color="text.secondary">
                   Team setup
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.2 }}>
+                <Typography variant="h3" sx={{ fontWeight: 800, mb: 1.2, fontSize: { xs: '1.5rem', md: '1.5rem' } }}>
                   Create a team
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -437,7 +439,7 @@ export function TeamPage() {
                       bgcolor: 'rgba(21,23,33,0.96)',
                     }}
                   >
-                    <CardContent sx={{ py: 1.7 }}>
+                    <CardContent sx={{ py: 1 }}>
                       <Box
                         sx={{
                           display: 'grid',
@@ -445,15 +447,15 @@ export function TeamPage() {
                             xs: '1fr',
                             md: 'minmax(0,1.8fr) repeat(4, minmax(0,1fr)) auto',
                           },
-                          gap: { xs: 1.2, md: 1.5 },
+                          gap: { xs: 1, md: 1.2 },
                           alignItems: 'center',
                         }}
                       >
                         <Stack direction="row" spacing={1.3} sx={{ alignItems: 'center' }}>
                           <Box
                             sx={{
-                              width: 84,
-                              height: 84,
+                              width: 56,
+                              height: 56,
                               borderRadius: 1.3,
                               border: '1px solid rgba(137,151,178,0.26)',
                               bgcolor: 'rgba(30,34,50,0.84)',
@@ -463,7 +465,7 @@ export function TeamPage() {
                             }}
                           >
                             {row.logoUrl ? (
-                              <Avatar src={row.logoUrl} alt={`${row.name} logo`} sx={{ width: 66, height: 66, borderRadius: 1.1 }} />
+                              <Avatar src={row.logoUrl} alt={`${row.name} logo`} sx={{ width: 44, height: 44, borderRadius: 1.1 }} />
                             ) : (
                               <Typography sx={{ color: '#8d94a8', fontWeight: 800 }}>
                                 {row.name.slice(0, 1).toUpperCase() || 'T'}
@@ -502,23 +504,23 @@ export function TeamPage() {
                         </Stack>
 
                         <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.76rem' }}>MANAGER</Typography>
-                          <Typography sx={{ fontWeight: 700 }}>{row.manager || 'Not set'}</Typography>
+                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>MANAGER</Typography>
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{row.manager || 'Not set'}</Typography>
                         </Box>
 
                         <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.76rem' }}>COUNTY</Typography>
-                          <Typography sx={{ fontWeight: 700 }}>{row.county || 'Not set'}</Typography>
+                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>COUNTY</Typography>
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{row.county || 'Not set'}</Typography>
                         </Box>
 
                         <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.76rem' }}>LEVEL</Typography>
-                          <Typography sx={{ fontWeight: 800, color: '#9dff20' }}>{row.level || 'Amateur'}</Typography>
+                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>LEVEL</Typography>
+                          <Typography sx={{ fontWeight: 800, fontSize: '0.88rem', color: '#9dff20' }}>{row.level || 'Amateur'}</Typography>
                         </Box>
 
                         <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.76rem' }}>GROUND</Typography>
-                          <Typography sx={{ fontWeight: 700 }}>{row.homeGround || 'Not set'}</Typography>
+                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>GROUND</Typography>
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{row.homeGround || 'Not set'}</Typography>
                         </Box>
 
                         <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>

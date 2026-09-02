@@ -591,6 +591,7 @@ app.post('/api/friendlies', async (req, res) => {
     preferredTime?: string
     location?: string
     note?: string
+    referee?: string
   }
 
   if (
@@ -612,6 +613,7 @@ app.post('/api/friendlies', async (req, res) => {
     preferredTime: body.preferredTime,
     location: body.location,
     note: body.note,
+    referee: body.referee,
   }, user.id)
 
   res.status(201).json(request)
@@ -659,6 +661,183 @@ app.post('/api/friendlies/:requestId/decline', async (req, res) => {
   }
 
   res.json(result)
+})
+
+// ─── Fixture generation helpers ───────────────────────────────────────────────
+
+type Fixture = { home: string; away: string; round: number }
+
+/** Standard round-robin using the rotation algorithm (Berger tables). */
+function roundRobinFixtures(teams: string[]): Fixture[] {
+  const list = teams.length % 2 === 0 ? [...teams] : [...teams, 'BYE']
+  const n = list.length
+  const rounds = n - 1
+  const half = n / 2
+  const fixtures: Fixture[] = []
+
+  for (let r = 0; r < rounds; r++) {
+    for (let i = 0; i < half; i++) {
+      const home = list[i]
+      const away = list[n - 1 - i]
+      if (home !== 'BYE' && away !== 'BYE') {
+        fixtures.push({ home, away, round: r + 1 })
+      }
+    }
+    // Rotate all elements except the first (fixed pin)
+    const last = list.pop()!
+    list.splice(1, 0, last)
+  }
+
+  return fixtures
+}
+
+/** Double round-robin — home+away legs. */
+function doubleRoundRobinFixtures(teams: string[]): Fixture[] {
+  const leg1 = roundRobinFixtures(teams)
+  const totalRounds = leg1.length > 0 ? Math.max(...leg1.map((f) => f.round)) : 0
+  const leg2 = leg1.map((f) => ({ home: f.away, away: f.home, round: f.round + totalRounds }))
+  return [...leg1, ...leg2]
+}
+
+/** Single-elimination knockout — seeds top half vs bottom half. */
+function knockoutFixtures(teams: string[]): Fixture[] {
+  // Pad to next power of two with BYE slots
+  let size = 1
+  while (size < teams.length) size *= 2
+  const seeded = [...teams]
+  while (seeded.length < size) seeded.push('BYE')
+
+  const fixtures: Fixture[] = []
+  let roundTeams = seeded
+  let round = 1
+
+  while (roundTeams.length > 1) {
+    const nextRound: string[] = []
+    for (let i = 0; i < roundTeams.length; i += 2) {
+      const home = roundTeams[i]
+      const away = roundTeams[i + 1]
+      if (home !== 'BYE' && away !== 'BYE') {
+        fixtures.push({ home, away, round })
+      }
+      // winner placeholder — only Round 1 fixtures are concrete
+      nextRound.push(`W${round}-${i / 2 + 1}`)
+    }
+    roundTeams = nextRound
+    round++
+  }
+
+  return fixtures
+}
+
+/** Group stage: split into groups of groupSize, round-robin within each group. */
+function groupStageFixtures(teams: string[], groupSize = 4): Fixture[] {
+  const fixtures: Fixture[] = []
+  for (let g = 0; g * groupSize < teams.length; g++) {
+    const group = teams.slice(g * groupSize, (g + 1) * groupSize)
+    const groupFixtures = roundRobinFixtures(group)
+    for (const f of groupFixtures) {
+      fixtures.push({ ...f, round: f.round }) // rounds are local to group; kept as-is
+    }
+  }
+  return fixtures
+}
+
+// ─── GET /api/tournaments/:id/fixtures ───────────────────────────────────────
+app.get('/api/tournaments/:tournamentId/fixtures', async (req, res) => {
+  const tournamentId = req.params.tournamentId?.trim()
+  if (!tournamentId) {
+    res.status(400).json({ error: 'Tournament id is required.' })
+    return
+  }
+
+  const fixtures = await store.getFixturesForTournament(tournamentId)
+  res.json(fixtures.map((m) => sanitizeMatchForViewer(m as MatchWithInteractions)))
+})
+
+// ─── POST /api/tournaments/:id/generate-fixtures ─────────────────────────────
+app.post('/api/tournaments/:tournamentId/generate-fixtures', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, or captain can generate fixtures.' })
+    return
+  }
+
+  const tournamentId = req.params.tournamentId?.trim()
+  if (!tournamentId) {
+    res.status(400).json({ error: 'Tournament id is required.' })
+    return
+  }
+
+  const tournaments = await store.getTournaments()
+  const tournament = tournaments.find((t) => t.id === tournamentId)
+  if (!tournament) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  if (tournament.ownerTeam !== user.team) {
+    res.status(403).json({ error: 'Only the tournament owner can generate fixtures.' })
+    return
+  }
+
+  const teams = [...new Set(tournament.registeredTeams.map((t) => t.trim()).filter(Boolean))]
+  if (teams.length < 2) {
+    res.status(400).json({ error: 'At least 2 registered teams are required to generate fixtures.' })
+    return
+  }
+
+  // Check fixtures don't already exist
+  const existing = await store.getFixturesForTournament(tournamentId)
+  if (existing.length > 0) {
+    res.status(409).json({ error: 'Fixtures have already been generated for this tournament.' })
+    return
+  }
+
+  const format = tournament.format.toLowerCase()
+  let pairs: Fixture[]
+
+  if (format.includes('knockout') && !format.includes('group')) {
+    pairs = knockoutFixtures(teams)
+  } else if (format.includes('group')) {
+    const groupFixtures = groupStageFixtures(teams, 4)
+    const maxGroupRound = groupFixtures.length > 0 ? Math.max(...groupFixtures.map((f) => f.round)) : 0
+    const knockoutPairs = knockoutFixtures(teams.slice(0, Math.min(teams.length, 8)))
+    pairs = [
+      ...groupFixtures,
+      ...knockoutPairs.map((f) => ({ ...f, round: f.round + maxGroupRound })),
+    ]
+  } else {
+    // League / Round Robin — double round-robin for home+away
+    pairs = doubleRoundRobinFixtures(teams)
+  }
+
+  const sport = tournament.sport as 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+  const category = format.includes('league') || format.includes('round robin') ? 'League' : 'Cup'
+
+  const created = await Promise.all(
+    pairs.map((pair) =>
+      store.addMatch({
+        homeTeam: pair.home,
+        awayTeam: pair.away,
+        venue: tournament.venue,
+        kickoff: new Date(Date.now() + pair.round * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        durationMinutes: 90,
+        category,
+        sport,
+        createdByTeam: user.team,
+        createdByAccountId: user.id,
+        tournamentId,
+        round: pair.round,
+      }),
+    ),
+  )
+
+  res.status(201).json(created.map((m) => sanitizeMatchForViewer(m as MatchWithInteractions, user.id)))
 })
 
 app.get('/api/teams', async (_req, res) => {
@@ -849,13 +1028,22 @@ app.post('/api/tournaments', async (req, res) => {
     format?: string
     name?: string
     period?: string
+    startDate?: string
+    endDate?: string
     venue?: string
     status?: 'upcoming' | 'registration open' | 'ongoing'
     registeredTeams?: string[]
+    maxTeams?: number
   }
 
   if (!body.sport || !body.format || !body.name || !body.period || !body.venue || !body.status) {
     res.status(400).json({ error: 'Missing tournament fields.' })
+    return
+  }
+
+  const maxTeams = body.maxTeams !== undefined ? Number(body.maxTeams) : undefined
+  if (maxTeams !== undefined && (!Number.isInteger(maxTeams) || maxTeams < 2)) {
+    res.status(400).json({ error: 'maxTeams must be an integer of 2 or more.' })
     return
   }
 
@@ -864,10 +1052,13 @@ app.post('/api/tournaments', async (req, res) => {
     format: body.format.trim(),
     name: body.name.trim(),
     period: body.period.trim(),
+    startDate: body.startDate,
+    endDate: body.endDate,
     venue: body.venue.trim(),
     status: body.status,
     ownerTeam: user.team,
     registeredTeams: body.registeredTeams,
+    maxTeams,
   })
 
   res.status(201).json(tournament)
@@ -900,6 +1091,16 @@ app.post('/api/tournaments/:tournamentId/register', async (req, res) => {
   const tournament = await store.registerTeamForTournament(tournamentId, teamName)
   if (!tournament) {
     res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  if (tournament === 'full') {
+    res.status(409).json({ error: 'This tournament is full. No more teams can register.' })
+    return
+  }
+
+  if (tournament === 'closed') {
+    res.status(409).json({ error: 'Registration is not open for this tournament.' })
     return
   }
 

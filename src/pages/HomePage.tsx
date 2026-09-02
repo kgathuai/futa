@@ -4,6 +4,8 @@ import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import { useOutletContext } from 'react-router-dom'
+import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
+import { useAutoHide } from '../lib/useAutoHide'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -44,11 +46,11 @@ const getMatchRuntimeStatus = (kickoff: string, durationMinutes?: number): 'sche
 }
 
 const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
-const statuses = ['All', 'Scheduled', 'Finished', 'League', 'Cup', 'Friendly', 'Tournament']
+const statuses = ['Scheduled','Playing', 'Finished', ]
 
 export function HomePage() {
-  const { matches } = useAppData()
-  const { loggedInTeam } = useOutletContext<AuthOutletContext>()
+  const { matches, updateMatch } = useAppData()
+  const { loggedInTeam, loggedInAccountId, loggedInUser } = useOutletContext<AuthOutletContext>()
   const [selectedSport, setSelectedSport] = useState('All sports')
   const [selectedStatus, setSelectedStatus] = useState('All')
   const [showAnnounceForm, setShowAnnounceForm] = useState(false)
@@ -56,6 +58,9 @@ export function HomePage() {
   const [teamOptions, setTeamOptions] = useState<string[]>([])
   const [groundOptions, setGroundOptions] = useState<string[]>([])
   const [announceMessage, setAnnounceMessage] = useState('')
+  const [engagementMessage, setEngagementMessage] = useState('')
+  useAutoHide(announceMessage, () => setAnnounceMessage(''))
+  useAutoHide(engagementMessage, () => setEngagementMessage(''))
 
   const [awayTeam, setAwayTeam] = useState('')
   const [venue, setVenue] = useState('')
@@ -99,6 +104,95 @@ export function HomePage() {
     return (teamName: string) => teamLogos[teamName]
   }, [teamLogos])
 
+  const handleLike = async (matchId: string): Promise<boolean> => {
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Please log in to like matches.')
+      return false
+    }
+
+    try {
+      const updatedMatch = await api.likeMatch(matchId, token)
+      updateMatch(updatedMatch)
+      setEngagementMessage('Match liked!')
+      return true
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Failed to like match.')
+      return false
+    }
+  }
+
+  const handleComment = async (matchId: string, comment: string): Promise<boolean> => {
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Please log in to comment.')
+      return false
+    }
+
+    try {
+      const updatedMatch = await api.commentOnMatch(matchId, comment, token)
+      updateMatch(updatedMatch)
+      setEngagementMessage('Comment added!')
+      return true
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Failed to add comment.')
+      return false
+    }
+  }
+
+  const handleCommentLike = async (matchId: string, commentId: string): Promise<boolean> => {
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Please log in to like comments.')
+      return false
+    }
+
+    try {
+      const updatedMatch = await api.likeMatchComment(matchId, commentId, token)
+      updateMatch(updatedMatch)
+      return true
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Failed to like comment.')
+      return false
+    }
+  }
+
+  const handleCommentReply = async (matchId: string, commentId: string, replyText: string): Promise<boolean> => {
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Please log in to reply.')
+      return false
+    }
+
+    try {
+      const updatedMatch = await api.replyToMatchComment(matchId, commentId, replyText, token)
+      updateMatch(updatedMatch)
+      setEngagementMessage('Reply added!')
+      return true
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Failed to add reply.')
+      return false
+    }
+  }
+
+  const handleRate = async (matchId: string, rating: number): Promise<boolean> => {
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Please log in to rate matches.')
+      return false
+    }
+
+    try {
+      const updatedMatch = await api.rateMatch(matchId, rating, token)
+      updateMatch(updatedMatch)
+      setEngagementMessage('Match rated!')
+      return true
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Failed to rate match.')
+      return false
+    }
+  }
+
   const filteredMatches = matches.filter((match) => {
     const sportMatch = selectedSport === 'All sports' || match.sport === selectedSport
     const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes)
@@ -123,8 +217,14 @@ export function HomePage() {
   })
 
   return (
-    <Stack spacing={3.25} sx={{ maxWidth: 920 }}>
+    <Stack spacing={3.25} sx={{ width: '100%' }}>
   
+      {engagementMessage && (
+        <Alert severity="info" onClose={() => setEngagementMessage('')}>
+          {engagementMessage}
+        </Alert>
+      )}
+
       {canCreateHere && showAnnounceForm && (
         <Card variant="outlined">
           <CardContent>
@@ -272,22 +372,42 @@ export function HomePage() {
         </Card>
       )}
 
-      <Stack direction="row" spacing={0.9} aria-label="Sport filters" sx={{ flexWrap: 'wrap' }}>
+      <Stack
+        direction="row"
+        aria-label="Sport filters"
+        sx={{
+          width: '100%',
+          display: { xs: 'grid', sm: 'flex' },
+          gridTemplateColumns: { xs: 'repeat(4, minmax(0, 1fr))' },
+          columnGap: { xs: 0.7, sm: 0.9 },
+          rowGap: { xs: 1.6, sm: 0.9 },
+          flexWrap: 'wrap',
+        }}
+      >
         {sports.map((sport) => (
-          <Chip
+          <Button
             key={sport}
-            label={sport}
-            clickable
-            size="small"
-            color={sport === selectedSport ? 'primary' : 'default'}
+            type="button"
             onClick={() => setSelectedSport(sport)}
-            sx={
-              sport === selectedSport
-                ? { color: '#07111f', fontWeight: 700, px: 0.2 }
-                : { borderColor: 'rgba(159,176,201,0.2)', color: 'text.secondary', px: 0.2 }
-            }
-            variant={sport === selectedSport ? 'filled' : 'outlined'}
-          />
+            variant="contained"
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+              minWidth: 0,
+              borderRadius: 999,
+              px: { xs: 0.5, sm: 1.4 },
+              py: 0.55,
+              fontSize: { xs: '0.62rem', sm: '0.75rem' },
+              color: sport === selectedSport ? '#07111f' : '#e7ebf3',
+              backgroundColor: sport === selectedSport ? '#4ce3a3' : '#2d3545',
+              boxShadow: 'none',
+              '&:hover': {
+                backgroundColor: sport === selectedSport ? '#4ce3a3' : '#3a4558',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            {sport}
+          </Button>
         ))}
       </Stack>
 
@@ -310,7 +430,7 @@ export function HomePage() {
         ))}
       </Stack>
 
-      <Box sx={{ display: 'grid', gap: 1.8, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' } }}>
+      <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
         {filteredMatches.map((match) => {
           const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes)
           const firstCommentText = match.comments.find((entry) => entry.text.trim().length > 0)?.text
@@ -421,13 +541,15 @@ export function HomePage() {
                 </Typography>
               ) : null}
 
-              <Stack direction="row" spacing={2.2} sx={{ mt: 1.2, color: 'text.secondary' }}>
-                <Typography variant="body2">👍 {match.engagement.likes} likes</Typography>
-                <Typography variant="body2">💬 {match.engagement.comments} comments</Typography>
-                <Typography variant="body2">
-                  ⭐ {match.engagement.rating.toFixed(1)} ({match.engagement.ratingCount})
-                </Typography>
-              </Stack>
+              <MatchEngagementPanel
+                match={match}
+                canInteract={Boolean(loggedInUser && loggedInAccountId)}
+                onLike={handleLike}
+                onComment={handleComment}
+                onCommentLike={handleCommentLike}
+                onCommentReply={handleCommentReply}
+                onRate={handleRate}
+              />
             </CardContent>
           </Card>
           )

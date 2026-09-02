@@ -3,6 +3,22 @@ import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
 const AUTH_TOKEN_KEY = 'futa_auth_token'
+const loadingListeners = new Set<(loading: boolean) => void>()
+let activeRequests = 0
+
+const setRequestLoading = (loading: boolean) => {
+  activeRequests += loading ? 1 : -1
+  const isLoading = activeRequests > 0
+  loadingListeners.forEach((listener) => listener(isLoading))
+}
+
+export const subscribeToApiLoading = (listener: (loading: boolean) => void) => {
+  loadingListeners.add(listener)
+  listener(activeRequests > 0)
+  return () => {
+    loadingListeners.delete(listener)
+  }
+}
 
 type RequestMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
@@ -16,6 +32,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   let response: Response
 
   try {
+    setRequestLoading(true)
     response = await fetch(path, {
       method: options.method ?? 'GET',
       headers: {
@@ -25,8 +42,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     })
   } catch {
+    setRequestLoading(false)
     throw new Error('Cannot reach the API. Ensure the backend server is running and reachable.')
   }
+  setRequestLoading(false)
 
   if (!response.ok) {
     const errorPayload = (await response.json().catch(() => null)) as { error?: string } | null
@@ -147,9 +166,12 @@ export const api = {
       format: string
       name: string
       period: string
+      startDate?: string
+      endDate?: string
       venue: string
       status: TournamentStatus
       registeredTeams?: string[]
+      maxTeams?: number
     },
     token: string,
   ) =>
@@ -160,6 +182,15 @@ export const api = {
     }),
   registerTournamentTeam: (tournamentId: string, token: string) =>
     request<TournamentItem>(`/api/tournaments/${tournamentId}/register`, {
+      method: 'POST',
+      token,
+    }),
+  getFixtures: (tournamentId: string) =>
+    request<MatchAnnouncement[]>(`/api/tournaments/${tournamentId}/fixtures`, {
+      token: localStorage.getItem(AUTH_TOKEN_KEY),
+    }),
+  generateFixtures: (tournamentId: string, token: string) =>
+    request<MatchAnnouncement[]>(`/api/tournaments/${tournamentId}/generate-fixtures`, {
       method: 'POST',
       token,
     }),
@@ -187,6 +218,7 @@ export const api = {
       preferredTime: string
       location: string
       note: string
+      referee?: string
     },
     token?: string | null,
   ) =>
@@ -203,6 +235,12 @@ export const api = {
   declineFriendlyRequest: (requestId: string, token: string) =>
     request(`/api/friendlies/${requestId}/decline`, {
       method: 'POST',
+      token,
+    }),
+  updateFriendlyRequestStatus: (requestId: string, status: 'pending' | 'accepted' | 'declined', token: string) =>
+    request(`/api/friendlies/${requestId}/status`, {
+      method: 'PATCH',
+      body: { status },
       token,
     }),
   updateMatchKickoff: (matchId: string, kickoff: string, token: string) =>

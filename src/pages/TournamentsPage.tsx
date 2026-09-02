@@ -3,6 +3,9 @@ import { Alert, Avatar, Box, Button, Card, CardContent, Chip, MenuItem, Stack, T
 import { useLocation, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
+import { FixturesTab } from '../components/FixturesTab'
+import { useAutoHide } from '../lib/useAutoHide'
+import { getTournamentStatus } from '../lib/tournamentStatus'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -31,6 +34,14 @@ export function TournamentsPage() {
   const [format, setFormat] = useState('Knockout')
   const [venue, setVenue] = useState('')
   const [status, setStatus] = useState<TournamentStatus>('upcoming')
+  const [maxTeams, setMaxTeams] = useState<number | ''>('')
+  const [activeTab, setActiveTab] = useState<'standings' | 'fixtures'>('standings')
+  const [fixtures, setFixtures] = useState<MatchAnnouncement[]>([])
+  const [isLoadingFixtures, setIsLoadingFixtures] = useState(false)
+  const [statusClock, setStatusClock] = useState(Date.now())
+  const [generateError, setGenerateError] = useState('')
+  useAutoHide(message, () => setMessage(''))
+  useAutoHide(generateError, () => setGenerateError(''))
   const canCreateHere = false
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
   const canRegisterTeam = Boolean(
@@ -39,11 +50,25 @@ export function TournamentsPage() {
       (normalizedRole === 'captain' || normalizedRole === 'tm' || normalizedRole === 'coach'),
   )
 
-  const filteredTournaments = tournaments.filter((t) => selectedSport === 'All sports' || t.sport === selectedSport)
+  useEffect(() => {
+    const timer = window.setInterval(() => setStatusClock(Date.now()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const currentTournaments = tournaments.map((tournament) => ({
+    ...tournament,
+    status: getTournamentStatus(tournament, statusClock),
+  }))
+  const filteredTournaments = currentTournaments.filter((t) => selectedSport === 'All sports' || t.sport === selectedSport)
+  const runningTournaments = filteredTournaments.filter((tournament) => tournament.status === 'ongoing')
   const selectedTournament = selectedTournamentId
     ? filteredTournaments.find((item) => item.id === selectedTournamentId) ?? null
     : null
+  const isOwner = Boolean(loggedInTeam && selectedTournament?.ownerTeam === loggedInTeam)
   const selectedTournamentTeams = selectedTournament?.registeredTeams ?? []
+  const isTournamentFull = Boolean(
+    selectedTournament?.maxTeams && selectedTournamentTeams.length >= selectedTournament.maxTeams,
+  )
   const sortedSelectedTournamentTeams = useMemo(
     () =>
       [...new Set(selectedTournamentTeams)].sort((teamA, teamB) =>
@@ -203,11 +228,42 @@ export function TournamentsPage() {
     }
   }
 
+  const handleGenerateFixtures = async () => {
+    if (!selectedTournament) return
+    const token = api.getToken()
+    if (!token) {
+      setGenerateError('Please log in to generate fixtures.')
+      return
+    }
+    setGenerateError('')
+    try {
+      const data = await api.generateFixtures(selectedTournament.id, token)
+      setFixtures(data)
+    } catch (error) {
+      setGenerateError(error instanceof Error ? error.message : 'Failed to generate fixtures.')
+    }
+  }
+
   useEffect(() => {
     void loadTournaments()
     void loadMatches()
     void loadTeams()
   }, [])
+
+  // Reset tab + reload fixtures whenever selected tournament changes
+  useEffect(() => {
+    setActiveTab('standings')
+    setFixtures([])
+    setGenerateError('')
+    if (!selectedTournamentId) return
+    let cancelled = false
+    setIsLoadingFixtures(true)
+    api.getFixtures(selectedTournamentId)
+      .then((data) => { if (!cancelled) setFixtures(data) })
+      .catch(() => { if (!cancelled) setFixtures([]) })
+      .finally(() => { if (!cancelled) setIsLoadingFixtures(false) })
+    return () => { cancelled = true }
+  }, [selectedTournamentId])
 
   useEffect(() => {
     const targetId = navState?.openTournamentId
@@ -272,6 +328,7 @@ export function TournamentsPage() {
           period: 'TBD',
           venue: safeVenue,
           status,
+          maxTeams: maxTeams !== '' ? maxTeams : undefined,
         },
         token,
       )
@@ -289,6 +346,7 @@ export function TournamentsPage() {
     setFormat('Knockout')
     setVenue('')
     setStatus('upcoming')
+    setMaxTeams('')
   }
 
   const handleRegisterTeam = async () => {
@@ -388,6 +446,18 @@ export function TournamentsPage() {
                 <MenuItem value="ongoing">ongoing</MenuItem>
               </TextField>
 
+              <TextField
+                label="Max teams (optional)"
+                type="number"
+                value={maxTeams}
+                onChange={(event) => {
+                  const val = event.target.value
+                  setMaxTeams(val === '' ? '' : Math.max(2, Math.floor(Number(val))))
+                }}
+                inputProps={{ min: 2, step: 1 }}
+                helperText="Leave blank for unlimited. Minimum 2."
+              />
+
               <Stack direction="row" spacing={1}>
                 <Button type="submit" variant="contained">
                   Create tournament
@@ -403,7 +473,18 @@ export function TournamentsPage() {
 
       {message && <Alert severity="info">{message}</Alert>}
 
-      <Stack direction="row" spacing={1} aria-label="Sport filters" sx={{ flexWrap: 'wrap' }}>
+      <Stack
+        direction="row"
+        aria-label="Sport filters"
+        sx={{
+          width: '100%',
+          display: { xs: 'grid', sm: 'flex' },
+          gridTemplateColumns: { xs: 'repeat(4, minmax(0, 1fr))' },
+          flexWrap: 'wrap',
+          columnGap: { xs: 0.7, sm: 1.4 },
+          rowGap: { xs: 1.6, sm: 1 },
+        }}
+      >
         {sports.map((sport) => (
           <Chip
             key={sport}
@@ -411,11 +492,10 @@ export function TournamentsPage() {
             clickable
             color={sport === selectedSport ? 'primary' : 'default'}
             onClick={() => setSelectedSport(sport)}
-            sx={
-              sport === selectedSport
-                ? { color: '#07111f', fontWeight: 700, '& .MuiChip-label': { fontSize: { xs: '0.64rem', sm: '0.7rem' } } }
-                : { '& .MuiChip-label': { fontSize: { xs: '0.64rem', sm: '0.7rem' } } }
-            }
+            sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0,
+              ...(sport === selectedSport ? { color: '#07111f', fontWeight: 700 } : {}),
+              '& .MuiChip-label': { fontSize: { xs: '0.62rem', sm: '0.7rem' }, px: { xs: 0.5, sm: 1.2 } },
+            }}
           />
         ))}
       </Stack>
@@ -429,6 +509,63 @@ export function TournamentsPage() {
         <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
           No tournaments yet. Created tournaments will appear here.
         </Typography>
+      )}
+
+      {!isLoadingTournaments && filteredTournaments.length > 0 && (
+        <Card
+          variant="outlined"
+          sx={{
+            borderColor: 'rgba(173,255,15,0.35)',
+            bgcolor: 'rgba(17,19,31,0.94)',
+          }}
+        >
+          <CardContent>
+            <Typography sx={{ fontWeight: 700, mb: 1.2 }}>Running Tournaments</Typography>
+            {runningTournaments.length === 0 ? (
+              <Typography color="text.secondary" sx={{ fontSize: '0.84rem' }}>
+                No tournaments are running right now.
+              </Typography>
+            ) : (
+            <Stack spacing={1}>
+              {runningTournaments.map((item) => (
+                <Box
+                  key={`running-tournament-${item.id}`}
+                  onClick={() => setSelectedTournamentId(item.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedTournamentId(item.id)
+                    }
+                  }}
+                  sx={{
+                    border: '1px solid rgba(173,255,15,0.22)',
+                    borderRadius: 1.2,
+                    px: 1.2,
+                    py: 1,
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr auto', md: 'minmax(0, 2fr) minmax(0, 1fr) auto' },
+                    gap: 1,
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    '&:hover': { borderColor: 'rgba(173,255,15,0.65)' },
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ fontWeight: 700 }}>{item.name}</Typography>
+                    <Typography sx={{ color: '#8f98af', fontSize: '0.8rem' }}>{item.period}</Typography>
+                  </Box>
+                  <Typography sx={{ color: '#8f98af', fontSize: '0.86rem', display: { xs: 'none', md: 'block' } }}>
+                    {item.sport} · {item.format}
+                  </Typography>
+                  <Chip label="ongoing" size="small" color="success" />
+                </Box>
+              ))}
+            </Stack>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {showTournamentList && filteredTournaments.length > 0 && (
@@ -490,17 +627,17 @@ export function TournamentsPage() {
               <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' } }}>
                 <Stack spacing={1.2}>
                   <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
-                    <Chip label={selectedTournament.status === 'ongoing' ? 'ACTIVE' : 'UPCOMING'} size="small" sx={{ bgcolor: '#adff0f', color: '#122000', fontWeight: 800 }} />
+                    <Chip label={selectedTournament.status.toUpperCase()} size="small" sx={{ bgcolor: selectedTournament.status === 'finished' ? '#444958' : '#adff0f', color: selectedTournament.status === 'finished' ? '#f4f7ff' : '#122000', fontWeight: 800, height: { xs: 28, md: 34 }, '& .MuiChip-label': { fontSize: { xs: '0.68rem', md: '0.85rem' }, px: { xs: 1, md: 1.4 } } }} />
                   </Stack>
 
-                  <Typography variant="h3" sx={{ fontSize: { xs: '1.5rem', md: '2.05rem' }, fontWeight: 800, lineHeight: 1.1 }}>
+                  <Typography variant="h3" sx={{ fontSize: { xs: '1.15rem', md: '2.05rem' }, fontWeight: 800, lineHeight: 1.1 }}>
                     {selectedTournament.name}
                   </Typography>
 
                   <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', color: '#99a3bb' }}>
                     <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournament.period}</Typography>
                     <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournament.venue}</Typography>
-                    <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournamentTeams.length} Teams Participating</Typography>
+                    <Typography sx={{ fontSize: '0.84rem' }}>{selectedTournamentTeams.length} Teams{selectedTournament.maxTeams ? ` / ${selectedTournament.maxTeams} Max` : ' Participating'}</Typography>
                   </Stack>
                 </Stack>
 
@@ -514,21 +651,32 @@ export function TournamentsPage() {
                   }}
                 >
                   <Typography sx={{ color: '#f4f7ff', fontWeight: 700, fontSize: '0.9rem', mb: 1 }}>
-                    {selectedTournament.status === 'registration open' ? 'REGISTRATION OPEN' : 'TOURNAMENT DESK'}
+                    {selectedTournament.status === 'registration open' ? 'REGISTRATION OPEN' : selectedTournament.status === 'finished' ? 'TOURNAMENT FINISHED' : 'TOURNAMENT DESK'}
                   </Typography>
                   <Typography sx={{ color: '#99a3bb', fontSize: '0.8rem', mb: 1.6 }}>
-                    {selectedTournament.status === 'registration open'
+                    {isTournamentFull
+                      ? 'This tournament is full. No more teams can register.'
+                      : selectedTournament.status === 'finished'
+                      ? 'This tournament has ended. Registration is closed.'
+                      : selectedTournament.status === 'registration open'
                       ? 'Spots are available. Register your team now.'
                       : 'Manage participants and keep standings updated.'}
                   </Typography>
+                  {selectedTournament.maxTeams && (
+                    <Typography sx={{ color: isTournamentFull ? '#f16f77' : '#adff0f', fontSize: '0.78rem', fontWeight: 700, mb: 1.2 }}>
+                      {isTournamentFull
+                        ? `Full — ${selectedTournament.maxTeams}/${selectedTournament.maxTeams} teams`
+                        : `${selectedTournamentTeams.length}/${selectedTournament.maxTeams} teams registered`}
+                    </Typography>
+                  )}
                   <Button
                     fullWidth
                     variant="contained"
                     onClick={() => void handleRegisterTeam()}
-                    disabled={!canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam)}
+                    disabled={selectedTournament.status !== 'registration open' || !canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam) || isTournamentFull}
                     sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
                   >
-                    Join Tournament
+                    {isTournamentFull ? 'Tournament Full' : selectedTournament.status === 'finished' ? 'Registration Closed' : selectedTournament.status === 'upcoming' ? 'Registration Not Open' : 'Join Tournament'}
                   </Button>
                 </Box>
               </Box>
@@ -539,7 +687,7 @@ export function TournamentsPage() {
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
               <CardContent>
                 <Typography sx={{ color: '#8e98b0', fontSize: '0.66rem', letterSpacing: '0.08em' }}>TOTAL PRIZE POOL</Typography>
-                <Typography sx={{ fontSize: '2rem', fontWeight: 800, mt: 0.3 }}>${estimatedPrizePool.toLocaleString()}</Typography>
+                <Typography sx={{ fontSize: { xs: '1.35rem', md: '2rem' }, fontWeight: 800, mt: 0.3 }}>Ksh {estimatedPrizePool.toLocaleString()}</Typography>
               </CardContent>
             </Card>
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
@@ -558,15 +706,57 @@ export function TournamentsPage() {
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
               <CardContent>
                 <Typography sx={{ color: '#8e98b0', fontSize: '0.66rem', letterSpacing: '0.08em' }}>MATCH EFFICIENCY</Typography>
-                <Typography sx={{ fontSize: '2rem', fontWeight: 800, mt: 0.3 }}>{selectedTournamentEfficiency}%</Typography>
+                <Typography sx={{ fontSize: { xs: '1.35rem', md: '2rem' }, fontWeight: 800, mt: 0.3 }}>{selectedTournamentEfficiency}%</Typography>
               </CardContent>
             </Card>
           </Box>
 
+          {/* Tab switcher */}
+          <Stack direction="row" spacing={0.8}>
+            {(['standings', 'fixtures'] as const).map((tab) => (
+              <Button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  textTransform: 'capitalize',
+                  px: 2,
+                  py: 0.6,
+                  borderRadius: 1.5,
+                  bgcolor: activeTab === tab ? '#adff0f' : 'rgba(255,255,255,0.05)',
+                  color: activeTab === tab ? '#102100' : '#8090b0',
+                  '&:hover': { bgcolor: activeTab === tab ? '#99e600' : 'rgba(255,255,255,0.09)' },
+                }}
+              >
+                {tab === 'standings' ? '📊 Standings' : '📅 Fixtures'}
+              </Button>
+            ))}
+          </Stack>
+
+          {/* Fixtures tab */}
+          {activeTab === 'fixtures' && (
+            <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
+              <CardContent sx={{ p: { xs: 2, md: 2.4 } }}>
+                <FixturesTab
+                  tournament={selectedTournament}
+                  fixtures={fixtures}
+                  isLoading={isLoadingFixtures}
+                  isOwner={isOwner}
+                  teamLogosByName={teamLogosByName}
+                  onGenerate={handleGenerateFixtures}
+                  generateError={generateError}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Standings tab */}
+          {activeTab === 'standings' && (
           <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
             <CardContent sx={{ p: 0 }}>
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', px: 2.2, py: 1.8 }}>
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>League Standings</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, fontSize: { xs: '1rem', md: '1.25rem' } }}>League Standings</Typography>
                 <Stack direction="row" spacing={0.9}>
                   <Chip size="small" label="All Groups" sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} />
                   <Chip size="small" label="Group A" variant="outlined" />
@@ -680,8 +870,8 @@ export function TournamentsPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
-       
         </Stack>
       )}
     </Stack>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { Link, Navigate, useOutletContext } from 'react-router-dom'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
@@ -16,6 +16,8 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import type { FriendlyRequest, MatchAnnouncement, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import { useAutoHide } from '../lib/useAutoHide'
+import { getTournamentStatus } from '../lib/tournamentStatus'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -77,6 +79,10 @@ export function TeamDashboardPage() {
 
   const [globalMessage, setGlobalMessage] = useState('')
   const [globalError, setGlobalError] = useState('')
+  useAutoHide(globalMessage, () => setGlobalMessage(''))
+  useAutoHide(globalError, () => setGlobalError(''))
+  const [showSignedIn, setShowSignedIn] = useState(true)
+  useAutoHide(loggedInUser ?? '', () => setShowSignedIn(false), 5000)
   const [openCreateForm, setOpenCreateForm] = useState<CreateFormKey | null>(null)
 
   const [awayTeam, setAwayTeam] = useState('')
@@ -92,6 +98,7 @@ export function TeamDashboardPage() {
   const [friendlyPreferredDate, setFriendlyPreferredDate] = useState('')
   const [friendlyPreferredTime, setFriendlyPreferredTime] = useState('')
   const [friendlyLocation, setFriendlyLocation] = useState('')
+  const [friendlyReferee, setFriendlyReferee] = useState('')
   const [friendlyNote, setFriendlyNote] = useState('')
 
   const [teamName, setTeamName] = useState(team.name)
@@ -112,6 +119,7 @@ export function TeamDashboardPage() {
   const [resultReportedBy, setResultReportedBy] = useState('')
 
   const [tournaments, setTournaments] = useState<TournamentItem[]>([])
+  const [statusClock, setStatusClock] = useState(Date.now())
   const [dashboardFriendlies, setDashboardFriendlies] = useState<FriendlyRequest[]>([])
   const [tournamentName, setTournamentName] = useState('')
   const [tournamentSport, setTournamentSport] = useState<MatchAnnouncement['sport']>('Football')
@@ -123,6 +131,8 @@ export function TeamDashboardPage() {
   const [selectedBookingStatusFilter, setSelectedBookingStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'declined'>('all')
   const [bookingSortDirection, setBookingSortDirection] = useState<'desc' | 'asc'>('desc')
   const [currentBookingPage, setCurrentBookingPage] = useState(1)
+  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<string | null>(null)
+  const [showMatchHistory, setShowMatchHistory] = useState(false)
 
   const [editingKickoffByMatchId, setEditingKickoffByMatchId] = useState<Record<string, string>>({})
   const [editingHomeScoreByMatchId, setEditingHomeScoreByMatchId] = useState<Record<string, number>>({})
@@ -210,12 +220,20 @@ export function TeamDashboardPage() {
       return []
     }
 
-    return tournaments.filter(
+    return tournaments.map((tournament) => ({
+      ...tournament,
+      status: getTournamentStatus(tournament, statusClock),
+    })).filter(
       (tournament) =>
         tournament.ownerTeam === loggedInTeam ||
         tournament.registeredTeams.includes(loggedInTeam),
     )
-  }, [loggedInTeam, tournaments])
+  }, [loggedInTeam, statusClock, tournaments])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setStatusClock(Date.now()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     setTeamName(team.name)
@@ -356,6 +374,7 @@ export function TeamDashboardPage() {
           preferredTime: friendlyPreferredTime,
           location: friendlyLocation,
           note: friendlyNote,
+          referee: friendlyReferee,
         },
         token,
       )
@@ -364,6 +383,7 @@ export function TeamDashboardPage() {
       setFriendlyPreferredDate('')
       setFriendlyPreferredTime('')
       setFriendlyLocation('')
+      setFriendlyReferee('')
       setFriendlyNote('')
       setOpenCreateForm(null)
       setGlobalError('')
@@ -487,6 +507,8 @@ export function TeamDashboardPage() {
           format: createdTournament.format,
           name: createdTournament.name,
           period: createdTournament.period,
+          startDate: tournamentStartDate,
+          endDate: tournamentEndDate,
           venue: createdTournament.venue,
           status: createdTournament.status,
           registeredTeams: createdTournament.registeredTeams,
@@ -847,8 +869,8 @@ export function TeamDashboardPage() {
 
       {!loggedInUser && <Alert severity="info">Log in to use dashboard creation tools.</Alert>}
 
-      {loggedInUser && (
-        <Alert severity="success">
+      {loggedInUser && showSignedIn && (
+        <Alert severity="success" onClose={() => setShowSignedIn(false)}>
           Signed in as {loggedInUser}
           {loggedInTeam ? ` · ${loggedInTeam}` : ''}
           {loggedInRole ? ` · ${loggedInRole}` : ''}
@@ -870,10 +892,12 @@ export function TeamDashboardPage() {
           }}
         >
           <CardContent>
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1}
-              sx={{ alignItems: { xs: 'stretch', md: 'center' }, flexWrap: 'wrap' }}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
+                gap: 1,
+              }}
             >
               {canCreateMatches && (
                 <Button variant="contained" onClick={() => toggleCreateForm('match')}>
@@ -899,7 +923,7 @@ export function TeamDashboardPage() {
                   Manage My Matches
                 </Button>
               )}
-            </Stack>
+            </Box>
           </CardContent>
         </Card>
       ) : (
@@ -1170,6 +1194,19 @@ export function TeamDashboardPage() {
                     {groundOptions.map((groundOption) => (
                       <MenuItem key={groundOption} value={groundOption}>
                         {groundOption}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    select
+                    label="Referee"
+                    value={friendlyReferee}
+                    onChange={(event) => setFriendlyReferee(event.target.value)}
+                    required
+                  >
+                    {refereeNames.map((refereeName) => (
+                      <MenuItem key={refereeName} value={refereeName}>
+                        {refereeName}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -1473,7 +1510,7 @@ export function TeamDashboardPage() {
             <Typography sx={{ color: '#7f88a0', fontSize: '0.78rem', letterSpacing: '0.02em' }}>
               Booking · Week of Aug 15 - 22, 2026
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.15, fontSize: { xs: '1.45rem', md: '2.1rem' } }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, mt: 0.15, fontSize: { xs: '1.15rem', md: '2.1rem' } }}>
               Match Booking
             </Typography>
           </Box>
@@ -1547,19 +1584,20 @@ export function TeamDashboardPage() {
                         {featuredFriendly.requesterTeam.charAt(0).toUpperCase()}
                       </Avatar>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ color: '#8f98af', fontSize: '0.68rem', letterSpacing: '0.08em' }}>HOME</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: '1.85rem', lineHeight: 1.05 }}>{featuredFriendly.requesterTeam}</Typography>
+                        <Typography sx={{ color: '#8f98af', fontSize: { xs: '0.58rem', md: '0.68rem' }, letterSpacing: '0.08em' }}>HOME</Typography>
+                        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', sm: '1.45rem', md: '1.85rem' }, lineHeight: 1.05, overflowWrap: 'anywhere' }}>{featuredFriendly.requesterTeam}</Typography>
                       </Box>
                     </Stack>
 
                     <Box
                       sx={{
-                        px: 1.6,
-                        py: 1.2,
+                        px: { xs: 1, sm: 1.2 },
+                        py: { xs: 0.75, sm: 0.9 },
                         borderRadius: 1.4,
                         bgcolor: '#a3ff00',
                         color: '#0f1a00',
                         fontWeight: 900,
+                        fontSize: { xs: '0.75rem', sm: '0.95rem' },
                         letterSpacing: '0.04em',
                       }}
                     >
@@ -1568,8 +1606,8 @@ export function TeamDashboardPage() {
 
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
                       <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                        <Typography sx={{ color: '#8f98af', fontSize: '0.68rem', letterSpacing: '0.08em' }}>AWAY</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: '1.85rem', lineHeight: 1.05 }}>{featuredFriendly.recipientTeam}</Typography>
+                        <Typography sx={{ color: '#8f98af', fontSize: { xs: '0.58rem', md: '0.68rem' }, letterSpacing: '0.08em' }}>AWAY</Typography>
+                        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', sm: '1.45rem', md: '1.85rem' }, lineHeight: 1.05, overflowWrap: 'anywhere' }}>{featuredFriendly.recipientTeam}</Typography>
                       </Box>
                       <Avatar sx={{ width: 44, height: 44, bgcolor: 'rgba(250,204,21,0.2)', color: '#ffdf76', fontWeight: 800 }}>
                         {featuredFriendly.recipientTeam.charAt(0).toUpperCase()}
@@ -1641,7 +1679,7 @@ export function TeamDashboardPage() {
               </Stack>
 
               <Typography sx={{ color: '#7f88a0', fontSize: '0.82rem' }}>Head to Head Statistics</Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: '1.65rem', mt: 0.3 }}>{playedBookingsCount} Games Played</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.15rem', md: '1.65rem' }, mt: 0.3 }}>{playedBookingsCount} Games Played</Typography>
 
               <Box sx={{ display: 'grid', placeItems: 'center', my: 1.8 }}>
                 <Box
@@ -1675,6 +1713,7 @@ export function TeamDashboardPage() {
                 fullWidth
                 variant="outlined"
                 sx={{ mt: 1.6, textTransform: 'none', borderColor: 'rgba(159,176,201,0.2)' }}
+                onClick={() => setShowMatchHistory(true)}
               >
                 View Match History
               </Button>
@@ -1717,7 +1756,9 @@ export function TeamDashboardPage() {
 
               {engagedTournaments.slice(0, 3).map((tournament, index) => {
                 const statusText =
-                  tournament.status === 'ongoing'
+                  tournament.status === 'finished'
+                    ? `Finished · ${tournament.period}`
+                    : tournament.status === 'ongoing'
                     ? `Active now · ${tournament.period}`
                     : tournament.status === 'registration open'
                       ? `Registration open · ${tournament.period}`
@@ -1787,6 +1828,74 @@ export function TeamDashboardPage() {
             borderRadius: 2.2,
             borderColor: 'rgba(159,176,201,0.16)',
             bgcolor: 'rgba(13,16,28,0.92)',
+          }}
+        >
+          <CardContent>
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.2 }}>
+              <Typography sx={{ fontWeight: 700 }}>Available Referees</Typography>
+              <Typography sx={{ color: '#8f98af', fontSize: '0.82rem' }}>
+                {refereeNames.length} Registered
+              </Typography>
+            </Stack>
+
+            <Box sx={{ display: 'grid', gap: 1, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
+              {refereeNames.map((refereeName) => (
+                <Box
+                  key={refereeName}
+                  sx={{
+                    border: '1px solid rgba(159,176,201,0.14)',
+                    borderRadius: 1.4,
+                    px: 1.2,
+                    py: 0.9,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    background:
+                      'linear-gradient(130deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))',
+                    transition: 'border-color 0.2s ease, transform 0.2s ease',
+                    '&:hover': {
+                      borderColor: 'rgba(163,255,0,0.45)',
+                      transform: 'translateY(-1px)',
+                    },
+                  }}
+                >
+                  <Stack direction="row" spacing={0.9} sx={{ alignItems: 'center' }}>
+                    <Avatar
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 1,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: 'rgba(163,255,0,0.12)',
+                        color: '#a3ff00',
+                        fontSize: '0.85rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {refereeName.charAt(0)}
+                    </Avatar>
+                    <Box>
+                      <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{refereeName}</Typography>
+                      <Typography sx={{ color: '#8f98af', fontSize: '0.68rem' }}>Referee</Typography>
+                    </Box>
+                  </Stack>
+                  <Typography sx={{ color: '#8f98af', fontSize: '0.7rem' }}>→</Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card
+          variant="outlined"
+          sx={{
+            borderRadius: 2.2,
+            borderColor: 'rgba(159,176,201,0.16)',
+            bgcolor: 'rgba(13,16,28,0.92)',
             overflow: 'hidden',
           }}
         >
@@ -1796,7 +1905,7 @@ export function TeamDashboardPage() {
             </Typography>
 
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.8, gap: 1, flexWrap: 'wrap' }}>
-              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.35rem', md: '1.9rem' } }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.15rem', md: '1.9rem' } }}>
                 {sortedBookingFriendlies.length} Active Bookings
               </Typography>
 
@@ -1943,7 +2052,7 @@ export function TeamDashboardPage() {
                           </Button>
                         </Stack>
                       ) : (
-                        <IconButton size="small" sx={{ color: '#a7afc2' }}>
+                        <IconButton size="small" sx={{ color: '#a7afc2' }} onClick={() => setSelectedBookingForDetails(friendly.id)}>
                           <EditOutlinedIcon sx={{ fontSize: '0.96rem' }} />
                         </IconButton>
                       )}
@@ -2012,6 +2121,255 @@ export function TeamDashboardPage() {
             </Stack>
           </CardContent>
         </Card>
+
+        {/* Booking Details Dialog */}
+        <Dialog open={Boolean(selectedBookingForDetails && dashboardFriendlies.find((f) => f.id === selectedBookingForDetails))} onClose={() => setSelectedBookingForDetails(null)} maxWidth="sm" fullWidth>
+          {(() => {
+            const selectedBooking = dashboardFriendlies.find((f) => f.id === selectedBookingForDetails)
+            return (
+              <>
+                <DialogTitle sx={{ pb: 0, pt: 2.5, textAlign: 'center' }}>
+                  <Typography sx={{ color: '#7f88a0', fontSize: '0.7rem', letterSpacing: '0.12em', fontWeight: 700, mb: 1 }}>
+                    MATCH CHALLENGE / DETAILS
+                  </Typography>
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2.5 }}>
+                  <Stack spacing={2.5}>
+                    {/* STATUS & DATE & TIME ROW */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+                      {/* STATUS */}
+                      <Box>
+                        <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                          STATUS
+                        </Typography>
+                        <Chip
+                          label={selectedBooking?.status.toUpperCase()}
+                          sx={{
+                            color: getBookingStatusColors(selectedBooking?.status as 'pending' | 'accepted' | 'declined').text,
+                            borderColor: getBookingStatusColors(selectedBooking?.status as 'pending' | 'accepted' | 'declined').border,
+                            bgcolor: getBookingStatusColors(selectedBooking?.status as 'pending' | 'accepted' | 'declined').bg,
+                          }}
+                          variant="outlined"
+                        />
+                      </Box>
+                      {/* DATE & TIME */}
+                      <Box>
+                        <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                          DATE & TIME
+                        </Typography>
+                        <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                          {selectedBooking && formatBookingDateTime(selectedBooking.preferredDate, selectedBooking.preferredTime)}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* GROUND / VENUE */}
+                    <Box>
+                      <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                        GROUND / VENUE
+                      </Typography>
+                      <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>{selectedBooking?.location}</Typography>
+                    </Box>
+
+                    {/* REFEREE */}
+                    <Box>
+                      <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                        ASSIGNED REFEREE
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, border: '1px solid #2a3a52', borderRadius: 1, bgcolor: 'rgba(76, 227, 163, 0.05)' }}>
+                        <Avatar sx={{ width: 40, height: 40, bgcolor: '#4ce3a3', fontSize: '1rem' }}>
+                          {selectedBooking?.referee ? selectedBooking.referee.charAt(0).toUpperCase() : '?'}
+                        </Avatar>
+                        <Typography sx={{ fontWeight: 600, fontSize: '1rem' }}>
+                          {selectedBooking?.referee || 'Not assigned'}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* CONTACT PERSON & CONTACT DETAILS ROW */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+                      {/* CONTACT PERSON */}
+                      <Box>
+                        <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                          CONTACT PERSON
+                        </Typography>
+                        <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>{selectedBooking?.requesterName}</Typography>
+                      </Box>
+                      {/* CONTACT DETAILS */}
+                      <Box>
+                        <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                          CONTACT DETAILS
+                        </Typography>
+                        <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>{selectedBooking?.contact}</Typography>
+                      </Box>
+                    </Box>
+
+                    {/* NOTES / MESSAGE */}
+                    <Box>
+                      <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                        NOTES / MESSAGE
+                      </Typography>
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          border: '1px solid #2a3a52',
+                          borderRadius: 1,
+                          bgcolor: 'rgba(76, 227, 163, 0.05)',
+                          minHeight: 80,
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 500, fontSize: '1rem', whiteSpace: 'pre-wrap', color: '#e0e0e0' }}>
+                          {selectedBooking?.note || '(Add more details if needed...)'}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* REQUESTING TEAM VS RECEIVING TEAM */}
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto 1fr',
+                        gap: 2,
+                        alignItems: 'center',
+                        p: 2.5,
+                        border: '1px solid #2a3a52',
+                        borderRadius: 1,
+                        bgcolor: 'rgba(76, 227, 163, 0.02)',
+                      }}
+                    >
+                      {/* REQUESTING TEAM */}
+                      <Box>
+                        <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 1.2 }}>
+                          REQUESTING TEAM
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ width: 40, height: 40, bgcolor: '#4ce3a3', fontWeight: 700, fontSize: '1.1rem', color: '#07111f' }} />
+                          <Box
+                            sx={{
+                              px: 1.5,
+                              py: 0.8,
+                              bgcolor: 'rgba(76, 227, 163, 0.15)',
+                              border: '1px solid rgba(76, 227, 163, 0.3)',
+                              borderRadius: 1,
+                              flex: 1,
+                            }}
+                          >
+                            <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#4ce3a3' }}>
+                              {selectedBooking?.requesterTeam}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                      {/* VS */}
+                      <Typography sx={{ color: '#7f88a0', fontWeight: 700, fontSize: '0.9rem' }}>VS</Typography>
+                      {/* RECEIVING TEAM */}
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 1.2 }}>
+                          RECEIVING TEAM
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
+                          <Box
+                            sx={{
+                              px: 1.5,
+                              py: 0.8,
+                              bgcolor: 'rgba(255, 122, 92, 0.15)',
+                              border: '1px solid rgba(255, 122, 92, 0.3)',
+                              borderRadius: 1,
+                              flex: 1,
+                            }}
+                          >
+                            <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#ff7a5c' }}>
+                              {selectedBooking?.recipientTeam}
+                            </Typography>
+                          </Box>
+                          <Avatar sx={{ width: 40, height: 40, bgcolor: '#ff7a5c', fontWeight: 700, fontSize: '1.1rem', color: '#07111f' }} />
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1, justifyContent: 'flex-end' }}>
+                  <Button variant="outlined" onClick={() => setSelectedBookingForDetails(null)}>
+                    Close
+                  </Button>
+                </DialogActions>
+              </>
+            )
+          })()}
+        </Dialog>
+
+        {/* Match History Dialog */}
+        <Dialog open={showMatchHistory} onClose={() => setShowMatchHistory(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ pb: 1, pt: 2.5 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '1.3rem' }}>Match History</Typography>
+            <Typography sx={{ color: '#7f88a0', fontSize: '0.85rem', mt: 0.5 }}>
+              Head to Head - {loggedInTeam ?? 'Your Team'} vs Opponents
+            </Typography>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 1.5 }}>
+            {sortedBookingFriendlies.length === 0 ? (
+              <Typography sx={{ color: '#8f98af', py: 2, textAlign: 'center' }}>
+                No match history available.
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                {sortedBookingFriendlies.map((match) => {
+                  const statusTheme = getBookingStatusColors(match.status)
+                  return (
+                    <Box
+                      key={match.id}
+                      sx={{
+                        p: 1.5,
+                        border: '1px solid rgba(159,176,201,0.2)',
+                        borderRadius: 1.2,
+                        bgcolor: 'rgba(159,176,201,0.04)',
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        {/* Teams */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Typography sx={{ fontWeight: 700, fontSize: '1rem' }}>
+                            {match.requesterTeam}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={`● ${getBookingStatusLabel(match.status)}`}
+                            sx={{
+                              color: statusTheme.text,
+                              borderColor: statusTheme.border,
+                              bgcolor: statusTheme.bg,
+                              '& .MuiChip-label': { fontWeight: 700, fontSize: '0.75rem' },
+                            }}
+                            variant="outlined"
+                          />
+                          <Typography sx={{ fontWeight: 700, fontSize: '1rem' }}>
+                            {match.recipientTeam}
+                          </Typography>
+                        </Box>
+
+                        {/* Date & Location */}
+                        <Stack direction="row" spacing={1} sx={{ fontSize: '0.85rem', color: '#8f98af' }}>
+                          <Typography>📅 {formatBookingDateTime(match.preferredDate, match.preferredTime)}</Typography>
+                          <Typography>📍 {match.location}</Typography>
+                        </Stack>
+
+                        {/* Referee */}
+                        <Typography sx={{ fontSize: '0.85rem', color: '#8f98af' }}>
+                          🏆 Referee: {getBookingReferee(match.id)}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  )
+                })}
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2, gap: 1 }}>
+            <Button variant="outlined" onClick={() => setShowMatchHistory(false)}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Stack>
       )}
 

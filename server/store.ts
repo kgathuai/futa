@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import mongoose, { Schema, type InferSchemaType } from 'mongoose'
 import type { TeamLevel, TournamentItem, TournamentStatus } from '../src/types.ts'
+import { getTournamentStatus } from '../src/lib/tournamentStatus.ts'
 
 export interface AccountRecord {
   id: string
@@ -34,6 +35,7 @@ export interface FriendlyRequestRecord {
   preferredTime: string
   location: string
   note: string
+  referee?: string
   status: 'pending' | 'accepted' | 'declined'
   createdAt: string
   respondedAt?: string | null
@@ -91,6 +93,8 @@ const matchSchema = new Schema(
     status: { type: String, required: true },
     comments: [{ type: Schema.Types.Mixed, required: true }],
     engagement: { type: engagementSchema, required: true },
+    tournamentId: { type: String, required: false },
+    round: { type: Number, required: false },
   },
   { versionKey: false },
 )
@@ -117,10 +121,13 @@ const tournamentSchema = new Schema(
     format: { type: String, required: true },
     name: { type: String, required: true },
     period: { type: String, required: true },
+    startDate: { type: String, required: false },
+    endDate: { type: String, required: false },
     venue: { type: String, required: true },
     status: { type: String, required: true },
     ownerTeam: { type: String, required: false },
     registeredTeams: { type: [String], required: true, default: [] },
+    maxTeams: { type: Number, required: false },
   },
   { versionKey: false, timestamps: true },
 )
@@ -174,6 +181,7 @@ const friendlyRequestSchema = new Schema(
     preferredTime: { type: String, required: true },
     location: { type: String, required: true },
     note: { type: String, required: true },
+    referee: { type: String, required: false },
     status: { type: String, required: true, default: 'pending' },
     respondedAt: { type: String, required: false },
   },
@@ -414,7 +422,12 @@ export const store = {
   getMatchForCreatorTeam: async (matchId: string, teamName: string) =>
     MatchModel.findOne({ id: matchId, createdByTeam: teamName }).lean(),
   getResults: async () => ResultModel.find().sort({ playedOn: -1 }).lean(),
-  getTournaments: async () => TournamentModel.find().sort({ createdAt: -1 }).lean<TournamentRecord[]>(),
+  getTournaments: async () => {
+    const tournaments = await TournamentModel.find().sort({ createdAt: -1 }).lean<TournamentRecord[]>()
+    return tournaments.map((tournament) => ({ ...tournament, status: getTournamentStatus(tournament) }))
+  },
+  getFixturesForTournament: async (tournamentId: string) =>
+    MatchModel.find({ tournamentId }).sort({ round: 1, kickoff: 1 }).lean(),
   getTeam: async () => TeamModel.findOne().sort({ updatedAt: -1 }).lean(),
   getTeams: async () => {
     const [accountTeams, savedTeams] = await Promise.all([
@@ -619,10 +632,13 @@ export const store = {
     format: string
     name: string
     period: string
+    startDate?: string
+    endDate?: string
     venue: string
     status: TournamentStatus
     ownerTeam?: string
     registeredTeams?: string[]
+    maxTeams?: number
   }) => {
     const registeredTeams = (payload.registeredTeams?.length ? payload.registeredTeams : payload.ownerTeam ? [payload.ownerTeam] : [])
       .map((teamName) => teamName.trim())
@@ -634,10 +650,13 @@ export const store = {
       format: payload.format,
       name: payload.name,
       period: payload.period,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
       venue: payload.venue,
       status: payload.status,
       ownerTeam: payload.ownerTeam?.trim() || undefined,
       registeredTeams,
+      maxTeams: payload.maxTeams ?? undefined,
     })
 
     return tournament.toObject() as TournamentRecord
@@ -646,6 +665,23 @@ export const store = {
     const safeTeamName = teamName.trim()
     if (!safeTeamName) {
       return null
+    }
+
+    const existing = await TournamentModel.findOne({ id: tournamentId }).lean<TournamentRecord | null>()
+    if (!existing) {
+      return null
+    }
+
+    if (getTournamentStatus(existing) !== 'registration open') {
+      return 'closed' as const
+    }
+
+    if (
+      existing.maxTeams !== undefined &&
+      existing.maxTeams !== null &&
+      existing.registeredTeams.length >= existing.maxTeams
+    ) {
+      return 'full' as const
     }
 
     return TournamentModel.findOneAndUpdate(
@@ -665,6 +701,8 @@ export const store = {
     comment?: string
     createdByTeam: string
     createdByAccountId: string
+    tournamentId?: string
+    round?: number
   }) => {
     const match = await MatchModel.create({
       id: makeEntityId(),
@@ -685,6 +723,8 @@ export const store = {
         rating: 0,
         ratingCount: 0,
       },
+      tournamentId: payload.tournamentId,
+      round: payload.round,
     })
 
     return match.toObject()
@@ -959,6 +999,7 @@ export const store = {
     preferredTime: string
     location: string
     note: string
+    referee?: string
     },
     senderAccountId: string,
   ) => {
@@ -985,6 +1026,7 @@ export const store = {
       preferredTime: payload.preferredTime,
       location: payload.location,
       note: payload.note,
+      referee: payload.referee?.trim() || undefined,
       status: 'pending',
       respondedAt: null,
     })

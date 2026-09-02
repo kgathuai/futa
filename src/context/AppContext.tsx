@@ -65,6 +65,7 @@ interface AppContextValue {
   addFriendlyRequest: (payload: NewFriendlyRequest) => void
   addResultReport: (payload: NewResultReport) => Promise<void>
   createTeam: (payload: NewTeamProfile) => Promise<void>
+  updateMatch: (updated: MatchAnnouncement) => void
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined)
@@ -194,6 +195,10 @@ export function AppProvider({ children }: PropsWithChildren) {
     setTeam(response.team)
   }
 
+  const updateMatch = (updated: MatchAnnouncement) => {
+    setMatches((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+  }
+
   const value = useMemo(
     () => ({
       team,
@@ -205,6 +210,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       addFriendlyRequest,
       addResultReport,
       createTeam,
+      updateMatch,
     }),
     [comments, friendlies, matches, results, team],
   )

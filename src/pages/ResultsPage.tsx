@@ -19,7 +19,7 @@ export function ResultsPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
           Results
         </Typography>
         <Typography color="text.secondary">Submit final scores and match reports.</Typography>

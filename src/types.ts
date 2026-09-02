@@ -1,6 +1,6 @@
 export type TeamLevel = 'Junior' | 'Amateur' | 'Semi-Pro'
 
-export type TournamentStatus = 'upcoming' | 'registration open' | 'ongoing'
+export type TournamentStatus = 'upcoming' | 'registration open' | 'ongoing' | 'finished'
 
 export interface TournamentItem {
   id: string
@@ -8,10 +8,13 @@ export interface TournamentItem {
   format: string
   name: string
   period: string
+  startDate?: string
+  endDate?: string
   venue: string
   status: TournamentStatus
   ownerTeam?: string
   registeredTeams: string[]
+  maxTeams?: number
 }
 
 export interface MatchCommentReply {
@@ -50,6 +53,8 @@ export interface MatchAnnouncement {
   ratedByMe?: boolean
   status: 'scheduled' | 'playing' | 'finished' | 'postponed'
   comments: MatchComment[]
+  tournamentId?: string
+  round?: number
   engagement: {
     likes: number
     comments: number
@@ -70,6 +75,7 @@ export interface FriendlyRequest {
   preferredTime: string
   location: string
   note: string
+  referee?: string
   status: 'pending' | 'accepted' | 'declined'
   createdAt: string
   respondedAt?: string | null

@@ -22,9 +22,15 @@ import {
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded'
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined'
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
+import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { api } from '../lib/api'
+import { api, subscribeToApiLoading } from '../lib/api'
 import type { NotificationItem } from '../types'
+import { useAutoHide } from '../lib/useAutoHide'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
@@ -48,6 +54,7 @@ export function Layout() {
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register'>('login')
   const [authMessage, setAuthMessage] = useState('')
+  useAutoHide(authMessage, () => setAuthMessage(''))
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
 
   const [loginEmail, setLoginEmail] = useState('')
@@ -65,6 +72,9 @@ export function Layout() {
   const [loggedInAccountId, setLoggedInAccountId] = useState<string | null>(null)
   const [loggedInTeam, setLoggedInTeam] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [isApiLoading, setIsApiLoading] = useState(false)
+
+  useEffect(() => subscribeToApiLoading(setIsApiLoading), [])
 
   const loadNotifications = async (accountId: string | null) => {
     const token = api.getToken()
@@ -222,7 +232,36 @@ export function Layout() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+      {isApiLoading && (
+        <Box
+          role="progressbar"
+          aria-label="Loading"
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            zIndex: 2000,
+            overflow: 'hidden',
+            bgcolor: 'rgba(76,227,163,0.2)',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              width: '35%',
+              bgcolor: '#4ce3a3',
+              animation: 'futa-loading-progress 1.1s ease-in-out infinite',
+            },
+            '@keyframes futa-loading-progress': {
+              '0%': { left: '-35%' },
+              '100%': { left: '100%' },
+            },
+          }}
+        />
+      )}
       <AppBar
         position="sticky"
         elevation={0}
@@ -230,19 +269,21 @@ export function Layout() {
           bgcolor: '#0d1524',
           borderTop: '1px solid rgba(76,227,163,0.25)',
           borderBottom: '1px solid rgba(159,176,201,0.14)',
+          overflow: 'visible',
+          display: { xs: 'none', sm: 'block' },
         }}
       >
         <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
-          <Toolbar disableGutters sx={{ minHeight: 58, gap: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 900, fontSize: '1.9rem', letterSpacing: '-0.04em', mr: 1 }}>
-              <Box component="span" sx={{ color: 'primary.main' }}>
-                Sports
-              </Box>
-              Hub
-            </Typography>
+          <Toolbar disableGutters sx={{ height: { xs: 48, sm: 52 }, minHeight: { xs: 48, sm: 52 }, gap: { xs: 0.5, sm: 2 }, overflow: 'visible' }}>
+            <Box
+              component="img"
+              src="/kabum.png"
+              alt="Futa logo"
+              sx={{ height: { xs: 82, sm: 130, md: 170 }, maxWidth: { xs: 92, sm: 145, md: 'none' }, width: 'auto', display: 'block', flexShrink: 1, objectFit: 'contain' }}
+            />
 
-            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.25 }}>
-              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <Box sx={{ ml: 'auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: { xs: 0.2, sm: 1.25 } }}>
+              <Stack direction="row" spacing={{ xs: 0.1, sm: 0.5 }} sx={{ alignItems: 'center', minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
                 {navLinks.map((link) => {
                   const isActive =
                     link.to === '/'
@@ -257,9 +298,10 @@ export function Layout() {
                       color={isActive ? 'primary' : 'inherit'}
                       sx={{
                         borderRadius: 999,
-                        fontSize: '0.92rem',
-                        px: 1.25,
-                        py: 0.58,
+                        fontSize: { xs: '0.7rem', sm: '0.92rem' },
+                        px: { xs: 0.65, sm: 1.25 },
+                        py: { xs: 0.42, sm: 0.58 },
+                        whiteSpace: 'nowrap',
                         minWidth: 0,
                         color: isActive ? '#06101c' : 'text.secondary',
                         '&:hover': {
@@ -281,8 +323,8 @@ export function Layout() {
                   color: 'text.secondary',
                   borderRadius: 999,
                   minWidth: 0,
-                  px: 1.25,
-                  py: 0.58,
+                  px: { xs: 0.45, sm: 1.25 },
+                  py: { xs: 0.42, sm: 0.58 },
                 }}
               >
                 <Badge badgeContent={unreadNotificationCount} color="primary" overlap="circular" max={99}>
@@ -308,6 +350,67 @@ export function Layout() {
           </Toolbar>
         </Container>
       </AppBar>
+
+      <Box
+        component="nav"
+        aria-label="Mobile navigation"
+        sx={{
+          display: { xs: 'flex', sm: 'none' },
+          position: 'fixed',
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 1200,
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          px: 0.5,
+          pt: 0.75,
+          pb: 'calc(0.75rem + env(safe-area-inset-bottom))',
+          bgcolor: '#000000',
+          borderTop: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.35)',
+        }}
+      >
+        {navLinks.map((link) => {
+          const isActive = link.to === '/' ? location.pathname === '/' : location.pathname.startsWith(link.to)
+          return (
+            <Button
+              key={`mobile-${link.to}`}
+              component={NavLink}
+              to={link.to}
+              sx={{
+                minWidth: 0,
+                flex: 1,
+                flexDirection: 'column',
+                gap: 0.2,
+                px: 0.25,
+                py: 0.35,
+                color: '#ffffff',
+                textTransform: 'none',
+                fontSize: '0.64rem',
+                fontWeight: isActive ? 700 : 500,
+                whiteSpace: 'nowrap',
+                '&:hover': { bgcolor: 'transparent' },
+              }}
+            >
+              {link.to === '/team-dashboard' ? <DashboardOutlinedIcon sx={{ fontSize: 26 }} />
+                : link.to === '/' ? <HomeOutlinedIcon sx={{ fontSize: 26 }} />
+                  : link.to === '/friendlies' ? <SportsSoccerOutlinedIcon sx={{ fontSize: 26 }} />
+                    : link.to === '/team' ? <GroupsOutlinedIcon sx={{ fontSize: 26 }} />
+                      : <EmojiEventsOutlinedIcon sx={{ fontSize: 26 }} />}
+              {link.label}
+            </Button>
+          )
+        })}
+        <Button
+          onClick={() => setIsAuthOpen((prev) => !prev)}
+          aria-label="Account"
+          sx={{ minWidth: 0, flex: 1, flexDirection: 'column', gap: 0.2, px: 0.25, py: 0.35, color: '#ffffff', textTransform: 'none', fontSize: '0.64rem', fontWeight: 500, whiteSpace: 'nowrap', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
+        >
+          <AccountCircleRoundedIcon sx={{ fontSize: 26 }} />
+          Account
+        </Button>
+      </Box>
 
       <Drawer anchor="right" open={isAuthOpen} onClose={() => setIsAuthOpen(false)}>
         <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5 }} role="presentation">
@@ -489,7 +592,7 @@ export function Layout() {
         </Box>
       </Drawer>
 
-      <Container maxWidth="lg" sx={{ py: 4, px: { xs: 2, md: 3 }, flex: 1, width: '100%' }}>
+      <Container maxWidth="lg" sx={{ py: 4, pb: { xs: 12, sm: 4 }, px: { xs: 2, md: 3 }, flex: 1, width: '100%' }}>
         <Outlet
           context={{ loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } satisfies AuthOutletContext}
         />
@@ -509,34 +612,14 @@ export function Layout() {
           sx={{
             px: { xs: 2, md: 3 },
             display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            justifyContent: 'space-between',
-            alignItems: { xs: 'flex-start', sm: 'center' },
+            justifyContent: 'center',
+            alignItems: 'center',
             gap: 1,
           }}
         >
-          <Typography variant="body2" color="text.secondary">
-            © {currentYear} Sports Hub. Community football, fixtures, and updates.
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+            © {currentYear} Nurevie. For Sports Updates.
           </Typography>
-          <Stack direction="row" spacing={1.8} sx={{ alignItems: 'center' }}>
-            {links.map((link) => (
-              <Button
-                key={`footer-${link.to}`}
-                component={NavLink}
-                to={link.to}
-                color="inherit"
-                sx={{
-                  minWidth: 0,
-                  p: 0,
-                  color: 'text.secondary',
-                  fontSize: '0.82rem',
-                  '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
-                }}
-              >
-                {link.label}
-              </Button>
-            ))}
-          </Stack>
         </Container>
       </Box>
     </Box>

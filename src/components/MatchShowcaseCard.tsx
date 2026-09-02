@@ -92,7 +92,7 @@ export function MatchShowcaseCard({
 
         <Typography
           sx={{
-            fontSize: { xs: '0.69rem', sm: '0.81rem', md: '1.11rem' },
+            fontSize: { xs: '0.58rem', sm: '0.76rem', md: '1.11rem' },
             fontWeight: 900,
             letterSpacing: { xs: '-0.01em', md: '-0.03em' },
             color: '#e3e7f5',
@@ -105,7 +105,7 @@ export function MatchShowcaseCard({
         >
           {teamName}
         </Typography>
-        <Typography sx={{ fontSize: { xs: '0.38rem', sm: '0.44rem', md: '0.56rem' }, letterSpacing: { xs: '0.12em', md: '0.18em' }, color: '#808aa8' }}>
+        <Typography sx={{ fontSize: { xs: '0.32rem', sm: '0.4rem', md: '0.56rem' }, letterSpacing: { xs: '0.12em', md: '0.18em' }, color: '#808aa8' }}>
           {homeAway}
         </Typography>
       </Stack>

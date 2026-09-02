@@ -1,4 +1,4 @@
-export type TournamentStatus = 'upcoming' | 'registration open' | 'ongoing'
+export type TournamentStatus = 'upcoming' | 'registration open' | 'ongoing' | 'finished'
 
 export interface TournamentItem {
   id: string
@@ -26,7 +26,7 @@ const isTournamentItem = (value: unknown): value is TournamentItem => {
     typeof item.name === 'string' &&
     typeof item.period === 'string' &&
     typeof item.venue === 'string' &&
-    (item.status === 'upcoming' || item.status === 'registration open' || item.status === 'ongoing')
+    (item.status === 'upcoming' || item.status === 'registration open' || item.status === 'ongoing' || item.status === 'finished')
   )
 }
 
