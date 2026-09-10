@@ -377,6 +377,8 @@ export function HomePage() {
         aria-label="Sport filters"
         sx={{
           width: '100%',
+          position: 'relative',
+          zIndex: 1,
           display: { xs: 'grid', sm: 'flex' },
           gridTemplateColumns: { xs: 'repeat(4, minmax(0, 1fr))' },
           columnGap: { xs: 0.7, sm: 0.9 },
@@ -389,6 +391,7 @@ export function HomePage() {
             key={sport}
             type="button"
             onClick={() => setSelectedSport(sport)}
+            aria-pressed={sport === selectedSport}
             variant="contained"
             sx={{
               width: { xs: '100%', sm: 'auto' },
@@ -397,6 +400,7 @@ export function HomePage() {
               px: { xs: 0.5, sm: 1.4 },
               py: 0.55,
               fontSize: { xs: '0.62rem', sm: '0.75rem' },
+              cursor: 'pointer',
               color: sport === selectedSport ? '#07111f' : '#e7ebf3',
               backgroundColor: sport === selectedSport ? '#4ce3a3' : '#2d3545',
               boxShadow: 'none',

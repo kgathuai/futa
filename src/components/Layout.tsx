@@ -280,6 +280,7 @@ export function Layout() {
               src="/kabum.png"
               alt="Futa logo"
               sx={{ height: { xs: 82, sm: 130, md: 170 }, maxWidth: { xs: 92, sm: 145, md: 'none' }, width: 'auto', display: 'block', flexShrink: 1, objectFit: 'contain' }}
+              style={{ pointerEvents: 'none' }}
             />
 
             <Box sx={{ ml: 'auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: { xs: 0.2, sm: 1.25 } }}>

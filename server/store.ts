@@ -230,7 +230,7 @@ interface StoredCommentReply {
   id: string
   text: string
   authorName: string
-  authorAccountId?: string
+  authorAccountId: string | undefined
   likes: number
   likedByAccountIds: string[]
   createdAt: string
@@ -240,7 +240,7 @@ interface StoredComment {
   id: string
   text: string
   authorName: string
-  authorAccountId?: string
+  authorAccountId: string | undefined
   likes: number
   likedByAccountIds: string[]
   createdAt: string
@@ -268,6 +268,7 @@ const normalizeStoredComments = (input: unknown): StoredComment[] => {
           id: `legacy-${index + 1}`,
           text: commentText,
           authorName: authorName || 'Unknown',
+          authorAccountId: undefined,
           likes: 0,
           likedByAccountIds: [],
           createdAt: new Date(0).toISOString(),

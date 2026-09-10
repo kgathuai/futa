@@ -454,7 +454,7 @@ export function TournamentsPage() {
                   const val = event.target.value
                   setMaxTeams(val === '' ? '' : Math.max(2, Math.floor(Number(val))))
                 }}
-                inputProps={{ min: 2, step: 1 }}
+                slotProps={{ htmlInput: { min: 2, step: 1 } }}
                 helperText="Leave blank for unlimited. Minimum 2."
               />
 

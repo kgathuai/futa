@@ -4,6 +4,7 @@ import type { MatchAnnouncement } from '../types'
 
 const AUTH_TOKEN_KEY = 'futa_auth_token'
 const loadingListeners = new Set<(loading: boolean) => void>()
+const apiBaseUrl = (typeof import.meta !== 'undefined' && import.meta.env.VITE_API_BASE_URL) || ''
 let activeRequests = 0
 
 const setRequestLoading = (loading: boolean) => {
@@ -30,10 +31,11 @@ interface RequestOptions {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   let response: Response
+  const url = path.startsWith('http') ? path : `${apiBaseUrl}${path}`
 
   try {
     setRequestLoading(true)
-    response = await fetch(path, {
+    response = await fetch(url, {
       method: options.method ?? 'GET',
       headers: {
         'Content-Type': 'application/json',
