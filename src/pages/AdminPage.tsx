@@ -1,18 +1,27 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
+  IconButton,
+  InputAdornment,
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAppData } from '../context/AppContext'
@@ -34,15 +43,71 @@ const isAdminRole = (role: string | null | undefined) => {
 }
 const isSuperAdminRole = (role: string | null | undefined) => normalizeRole(role) === 'superadmin'
 
-const roleChipColor = (role: string) => {
+const roleChip = (role: string) => {
   const normalized = normalizeRole(role)
   if (normalized === 'superadmin') {
-    return { color: '#ffdf76', border: 'rgba(250,204,21,0.5)', bg: 'rgba(250,204,21,0.12)' }
+    return { color: '#ffdf76', border: 'rgba(250,204,21,0.45)', bg: 'rgba(250,204,21,0.1)' }
   }
   if (normalized === 'admin') {
-    return { color: '#4ce3a3', border: 'rgba(76,227,163,0.45)', bg: 'rgba(76,227,163,0.12)' }
+    return { color: '#4ce3a3', border: 'rgba(76,227,163,0.4)', bg: 'rgba(76,227,163,0.08)' }
   }
-  return { color: '#a9b3c8', border: 'rgba(159,176,201,0.25)', bg: 'rgba(159,176,201,0.08)' }
+  return { color: '#9fa9c0', border: 'rgba(159,176,201,0.22)', bg: 'rgba(159,176,201,0.06)' }
+}
+
+const avatarTone = (role: string) => {
+  const normalized = normalizeRole(role)
+  if (normalized === 'superadmin') {
+    return { bg: 'rgba(250,204,21,0.14)', fg: '#ffdf76' }
+  }
+  if (normalized === 'admin') {
+    return { bg: 'rgba(76,227,163,0.14)', fg: '#4ce3a3' }
+  }
+  return { bg: 'rgba(159,176,201,0.1)', fg: '#a9b3c8' }
+}
+
+const initialsOf = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) {
+    return '?'
+  }
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('')
+}
+
+const formatMatchDate = (value: string) => {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) {
+    return 'TBD'
+  }
+  return date.toLocaleString([], {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function StatTile({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: 1.6,
+        borderColor: 'rgba(159,176,201,0.14)',
+        background: 'linear-gradient(180deg, rgba(21,31,51,0.72) 0%, rgba(14,22,38,0.72) 100%)',
+      }}
+    >
+      <CardContent sx={{ py: 0.9, px: 1.3, '&:last-child': { pb: 0.9 } }}>
+        <Typography
+          sx={{ fontSize: '0.55rem', letterSpacing: '0.14em', fontWeight: 800, color: '#66708a' }}
+        >
+          {label}
+        </Typography>
+        <Typography sx={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.2, color: accent }}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function AdminPage() {
@@ -58,6 +123,8 @@ export function AdminPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [query, setQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'superadmin' | 'admin' | 'members'>('all')
 
   const load = useCallback(async () => {
     const token = api.getToken()
@@ -88,6 +155,41 @@ export function AdminPage() {
     }
     void load()
   }, [canAccessAdmin, load])
+
+  const filteredAccounts = useMemo(() => {
+    const term = query.trim().toLowerCase()
+
+    return accounts.filter((account) => {
+      const normalized = normalizeRole(account.role)
+      const roleMatch =
+        roleFilter === 'all' ||
+        normalized === roleFilter ||
+        (roleFilter === 'members' && !isAdminRole(account.role))
+
+      if (!roleMatch) {
+        return false
+      }
+
+      if (!term) {
+        return true
+      }
+
+      return [account.name, account.email, account.team, account.role, account.sport]
+        .join(' ')
+        .toLowerCase()
+        .includes(term)
+    })
+  }, [accounts, query, roleFilter])
+
+  const stats = useMemo(
+    () => ({
+      total: accounts.length,
+      superadmins: accounts.filter((account) => normalizeRole(account.role) === 'superadmin').length,
+      admins: accounts.filter((account) => normalizeRole(account.role) === 'admin').length,
+      matches: matches.length,
+    }),
+    [accounts, matches.length],
+  )
 
   if (!canAccessAdmin) {
     return <Navigate to="/" replace />
@@ -163,57 +265,197 @@ export function AdminPage() {
     isSuperAdmin && account.id !== loggedInAccountId && !isSuperAdminRole(account.role)
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-          Admin
-        </Typography>
-        <Typography color="text.secondary">
-          {isSuperAdmin
-            ? 'Manage account roles, delete admin accounts, and remove any match.'
-            : 'Moderation: remove any match or tournament fixture.'}
-        </Typography>
-      </Box>
+    <Stack spacing={2}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.2}
+        sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}
+      >
+        <Box>
+          <Stack direction="row" spacing={0.7} sx={{ alignItems: 'center', mb: 0.3 }}>
+            <AdminPanelSettingsOutlinedIcon sx={{ fontSize: '0.9rem', color: '#4ce3a3' }} />
+            <Typography
+              sx={{ fontSize: '0.56rem', letterSpacing: '0.18em', fontWeight: 800, color: '#5f6a84' }}
+            >
+              ADMIN CONSOLE
+            </Typography>
+          </Stack>
+          <Typography
+            sx={{ fontSize: { xs: '1.2rem', md: '1.45rem' }, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}
+          >
+            Access &amp; moderation
+          </Typography>
+          <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary', mt: 0.25 }}>
+            {isSuperAdmin
+              ? 'Manage roles, remove admin accounts, and delete any match.'
+              : 'Remove any match or tournament fixture.'}
+          </Typography>
+        </Box>
+
+        <Stack direction="row" spacing={0.7} sx={{ alignItems: 'center' }}>
+          <Chip
+            size="small"
+            label={isSuperAdmin ? 'SUPERADMIN' : 'ADMIN'}
+            sx={{
+              height: 20,
+              fontSize: '0.55rem',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              color: isSuperAdmin ? '#ffdf76' : '#4ce3a3',
+              bgcolor: isSuperAdmin ? 'rgba(250,204,21,0.1)' : 'rgba(76,227,163,0.1)',
+              border: `1px solid ${isSuperAdmin ? 'rgba(250,204,21,0.35)' : 'rgba(76,227,163,0.35)'}`,
+              '& .MuiChip-label': { px: 0.7 },
+            }}
+          />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<RefreshRoundedIcon sx={{ fontSize: '0.85rem' }} />}
+            onClick={() => void load()}
+            disabled={isLoading}
+            sx={{ fontSize: '0.7rem', py: 0.35, px: 1.1, borderColor: 'rgba(159,176,201,0.25)' }}
+          >
+            Refresh
+          </Button>
+        </Stack>
+      </Stack>
 
       {message && (
-        <Alert severity="success" onClose={() => setMessage('')}>
+        <Alert severity="success" onClose={() => setMessage('')} sx={{ fontSize: '0.75rem', py: 0.35 }}>
           {message}
         </Alert>
       )}
       {error && (
-        <Alert severity="error" onClose={() => setError('')}>
+        <Alert severity="error" onClose={() => setError('')} sx={{ fontSize: '0.75rem', py: 0.35 }}>
           {error}
         </Alert>
       )}
 
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1,
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0,1fr))', md: 'repeat(4, minmax(0,1fr))' },
+        }}
+      >
+        <StatTile label="ACCOUNTS" value={stats.total} accent="#edf2f7" />
+        <StatTile label="SUPERADMINS" value={stats.superadmins} accent="#ffdf76" />
+        <StatTile label="ADMINS" value={stats.admins} accent="#4ce3a3" />
+        <StatTile label="MATCHES" value={stats.matches} accent="#adff0f" />
+      </Box>
+
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={0.8}
+        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+      >
+        <TextField
+          size="small"
+          placeholder="Search name, email, team…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          sx={{
+            maxWidth: { sm: 300 },
+            '& .MuiInputBase-input': { fontSize: '0.76rem', py: 0.6 },
+            '& .MuiOutlinedInput-root': { borderRadius: 1.4 },
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchRoundedIcon sx={{ fontSize: '0.95rem', color: '#6b7590' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <TextField
+          select
+          size="small"
+          value={roleFilter}
+          onChange={(event) =>
+            setRoleFilter(event.target.value as 'all' | 'superadmin' | 'admin' | 'members')
+          }
+          sx={{
+            minWidth: 140,
+            '& .MuiInputBase-input': { fontSize: '0.74rem', py: 0.6 },
+            '& .MuiOutlinedInput-root': { borderRadius: 1.4 },
+          }}
+        >
+          <MenuItem value="all" sx={{ fontSize: '0.76rem' }}>All roles</MenuItem>
+          <MenuItem value="superadmin" sx={{ fontSize: '0.76rem' }}>Superadmins</MenuItem>
+          <MenuItem value="admin" sx={{ fontSize: '0.76rem' }}>Admins</MenuItem>
+          <MenuItem value="members" sx={{ fontSize: '0.76rem' }}>Members</MenuItem>
+        </TextField>
+      </Stack>
+
       {isLoading ? (
-        <Stack sx={{ alignItems: 'center', py: 4 }}>
-          <CircularProgress size={28} sx={{ color: '#adff0f' }} />
+        <Stack sx={{ alignItems: 'center', py: 6 }}>
+          <CircularProgress size={22} sx={{ color: '#adff0f' }} />
         </Stack>
       ) : (
-        <>
-          <Card variant="outlined">
-            <CardContent>
-              <Stack
-                direction="row"
-                sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}
-              >
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Accounts
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                    {accounts.length} registered
-                  </Typography>
-                </Box>
-                <Button variant="outlined" size="small" onClick={() => void load()}>
-                  Refresh
-                </Button>
-              </Stack>
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 1.4,
+            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0,1.8fr) minmax(0,1fr)' },
+            alignItems: 'start',
+          }}
+        >
+          <Card
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              borderColor: 'rgba(159,176,201,0.14)',
+              background: 'linear-gradient(180deg, rgba(21,31,51,0.6) 0%, rgba(13,21,36,0.6) 100%)',
+              overflow: 'hidden',
+            }}
+          >
+            <Stack
+              direction="row"
+              sx={{ px: 1.5, py: 1, justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(159,176,201,0.1)' }}
+            >
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.01em' }}>
+                Accounts
+              </Typography>
+              <Typography sx={{ fontSize: '0.62rem', color: '#66708a' }}>
+                {filteredAccounts.length} of {accounts.length}
+              </Typography>
+            </Stack>
 
-              <Stack spacing={1.2}>
-                {accounts.map((account) => {
-                  const chip = roleChipColor(account.role)
+            <Box
+              sx={{
+                display: { xs: 'none', md: 'grid' },
+                gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) 128px 34px',
+                gap: 1,
+                px: 1.5,
+                py: 0.55,
+                borderBottom: '1px solid rgba(159,176,201,0.07)',
+                bgcolor: 'rgba(255,255,255,0.012)',
+              }}
+            >
+              {['ACCOUNT', 'TEAM', 'ROLE', ''].map((label, index) => (
+                <Typography
+                  key={`account-head-${index}`}
+                  sx={{ fontSize: '0.54rem', letterSpacing: '0.12em', fontWeight: 800, color: '#5f6a84' }}
+                >
+                  {label}
+                </Typography>
+              ))}
+            </Box>
+
+            {filteredAccounts.length === 0 ? (
+              <Stack sx={{ alignItems: 'center', py: 5, gap: 0.6 }}>
+                <SearchOffRoundedIcon sx={{ fontSize: '1.35rem', color: '#3f4a63' }} />
+                <Typography sx={{ fontSize: '0.74rem', color: '#66708a' }}>
+                  No accounts match your filters.
+                </Typography>
+              </Stack>
+            ) : (
+              <Stack divider={<Box sx={{ height: '1px', bgcolor: 'rgba(159,176,201,0.06)' }} />}>
+                {filteredAccounts.map((account) => {
+                  const chip = roleChip(account.role)
+                  const avatar = avatarTone(account.role)
                   const currentRole =
                     assignableRoles.find(
                       (role) => role.toLowerCase() === account.role.trim().toLowerCase(),
@@ -223,144 +465,261 @@ export function AdminPage() {
                     <Box
                       key={account.id}
                       sx={{
-                        border: '1px solid rgba(159,176,201,0.16)',
-                        borderRadius: 2,
-                        p: 1.4,
                         display: 'grid',
+                        gridTemplateColumns: {
+                          xs: 'minmax(0,1fr) auto',
+                          md: 'minmax(0,2fr) minmax(0,1fr) 128px 34px',
+                        },
                         gap: 1,
-                        gridTemplateColumns: { xs: '1fr', md: 'minmax(0,1.6fr) auto auto' },
+                        px: 1.5,
+                        py: 0.8,
                         alignItems: 'center',
+                        transition: 'background-color 120ms ease',
+                        '&:hover': { bgcolor: 'rgba(76,227,163,0.025)' },
                       }}
                     >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ fontWeight: 800 }}>{account.name}</Typography>
-                          <Chip
-                            size="small"
-                            label={account.role.toUpperCase()}
+                      <Stack direction="row" spacing={0.9} sx={{ alignItems: 'center', minWidth: 0 }}>
+                        <Avatar
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            bgcolor: avatar.bg,
+                            color: avatar.fg,
+                          }}
+                        >
+                          {initialsOf(account.name)}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Stack direction="row" spacing={0.55} sx={{ alignItems: 'center', minWidth: 0 }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {account.name}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={account.role.toUpperCase()}
+                              sx={{
+                                height: 16,
+                                fontSize: '0.5rem',
+                                fontWeight: 800,
+                                letterSpacing: '0.06em',
+                                color: chip.color,
+                                bgcolor: chip.bg,
+                                border: `1px solid ${chip.border}`,
+                                '& .MuiChip-label': { px: 0.55 },
+                              }}
+                            />
+                          </Stack>
+                          <Typography
                             sx={{
-                              color: chip.color,
-                              borderColor: chip.border,
-                              bgcolor: chip.bg,
-                              fontWeight: 800,
+                              fontSize: '0.64rem',
+                              color: '#7f8aa3',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
-                            variant="outlined"
-                          />
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                          {account.email} · {account.team} · {account.sport}
+                          >
+                            {account.email}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0 }}>
+                        <Typography
+                          sx={{
+                            fontSize: '0.7rem',
+                            color: '#a9b3c8',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {account.team}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.58rem', color: '#66708a' }}>
+                          {account.sport}
                         </Typography>
                       </Box>
 
-                      {isSuperAdmin && (
+                      {isSuperAdmin ? (
                         isSuperAdminRole(account.role) ? (
-                          <Typography variant="body2" color="text.secondary">
-                            Managed via CLI
-                          </Typography>
+                          <Typography sx={{ fontSize: '0.6rem', color: '#66708a' }}>CLI only</Typography>
                         ) : account.id === loggedInAccountId ? (
-                          <Typography variant="body2" color="text.secondary">
-                            You
-                          </Typography>
+                          <Typography sx={{ fontSize: '0.6rem', color: '#66708a' }}>You</Typography>
                         ) : (
                           <TextField
                             select
+                            fullWidth
                             size="small"
-                            label="Role"
                             value={currentRole}
                             onChange={(event) => void handleRoleChange(account, event.target.value)}
                             disabled={busyId === account.id}
-                            sx={{ minWidth: 130 }}
+                            sx={{
+                              '& .MuiInputBase-input': { fontSize: '0.68rem', py: 0.4 },
+                              '& .MuiOutlinedInput-root': { borderRadius: 1.1 },
+                              '& .MuiSelect-icon': { fontSize: '1rem' },
+                            }}
                           >
                             {assignableRoles.map((role) => (
-                              <MenuItem key={role} value={role}>
+                              <MenuItem key={role} value={role} sx={{ fontSize: '0.72rem' }}>
                                 {role}
                               </MenuItem>
                             ))}
                           </TextField>
                         )
+                      ) : (
+                        <Typography sx={{ display: { xs: 'none', md: 'block' }, fontSize: '0.6rem', color: '#66708a' }}>
+                          View only
+                        </Typography>
                       )}
 
-                      {canDeleteAccount(account) && (
-                        <Button
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          startIcon={<DeleteOutlineRoundedIcon />}
-                          disabled={busyId === account.id}
-                          onClick={() => void handleDeleteAccount(account)}
-                        >
-                          Delete
-                        </Button>
+                      {canDeleteAccount(account) ? (
+                        <Tooltip title="Delete account">
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              disabled={busyId === account.id}
+                              onClick={() => void handleDeleteAccount(account)}
+                              aria-label={`Delete ${account.name}`}
+                              sx={{ p: 0.4 }}
+                            >
+                              <DeleteOutlineRoundedIcon sx={{ fontSize: '0.95rem' }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <Box />
                       )}
                     </Box>
                   )
                 })}
               </Stack>
-            </CardContent>
+            )}
           </Card>
 
-          <Card variant="outlined">
-            <CardContent>
-              <Stack
-                direction="row"
-                sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}
-              >
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Matches
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                    {matches.length} listed
-                  </Typography>
-                </Box>
-                <Button variant="outlined" size="small" onClick={() => void load()}>
-                  Refresh
-                </Button>
+          <Card
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              borderColor: 'rgba(159,176,201,0.14)',
+              background: 'linear-gradient(180deg, rgba(21,31,51,0.6) 0%, rgba(13,21,36,0.6) 100%)',
+              overflow: 'hidden',
+            }}
+          >
+            <Stack
+              direction="row"
+              sx={{ px: 1.5, py: 1, justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(159,176,201,0.1)' }}
+            >
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.01em' }}>
+                Matches
+              </Typography>
+              <Typography sx={{ fontSize: '0.62rem', color: '#66708a' }}>
+                {matches.length} total
+              </Typography>
+            </Stack>
+
+            {matches.length === 0 ? (
+              <Stack sx={{ alignItems: 'center', py: 5, gap: 0.6 }}>
+                <SportsSoccerOutlinedIcon sx={{ fontSize: '1.4rem', color: '#3f4a63' }} />
+                <Typography sx={{ fontSize: '0.74rem', color: '#66708a' }}>No matches yet.</Typography>
               </Stack>
-
-              {matches.length === 0 ? (
-                <Typography color="text.secondary">No matches yet.</Typography>
-              ) : (
-                <Stack spacing={1}>
-                  {matches.map((match) => (
-                    <Box
-                      key={match.id}
-                      sx={{
-                        border: '1px solid rgba(159,176,201,0.14)',
-                        borderRadius: 1.6,
-                        p: 1.2,
-                        display: 'flex',
-                        gap: 1,
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          {match.homeTeam} vs {match.awayTeam}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {new Date(match.kickoff).toLocaleString()} · {match.venue} · {match.category}
-                        </Typography>
-                      </Box>
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        startIcon={<DeleteOutlineRoundedIcon />}
-                        disabled={busyId === match.id}
-                        onClick={() => void handleDeleteMatch(match)}
+            ) : (
+              <Stack divider={<Box sx={{ height: '1px', bgcolor: 'rgba(159,176,201,0.06)' }} />}>
+                {matches.map((match) => (
+                  <Box
+                    key={match.id}
+                    sx={{
+                      px: 1.5,
+                      py: 0.75,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      justifyContent: 'space-between',
+                      transition: 'background-color 120ms ease',
+                      '&:hover': { bgcolor: 'rgba(76,227,163,0.025)' },
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
                       >
-                        Delete
-                      </Button>
+                        {match.homeTeam}{' '}
+                        <Box component="span" sx={{ color: '#606a82', fontWeight: 500 }}>
+                          vs
+                        </Box>{' '}
+                        {match.awayTeam}
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: '#7f8aa3', whiteSpace: 'nowrap' }}>
+                          {formatMatchDate(match.kickoff)}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.6rem', color: '#4c556b' }}>·</Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '0.6rem',
+                            color: '#7f8aa3',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {match.venue}
+                        </Typography>
+                      </Stack>
                     </Box>
-                  ))}
-                </Stack>
-              )}
-            </CardContent>
+
+                    <Stack direction="row" spacing={0.4} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                      <Chip
+                        label={match.category.toUpperCase()}
+                        size="small"
+                        sx={{
+                          height: 15,
+                          fontSize: '0.48rem',
+                          fontWeight: 800,
+                          letterSpacing: '0.05em',
+                          color: '#9fa9c0',
+                          bgcolor: 'rgba(159,176,201,0.06)',
+                          border: '1px solid rgba(159,176,201,0.18)',
+                          '& .MuiChip-label': { px: 0.5 },
+                        }}
+                      />
+                      <Tooltip title="Delete match">
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            disabled={busyId === match.id}
+                            onClick={() => void handleDeleteMatch(match)}
+                            aria-label={`Delete ${match.homeTeam} vs ${match.awayTeam}`}
+                            sx={{ p: 0.4 }}
+                          >
+                            <DeleteOutlineRoundedIcon sx={{ fontSize: '0.95rem' }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            )}
           </Card>
-        </>
+        </Box>
       )}
     </Stack>
   )
