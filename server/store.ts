@@ -601,13 +601,13 @@ export const store = {
     }
 
     // Only ever update the team owned by the caller — never the first team in the collection.
-    const owned = await TeamModel.findOneAndUpdate({ ownerAccountId }, update, { new: true }).lean()
+    const owned = await TeamModel.findOneAndUpdate({ ownerAccountId }, update, { returnDocument: 'after' }).lean()
     if (owned) {
       return owned
     }
 
     // Adopt a legacy team document that predates owner scoping.
-    const byName = await TeamModel.findOneAndUpdate({ name }, update, { new: true }).lean()
+    const byName = await TeamModel.findOneAndUpdate({ name }, update, { returnDocument: 'after' }).lean()
     if (byName) {
       return byName
     }
@@ -671,14 +671,14 @@ export const store = {
       return null
     }
 
-    const account = await AccountModel.findByIdAndUpdate(accountId, { role }, { new: true }).lean<AccountSummaryDoc | null>()
+    const account = await AccountModel.findByIdAndUpdate(accountId, { role }, { returnDocument: 'after' }).lean<AccountSummaryDoc | null>()
     return account ? toAdminAccount(account) : null
   },
   setAccountRoleByEmail: async (email: string, role: string) => {
     const account = await AccountModel.findOneAndUpdate(
       { email: email.toLowerCase() },
       { role },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<AccountSummaryDoc | null>()
 
     return account ? toAdminAccount(account) : null
@@ -740,7 +740,7 @@ export const store = {
     const updated = await NotificationModel.findOneAndUpdate(
       { id: notificationId, accountId },
       { read: true },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
 
     return updated
@@ -839,7 +839,7 @@ export const store = {
     return TournamentModel.findOneAndUpdate(
       { id: tournamentId },
       { $addToSet: { registeredTeams: safeTeamName } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<TournamentRecord | null>()
   },
   addMatch: async (payload: {
@@ -896,7 +896,7 @@ export const store = {
         createdByTeam: teamName,
       },
       { kickoff },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
   },
   updateMatchScore: async (matchId: string, teamName: string, homeScore: number, awayScore: number) => {
@@ -910,7 +910,7 @@ export const store = {
         awayScore,
         status: 'finished',
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
   },
   likeMatch: async (matchId: string, accountId: string) => {
@@ -922,7 +922,7 @@ export const store = {
         $inc: { 'engagement.likes': 1 },
         $addToSet: { likedByAccountIds: accountId },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
 
     if (updated) {
@@ -958,7 +958,7 @@ export const store = {
         $set: { comments: nextComments },
         $inc: { 'engagement.comments': 1 },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
   },
   likeCommentOnMatch: async (matchId: string, commentId: string, accountId: string) => {
@@ -1018,7 +1018,7 @@ export const store = {
     const updated = await MatchModel.findOneAndUpdate(
       { id: matchId },
       { $set: { comments: nextComments } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
 
     if (!updated) {
@@ -1072,7 +1072,7 @@ export const store = {
         $set: { comments: nextComments },
         $inc: { 'engagement.comments': 1 },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
 
     if (!updated) {
@@ -1115,7 +1115,7 @@ export const store = {
         },
         $addToSet: { ratedByAccountIds: accountId },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean()
 
     if (!updated) {
@@ -1197,7 +1197,7 @@ export const store = {
         status: 'accepted',
         respondedAt: new Date().toISOString(),
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<FriendlyRequestRecord | null>()
 
     if (!updatedRequest) {
@@ -1243,7 +1243,7 @@ export const store = {
         status: 'declined',
         respondedAt: new Date().toISOString(),
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<FriendlyRequestRecord | null>()
 
     if (!updatedRequest) {
@@ -1281,7 +1281,7 @@ export const store = {
         $or: [{ requesterAccountId: accountId }, { recipientAccountId: accountId }],
       },
       { status: 'pending', respondedAt: null },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<FriendlyRequestRecord | null>()
   },
 }
