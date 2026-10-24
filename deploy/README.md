@@ -101,6 +101,7 @@ nano /opt/futa/.env
 ```dotenv
 NODE_ENV=production
 PORT=4000
+HOST=127.0.0.1
 MONGODB_URI=mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net/futa_monolith?retryWrites=true&w=majority
 # CORS_ORIGIN=https://futa.example.com   # optional; same-origin needs nothing
 ```

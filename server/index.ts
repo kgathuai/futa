@@ -1153,10 +1153,18 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(indexPath)) {
 const startServer = async () => {
   await connectDatabase(mongoUri)
 
-  app.listen(port, () => {
-    console.log(`Monolith backend running on http://localhost:${port}`)
+  const host = process.env.HOST?.trim() || undefined
+  const onListening = () => {
+    console.log(`Monolith backend running on http://${host ?? 'localhost'}:${port}`)
     console.log(`MongoDB connected: ${mongoUri}`)
-  })
+  }
+
+  // Production sets HOST=127.0.0.1 so the API is only reachable through nginx.
+  if (host) {
+    app.listen(port, host, onListening)
+  } else {
+    app.listen(port, onListening)
+  }
 }
 
 startServer().catch((error) => {
