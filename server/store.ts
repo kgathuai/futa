@@ -203,6 +203,20 @@ const notificationSchema = new Schema(
   { versionKey: false },
 )
 
+// Indexes for the hot read paths (match feeds, tournament fixtures, dashboards).
+matchSchema.index({ kickoff: 1 })
+matchSchema.index({ createdByTeam: 1, kickoff: 1 })
+matchSchema.index({ tournamentId: 1, round: 1, kickoff: 1 })
+matchSchema.index({ homeTeam: 1 })
+matchSchema.index({ awayTeam: 1 })
+resultSchema.index({ playedOn: -1 })
+tournamentSchema.index({ createdAt: -1 })
+teamSchema.index({ ownerAccountId: 1 })
+teamSchema.index({ name: 1 })
+friendlyRequestSchema.index({ createdAt: -1 })
+friendlyRequestSchema.index({ recipientAccountId: 1, status: 1 })
+notificationSchema.index({ accountId: 1, createdAt: -1 })
+
 const MatchModel = mongoose.models.Match || mongoose.model('Match', matchSchema)
 const ResultModel = mongoose.models.Result || mongoose.model('Result', resultSchema)
 const TournamentModel = mongoose.models.Tournament || mongoose.model('Tournament', tournamentSchema)
@@ -361,6 +375,38 @@ const normalizeStoredComments = (input: unknown): StoredComment[] => {
 
 const makeEntityId = () => `${Date.now()}-${Math.floor(Math.random() * 10_000)}`
 
+const PASSWORD_HASH_PREFIX = 'scrypt'
+const PASSWORD_SALT_BYTES = 16
+const PASSWORD_KEY_BYTES = 64
+
+const hashPassword = (password: string) => {
+  const salt = crypto.randomBytes(PASSWORD_SALT_BYTES)
+  const derived = crypto.scryptSync(password, salt, PASSWORD_KEY_BYTES)
+  return `${PASSWORD_HASH_PREFIX}$${salt.toString('hex')}$${derived.toString('hex')}`
+}
+
+const isHashedPassword = (value: string) => value.startsWith(`${PASSWORD_HASH_PREFIX}$`)
+
+const verifyPassword = (stored: string, candidate: string) => {
+  // Legacy accounts were stored in plain text; keep them working and upgrade on next login.
+  if (!isHashedPassword(stored)) {
+    return stored === candidate
+  }
+
+  const [, saltHex, hashHex] = stored.split('$')
+  if (!saltHex || !hashHex) {
+    return false
+  }
+
+  const expected = Buffer.from(hashHex, 'hex')
+  if (expected.length === 0) {
+    return false
+  }
+
+  const derived = crypto.scryptSync(candidate, Buffer.from(saltHex, 'hex'), expected.length)
+  return crypto.timingSafeEqual(derived, expected)
+}
+
 const buildKickoffIso = (date: string, time: string) => {
   const safeDate = date.trim()
   const safeTime = time.trim()
@@ -429,7 +475,24 @@ export const store = {
   },
   getFixturesForTournament: async (tournamentId: string) =>
     MatchModel.find({ tournamentId }).sort({ round: 1, kickoff: 1 }).lean(),
-  getTeam: async () => TeamModel.findOne().sort({ updatedAt: -1 }).lean(),
+  getTeam: async (ownerAccountId?: string, teamName?: string) => {
+    if (ownerAccountId && mongoose.isValidObjectId(ownerAccountId)) {
+      const owned = await TeamModel.findOne({ ownerAccountId }).sort({ updatedAt: -1 }).lean()
+      if (owned) {
+        return owned
+      }
+    }
+
+    const safeTeamName = teamName?.trim()
+    if (safeTeamName) {
+      const byName = await TeamModel.findOne({ name: safeTeamName }).sort({ updatedAt: -1 }).lean()
+      if (byName) {
+        return byName
+      }
+    }
+
+    return TeamModel.findOne().sort({ updatedAt: -1 }).lean()
+  },
   getTeams: async () => {
     const [accountTeams, savedTeams] = await Promise.all([
       AccountModel.distinct('team'),
@@ -505,22 +568,32 @@ export const store = {
     return Array.from(grounds).sort((a, b) => a.localeCompare(b))
   },
   setTeam: async (payload: TeamPayload, ownerAccountId: string) => {
-    const updated = await TeamModel.findOneAndUpdate(
-      {},
-      {
-        name: payload.name.trim(),
-        manager: payload.manager.trim(),
-        county: payload.county.trim(),
-        homeGround: payload.homeGround.trim(),
-        level: payload.level,
-        bio: payload.bio.trim(),
-        logoUrl: payload.logoUrl?.trim() || undefined,
-        ownerAccountId,
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
+    const name = payload.name.trim()
+    const update = {
+      name,
+      manager: payload.manager.trim(),
+      county: payload.county.trim(),
+      homeGround: payload.homeGround.trim(),
+      level: payload.level,
+      bio: payload.bio.trim(),
+      logoUrl: payload.logoUrl?.trim() || undefined,
+      ownerAccountId,
+    }
 
-    return updated
+    // Only ever update the team owned by the caller — never the first team in the collection.
+    const owned = await TeamModel.findOneAndUpdate({ ownerAccountId }, update, { new: true }).lean()
+    if (owned) {
+      return owned
+    }
+
+    // Adopt a legacy team document that predates owner scoping.
+    const byName = await TeamModel.findOneAndUpdate({ name }, update, { new: true }).lean()
+    if (byName) {
+      return byName
+    }
+
+    const created = await TeamModel.create(update)
+    return created.toObject()
   },
   findAccountByEmail: async (email: string) => {
     const account = await AccountModel.findOne({ email: email.toLowerCase() }).lean<AccountDoc | null>()
@@ -541,10 +614,27 @@ export const store = {
       role: payload.role,
       sport: payload.sport,
       email: payload.email.toLowerCase(),
-      password: payload.password,
+      password: hashPassword(payload.password),
     })
 
     return toPublicAccount(account.toObject() as AccountDoc)
+  },
+  authenticate: async (email: string, password: string) => {
+    const account = await AccountModel.findOne({ email: email.toLowerCase() }).lean<AccountDoc | null>()
+    if (!account) {
+      return { status: 'not-found' as const }
+    }
+
+    if (!verifyPassword(account.password, password)) {
+      return { status: 'invalid' as const }
+    }
+
+    // Transparently upgrade legacy plain-text passwords to a salted hash.
+    if (!isHashedPassword(account.password)) {
+      await AccountModel.updateOne({ _id: account._id }, { password: hashPassword(password) })
+    }
+
+    return { status: 'ok' as const, account: toPublicAccount(account) }
   },
   createSession: async (accountId: string) => {
     const session = await SessionModel.create({
@@ -757,27 +847,14 @@ export const store = {
       {
         homeScore,
         awayScore,
-        status: 'played',
+        status: 'finished',
       },
       { new: true },
     ).lean()
   },
   likeMatch: async (matchId: string, accountId: string) => {
-    const existing = await MatchModel.findOne({ id: matchId }).lean<
-      | {
-          likedByAccountIds?: string[]
-        }
-      | null
-    >()
-
-    if (!existing) {
-      return { status: 'not-found' as const }
-    }
-
-    if ((existing.likedByAccountIds ?? []).includes(accountId)) {
-      return { status: 'already-liked' as const }
-    }
-
+    // Single conditional update handles the happy path; only fall back to a lookup
+    // to tell "already liked" apart from "match missing".
     const updated = await MatchModel.findOneAndUpdate(
       { id: matchId, likedByAccountIds: { $ne: accountId } },
       {
@@ -787,11 +864,12 @@ export const store = {
       { new: true },
     ).lean()
 
-    if (!updated) {
-      return { status: 'already-liked' as const }
+    if (updated) {
+      return { status: 'updated' as const, match: updated }
     }
 
-    return { status: 'updated' as const, match: updated }
+    const exists = await MatchModel.exists({ id: matchId })
+    return exists ? { status: 'already-liked' as const } : { status: 'not-found' as const }
   },
   commentOnMatch: async (matchId: string, comment: string, authorName: string, authorAccountId: string) => {
     const safeComment = comment.trim()
@@ -1116,5 +1194,29 @@ export const store = {
     })
 
     return updatedRequest
+  },
+  updateFriendlyRequestStatus: async (
+    requestId: string,
+    status: 'pending' | 'accepted' | 'declined',
+    accountId: string,
+  ) => {
+    if (status === 'accepted') {
+      const accepted = await store.acceptFriendlyRequest(requestId, accountId)
+      return accepted ? accepted.request : null
+    }
+
+    if (status === 'declined') {
+      return store.declineFriendlyRequest(requestId, accountId)
+    }
+
+    // Re-open a request: only a participant may reset it back to pending.
+    return FriendlyRequestModel.findOneAndUpdate(
+      {
+        id: requestId,
+        $or: [{ requesterAccountId: accountId }, { recipientAccountId: accountId }],
+      },
+      { status: 'pending', respondedAt: null },
+      { new: true },
+    ).lean<FriendlyRequestRecord | null>()
   },
 }

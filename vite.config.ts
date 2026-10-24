@@ -42,6 +42,24 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    build: {
+      chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) {
+              return
+            }
+            if (id.includes('@mui') || id.includes('@emotion')) {
+              return 'mui-vendor'
+            }
+            if (id.includes('react-router') || id.includes('react-dom') || id.includes('/react/')) {
+              return 'react-vendor'
+            }
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         '/api': {

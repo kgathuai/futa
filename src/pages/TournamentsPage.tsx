@@ -55,17 +55,34 @@ export function TournamentsPage() {
     return () => window.clearInterval(timer)
   }, [])
 
-  const currentTournaments = tournaments.map((tournament) => ({
-    ...tournament,
-    status: getTournamentStatus(tournament, statusClock),
-  }))
-  const filteredTournaments = currentTournaments.filter((t) => selectedSport === 'All sports' || t.sport === selectedSport)
-  const runningTournaments = filteredTournaments.filter((tournament) => tournament.status === 'ongoing')
-  const selectedTournament = selectedTournamentId
-    ? filteredTournaments.find((item) => item.id === selectedTournamentId) ?? null
-    : null
+  const currentTournaments = useMemo(
+    () =>
+      tournaments.map((tournament) => ({
+        ...tournament,
+        status: getTournamentStatus(tournament, statusClock),
+      })),
+    [tournaments, statusClock],
+  )
+  const filteredTournaments = useMemo(
+    () => currentTournaments.filter((t) => selectedSport === 'All sports' || t.sport === selectedSport),
+    [currentTournaments, selectedSport],
+  )
+  const runningTournaments = useMemo(
+    () => filteredTournaments.filter((tournament) => tournament.status === 'ongoing'),
+    [filteredTournaments],
+  )
+  const selectedTournament = useMemo(
+    () =>
+      selectedTournamentId
+        ? filteredTournaments.find((item) => item.id === selectedTournamentId) ?? null
+        : null,
+    [filteredTournaments, selectedTournamentId],
+  )
   const isOwner = Boolean(loggedInTeam && selectedTournament?.ownerTeam === loggedInTeam)
-  const selectedTournamentTeams = selectedTournament?.registeredTeams ?? []
+  const selectedTournamentTeams = useMemo(
+    () => selectedTournament?.registeredTeams ?? [],
+    [selectedTournament],
+  )
   const isTournamentFull = Boolean(
     selectedTournament?.maxTeams && selectedTournamentTeams.length >= selectedTournament.maxTeams,
   )

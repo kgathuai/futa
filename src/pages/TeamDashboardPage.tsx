@@ -145,10 +145,6 @@ export function TeamDashboardPage() {
   const canCreateTeam = Boolean(loggedInUser && (normalizedRole === 'tm' || normalizedRole === 'coach' || normalizedRole === 'captain'))
   const canCreateMatches = canCreateTeam
 
-  if (!canAccessDashboard) {
-    return <Navigate to="/" replace />
-  }
-
   const teamNames = useMemo(() => teamOptions.map((option) => option.name), [teamOptions])
   const engagedFriendlies = useMemo(() => {
     const matchesAccount = (friendly: FriendlyRequest) => {
@@ -309,6 +305,10 @@ export function TeamDashboardPage() {
   useEffect(() => {
     setCurrentBookingPage((prev) => Math.min(prev, bookingTotalPages))
   }, [bookingTotalPages])
+
+  if (!canAccessDashboard) {
+    return <Navigate to="/" replace />
+  }
 
   const handleCreateMatch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

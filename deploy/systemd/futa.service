@@ -1,0 +1,43 @@
+[Unit]
+Description=Futa football community (Express + MongoDB)
+Documentation=https://github.com/kgathuai/futa
+After=network-online.target
+Wants=network-online.target
+# If MongoDB runs on this same droplet, uncomment these two lines:
+# After=mongod.service
+# Wants=mongod.service
+
+[Service]
+Type=simple
+User=futa
+Group=futa
+WorkingDirectory=/opt/futa
+EnvironmentFile=/opt/futa/.env
+Environment=NODE_ENV=production
+Environment=HOME=/opt/futa
+Environment=XDG_CACHE_HOME=/opt/futa/.cache
+# 1 GB droplet: keep the runtime heap small so MongoDB/nginx still have room.
+Environment=NODE_OPTIONS=--max-old-space-size=384
+ExecStart=/opt/futa/node_modules/.bin/tsx server/index.ts
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+KillSignal=SIGTERM
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/futa
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=futa
+
+[Install]
+WantedBy=multi-user.target

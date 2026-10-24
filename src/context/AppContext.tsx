@@ -1,6 +1,7 @@
 import {
   createContext,
   type PropsWithChildren,
+  useCallback,
   useEffect,
   useContext,
   useMemo,
@@ -65,6 +66,7 @@ interface AppContextValue {
   addFriendlyRequest: (payload: NewFriendlyRequest) => void
   addResultReport: (payload: NewResultReport) => Promise<void>
   createTeam: (payload: NewTeamProfile) => Promise<void>
+  refreshTeam: () => Promise<void>
   updateMatch: (updated: MatchAnnouncement) => void
 }
 
@@ -110,34 +112,37 @@ export function AppProvider({ children }: PropsWithChildren) {
     void loadBackendData()
   }, [])
 
-  const addComment = (
-    author: string,
-    phoneNumber: string,
-    teamName: string,
-    message: string,
-  ) => {
-    const safeAuthor = author.trim()
-    const safePhoneNumber = phoneNumber.trim()
-    const safeTeamName = teamName.trim()
-    const safeMessage = message.trim()
-    if (!safeAuthor || !safePhoneNumber || !safeTeamName || !safeMessage) {
-      return
-    }
+  const addComment = useCallback(
+    (
+      author: string,
+      phoneNumber: string,
+      teamName: string,
+      message: string,
+    ) => {
+      const safeAuthor = author.trim()
+      const safePhoneNumber = phoneNumber.trim()
+      const safeTeamName = teamName.trim()
+      const safeMessage = message.trim()
+      if (!safeAuthor || !safePhoneNumber || !safeTeamName || !safeMessage) {
+        return
+      }
 
-    setComments((prev) => [
-      {
-        id: makeId(),
-        author: safeAuthor,
-        phoneNumber: safePhoneNumber,
-        teamName: safeTeamName,
-        message: safeMessage,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ])
-  }
+      setComments((prev) => [
+        {
+          id: makeId(),
+          author: safeAuthor,
+          phoneNumber: safePhoneNumber,
+          teamName: safeTeamName,
+          message: safeMessage,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+    },
+    [],
+  )
 
-  const addFriendlyRequest = (payload: NewFriendlyRequest) => {
+  const addFriendlyRequest = useCallback((payload: NewFriendlyRequest) => {
     setFriendlies((prev) => [
       {
         id: makeId(),
@@ -157,9 +162,9 @@ export function AppProvider({ children }: PropsWithChildren) {
       },
       ...prev,
     ])
-  }
+  }, [])
 
-  const addResultReport = async (payload: NewResultReport) => {
+  const addResultReport = useCallback(async (payload: NewResultReport) => {
     const created = (await api.createResult({
       ...payload,
       engagement: payload.engagement ?? {
@@ -171,9 +176,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     })) as ResultReport
 
     setResults((prev) => [created, ...prev])
-  }
+  }, [])
 
-  const createTeam = async (payload: NewTeamProfile) => {
+  const createTeam = useCallback(async (payload: NewTeamProfile) => {
     const token = api.getToken()
     if (!token) {
       throw new Error('Please log in first.')
@@ -193,11 +198,22 @@ export function AppProvider({ children }: PropsWithChildren) {
     )
 
     setTeam(response.team)
-  }
+  }, [])
 
-  const updateMatch = (updated: MatchAnnouncement) => {
+  const refreshTeam = useCallback(async () => {
+    try {
+      const remoteTeam = await api.getTeam()
+      if (remoteTeam) {
+        setTeam(remoteTeam)
+      }
+    } catch {
+      // Keep the current profile when the backend is unavailable.
+    }
+  }, [])
+
+  const updateMatch = useCallback((updated: MatchAnnouncement) => {
     setMatches((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
-  }
+  }, [])
 
   const value = useMemo(
     () => ({
@@ -210,9 +226,22 @@ export function AppProvider({ children }: PropsWithChildren) {
       addFriendlyRequest,
       addResultReport,
       createTeam,
+      refreshTeam,
       updateMatch,
     }),
-    [comments, friendlies, matches, results, team],
+    [
+      addComment,
+      addFriendlyRequest,
+      addResultReport,
+      comments,
+      createTeam,
+      friendlies,
+      matches,
+      refreshTeam,
+      results,
+      team,
+      updateMatch,
+    ],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

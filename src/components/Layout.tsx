@@ -31,6 +31,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { NotificationItem } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
+import { useAppData } from '../context/AppContext'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
@@ -50,6 +51,7 @@ interface AuthOutletContext {
 
 export function Layout() {
   const location = useLocation()
+  const { refreshTeam } = useAppData()
   const currentYear = new Date().getFullYear()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register'>('login')
@@ -104,14 +106,14 @@ export function Layout() {
         setLoggedInRole(response.user.role)
         setLoggedInAccountId(response.user.id)
         setLoggedInTeam(response.user.team)
-        void loadNotifications(response.user.id)
+        void refreshTeam()
       } catch {
         api.clearToken()
       }
     }
 
     void restoreSession()
-  }, [])
+  }, [refreshTeam])
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -129,7 +131,7 @@ export function Layout() {
       setLoggedInRole(response.user.role)
       setLoggedInAccountId(response.user.id)
       setLoggedInTeam(response.user.team)
-      void loadNotifications(response.user.id)
+      void refreshTeam()
       setAuthMessage(`Signed in as ${response.user.name || response.user.email} (${response.user.role}).`)
       setLoginEmail('')
       setLoginPassword('')
@@ -194,6 +196,7 @@ export function Layout() {
     setLoggedInAccountId(null)
     setLoggedInTeam(null)
     setNotifications([])
+    void refreshTeam()
     setAuthMessage('You have logged out.')
   }
 

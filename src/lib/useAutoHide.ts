@@ -6,7 +6,10 @@ import { useEffect, useRef } from 'react'
  */
 export function useAutoHide(value: string, clear: () => void, delay = 4000) {
   const clearRef = useRef(clear)
-  clearRef.current = clear
+
+  useEffect(() => {
+    clearRef.current = clear
+  }, [clear])
 
   useEffect(() => {
     if (!value) return

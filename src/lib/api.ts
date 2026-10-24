@@ -94,7 +94,8 @@ export const api = {
     }),
   getResults: () => request<ResultReport[]>('/api/results'),
   getTournaments: () => request<TournamentItem[]>('/api/tournaments'),
-  getTeam: () => request<TeamProfile | null>('/api/team'),
+  getTeam: (token: string | null = localStorage.getItem(AUTH_TOKEN_KEY)) =>
+    request<TeamProfile | null>('/api/team', { token }),
   getTeams: () => request<{ teams: TeamSummary[] }>('/api/teams'),
   getGrounds: () => request<{ grounds: string[] }>('/api/grounds'),
   getFriendlies: () => request<FriendlyRequest[]>('/api/friendlies'),
@@ -194,22 +195,6 @@ export const api = {
   generateFixtures: (tournamentId: string, token: string) =>
     request<MatchAnnouncement[]>(`/api/tournaments/${tournamentId}/generate-fixtures`, {
       method: 'POST',
-      token,
-    }),
-  createFriendly: (
-    payload: {
-      homeTeam: string
-      awayTeam: string
-      preferredDate: string
-      contactPerson: string
-      phoneNumber: string
-      email: string
-    },
-    token: string,
-  ) =>
-    request('/api/friendlies', {
-      method: 'POST',
-      body: payload,
       token,
     }),
   createFriendlyRequest: (

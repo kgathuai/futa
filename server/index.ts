@@ -9,8 +9,12 @@ const app = express()
 const port = Number(process.env.PORT ?? 4000)
 const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/futa_monolith'
 const allowedRoles = new Set(['tm', 'coach', 'captain'])
+const corsOrigins = (process.env.CORS_ORIGIN ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 
-app.use(cors())
+app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : {}))
 app.use(express.json({ limit: '10mb' }))
 
 interface RequestUser {
@@ -167,7 +171,7 @@ const sanitizeMatchForViewer = (match: MatchWithInteractions, viewerAccountId?: 
   const likedBy = Array.isArray(match.likedByAccountIds) ? match.likedByAccountIds : []
   const ratedBy = Array.isArray(match.ratedByAccountIds) ? match.ratedByAccountIds : []
   const comments = normalizePublicComments(match.comments, viewerAccountId)
-  const { likedByAccountIds, ratedByAccountIds, ...rest } = match
+  const { likedByAccountIds: _likedByAccountIds, ratedByAccountIds: _ratedByAccountIds, ...rest } = match
 
   return {
     ...rest,
@@ -534,8 +538,9 @@ app.get('/api/tournaments', async (_req, res) => {
   res.json(tournaments)
 })
 
-app.get('/api/team', async (_req, res) => {
-  const team = await store.getTeam()
+app.get('/api/team', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  const team = await store.getTeam(user?.id, user?.team)
   res.json(team)
 })
 
@@ -655,6 +660,29 @@ app.post('/api/friendlies/:requestId/decline', async (req, res) => {
   }
 
   const result = await store.declineFriendlyRequest(requestId, user.id)
+  if (!result) {
+    res.status(404).json({ error: 'Friendly request not found.' })
+    return
+  }
+
+  res.json(result)
+})
+
+app.patch('/api/friendlies/:requestId/status', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const requestId = req.params.requestId?.trim()
+  const status = (req.body as { status?: string }).status?.trim()
+  if (!requestId || (status !== 'pending' && status !== 'accepted' && status !== 'declined')) {
+    res.status(400).json({ error: 'A valid request id and status are required.' })
+    return
+  }
+
+  const result = await store.updateFriendlyRequestStatus(requestId, status, user.id)
   if (!result) {
     res.status(404).json({ error: 'Friendly request not found.' })
     return
@@ -889,22 +917,22 @@ app.post('/api/auth/login', async (req, res) => {
     return
   }
 
-  const account = await store.findAccountByEmail(email)
-  if (!account) {
+  const result = await store.authenticate(email, password)
+  if (result.status === 'not-found') {
     res.status(404).json({ error: 'Account not found. Please register first.' })
     return
   }
 
-  if (account.password !== password) {
+  if (result.status === 'invalid') {
     res.status(401).json({ error: 'Invalid credentials.' })
     return
   }
 
-  const session = await store.createSession(account.id)
+  const session = await store.createSession(result.account.id)
 
   res.json({
     token: session.token,
-    user: sanitizeAccount(account),
+    user: sanitizeAccount(result.account),
   })
 })
 
