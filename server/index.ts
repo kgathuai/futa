@@ -917,8 +917,8 @@ app.get('/api/admin/accounts', async (req, res) => {
     return
   }
 
-  if (!isAdminRole(user.role)) {
-    res.status(403).json({ error: 'Admins only.' })
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
     return
   }
 

@@ -214,8 +214,7 @@ export function Layout() {
       normalizedRole === 'captain' ||
       normalizedRole === 'admin' ||
       normalizedRole === 'superadmin')
-  const canAccessAdmin =
-    Boolean(loggedInUser) && (normalizedRole === 'admin' || normalizedRole === 'superadmin')
+  const canAccessAdmin = Boolean(loggedInUser) && normalizedRole === 'superadmin'
 
   const navLinks = [
     ...(canAccessDashboard ? [{ to: '/team-dashboard', label: 'Dashboard' }] : []),

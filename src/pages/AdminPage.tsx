@@ -114,8 +114,8 @@ export function AdminPage() {
   const { loggedInRole, loggedInAccountId } = useOutletContext<AuthOutletContext>()
   const { removeMatch } = useAppData()
 
-  const canAccessAdmin = isAdminRole(loggedInRole)
-  const isSuperAdmin = isSuperAdminRole(loggedInRole)
+  const canAccessAdmin = isSuperAdminRole(loggedInRole)
+  const isSuperAdmin = canAccessAdmin
 
   const [accounts, setAccounts] = useState<AdminAccount[]>([])
   const [matches, setMatches] = useState<MatchAnnouncement[]>([])

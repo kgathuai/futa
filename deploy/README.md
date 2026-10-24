@@ -274,8 +274,11 @@ Self-registration only allows the public roles: `TM`, `Coach`, `captain`, `playe
 | Role | Can do |
 | --- | --- |
 | public roles | existing create/manage permissions for their own team |
-| `admin` | delete any match or tournament fixture; view the Admin page and account list |
-| `superadmin` | everything an admin can, plus change account roles and delete admin accounts |
+| `admin` | delete any match or tournament fixture from the match feed (no Admin console) |
+| `superadmin` | everything an admin can, plus the Admin console, role changes, and deleting admin accounts |
+
+The **Admin** console and nav item are visible to `superadmin` only. Admins moderate matches
+from the home feed; they cannot open the account list or change roles.
 
 Deleting an account removes the login and its sessions; the person's team, matches, and
 history are kept. Superadmins cannot delete themselves or another superadmin from the app.
