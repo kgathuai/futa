@@ -8,6 +8,10 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -18,6 +22,7 @@ import {
 } from '@mui/material'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import PersonAddAltRoundedIcon from '@mui/icons-material/PersonAddAltRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
@@ -35,6 +40,8 @@ interface AuthOutletContext {
 }
 
 const assignableRoles = ['admin', 'TM', 'Coach', 'captain', 'player', 'Referee', 'fun'] as const
+const publicRoles = ['TM', 'Coach', 'captain', 'player', 'Referee', 'fun'] as const
+const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table'] as const
 
 const normalizeRole = (role: string | null | undefined) => role?.trim().toLowerCase() ?? ''
 const isAdminRole = (role: string | null | undefined) => {
@@ -125,6 +132,16 @@ export function AdminPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'superadmin' | 'admin' | 'members'>('all')
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newRole, setNewRole] = useState('player')
+  const [newTeam, setNewTeam] = useState('')
+  const [newSport, setNewSport] = useState('Football')
+  const [createError, setCreateError] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
 
   const load = useCallback(async () => {
     const token = api.getToken()
@@ -261,6 +278,55 @@ export function AdminPage() {
     }
   }
 
+  const resetCreateForm = () => {
+    setNewName('')
+    setNewEmail('')
+    setNewPassword('')
+    setNewRole('player')
+    setNewTeam('')
+    setNewSport('Football')
+    setCreateError('')
+  }
+
+  const handleCreateAccount = async () => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    const isReferee = newRole === 'Referee'
+    const name = newName.trim()
+    const email = newEmail.trim().toLowerCase()
+    const password = newPassword.trim()
+    const team = isReferee ? '' : newTeam.trim()
+
+    if (!name || !email || !password || (!isReferee && !team)) {
+      setCreateError('Fill in all required fields.')
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      const created = await api.createAccount(
+        { name, email, password, role: newRole, sport: newSport, team },
+        token,
+      )
+      setAccounts((prev) => [...prev, created])
+      setRoleFilter('all')
+      setQuery('')
+      setCreateOpen(false)
+      resetCreateForm()
+      setError('')
+      setMessage(`Created ${created.name} (${created.role}).`)
+    } catch (createAccountError) {
+      setCreateError(
+        createAccountError instanceof Error ? createAccountError.message : 'Failed to create account.',
+      )
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   const canDeleteAccount = (account: AdminAccount) =>
     isSuperAdmin && account.id !== loggedInAccountId && !isSuperAdminRole(account.role)
 
@@ -307,6 +373,26 @@ export function AdminPage() {
               '& .MuiChip-label': { px: 0.7 },
             }}
           />
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<PersonAddAltRoundedIcon sx={{ fontSize: '0.9rem' }} />}
+            onClick={() => {
+              resetCreateForm()
+              setCreateOpen(true)
+            }}
+            sx={{
+              fontSize: '0.7rem',
+              py: 0.35,
+              px: 1.1,
+              bgcolor: '#4ce3a3',
+              color: '#07111f',
+              fontWeight: 800,
+              '&:hover': { bgcolor: '#3ecf92' },
+            }}
+          >
+            New account
+          </Button>
           <Button
             size="small"
             variant="outlined"
@@ -721,6 +807,128 @@ export function AdminPage() {
           </Card>
         </Box>
       )}
+
+      <Dialog
+        open={createOpen}
+        onClose={() => {
+          if (!isCreating) {
+            setCreateOpen(false)
+            resetCreateForm()
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 800, pb: 0.5 }}>
+          Create account
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.2} sx={{ pt: 1 }}>
+            <TextField
+              size="small"
+              label="Name"
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              autoFocus
+              sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+            />
+            <TextField
+              size="small"
+              type="email"
+              label="Email"
+              value={newEmail}
+              onChange={(event) => setNewEmail(event.target.value)}
+              sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+            />
+            <TextField
+              size="small"
+              type="password"
+              label="Initial password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              helperText="Share this with the user so they can log in."
+              sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2}>
+              <TextField
+                select
+                size="small"
+                label="Role"
+                value={newRole}
+                onChange={(event) => {
+                  const nextRole = event.target.value
+                  setNewRole(nextRole)
+                  if (nextRole === 'Referee') {
+                    setNewTeam('')
+                  }
+                }}
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.78rem' } }}
+              >
+                {publicRoles.map((role) => (
+                  <MenuItem key={role} value={role} sx={{ fontSize: '0.78rem' }}>
+                    {role}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label="Sport"
+                value={newSport}
+                onChange={(event) => setNewSport(event.target.value)}
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.78rem' } }}
+              >
+                {sports.map((sport) => (
+                  <MenuItem key={sport} value={sport} sx={{ fontSize: '0.78rem' }}>
+                    {sport}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+            {newRole !== 'Referee' && (
+              <TextField
+                size="small"
+                label="Team"
+                value={newTeam}
+                onChange={(event) => setNewTeam(event.target.value)}
+                sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+              />
+            )}
+            {newRole === 'Referee' && (
+              <Typography sx={{ fontSize: '0.66rem', color: '#7f8aa3' }}>
+                Referees are not attached to a team.
+              </Typography>
+            )}
+            {createError && (
+              <Alert severity="error" sx={{ fontSize: '0.72rem', py: 0.3 }}>
+                {createError}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 1.6 }}>
+          <Button
+            size="small"
+            onClick={() => {
+              setCreateOpen(false)
+              resetCreateForm()
+            }}
+            disabled={isCreating}
+            sx={{ fontSize: '0.72rem' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => void handleCreateAccount()}
+            disabled={isCreating}
+            sx={{ fontSize: '0.72rem' }}
+          >
+            {isCreating ? 'Creating…' : 'Create account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }

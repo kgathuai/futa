@@ -99,6 +99,22 @@ export const api = {
   getTeams: () => request<{ teams: TeamSummary[] }>('/api/teams'),
   getGrounds: () => request<{ grounds: string[] }>('/api/grounds'),
   getAdminAccounts: (token: string) => request<AdminAccount[]>('/api/admin/accounts', { token }),
+  createAccount: (
+    payload: {
+      name: string
+      team: string
+      role: string
+      sport: string
+      email: string
+      password: string
+    },
+    token: string,
+  ) =>
+    request<AdminAccount>('/api/admin/accounts', {
+      method: 'POST',
+      body: payload,
+      token,
+    }),
   updateAccountRole: (accountId: string, role: string, token: string) =>
     request<AdminAccount>(`/api/admin/accounts/${accountId}/role`, {
       method: 'PATCH',

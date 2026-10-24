@@ -915,6 +915,77 @@ app.get('/api/grounds', async (_req, res) => {
 })
 
 // ─── Admin / moderation ──────────────────────────────────────────────────────
+app.post('/api/admin/accounts', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
+    return
+  }
+
+  const body = req.body as {
+    name?: string
+    team?: string
+    role?: string
+    sport?: string
+    email?: string
+    password?: string
+  }
+  const name = body.name?.trim() ?? ''
+  const team = body.team?.trim() ?? ''
+  const role = body.role?.trim() ?? ''
+  const sport = body.sport?.trim() ?? ''
+  const email = body.email?.trim().toLowerCase() ?? ''
+  const password = body.password?.trim() ?? ''
+
+  if (!name || !role || !sport || !email || !password) {
+    res.status(400).json({ error: 'Missing required account fields.' })
+    return
+  }
+
+  const requestedRole = normalizeRole(role)
+  if (!publicRoles.has(requestedRole)) {
+    res.status(400).json({ error: 'Choose a valid role.' })
+    return
+  }
+
+  const isReferee = requestedRole === 'referee'
+  if (!isReferee && !team) {
+    res.status(400).json({ error: 'Team is required for this role.' })
+    return
+  }
+
+  const existingAccount = await store.findAccountByEmail(email)
+  if (existingAccount) {
+    res.status(409).json({ error: 'Email already registered.' })
+    return
+  }
+
+  const account = await store.createAccount({
+    name,
+    team: isReferee ? '' : team,
+    role: roleLabels[requestedRole],
+    sport,
+    email,
+    password,
+  })
+
+  // Never return the password hash.
+  res.status(201).json({
+    id: account.id,
+    name: account.name,
+    team: account.team,
+    role: account.role,
+    sport: account.sport,
+    email: account.email,
+    createdAt: new Date().toISOString(),
+  })
+})
+
 app.get('/api/admin/accounts', async (req, res) => {
   const user = await getRequestUser(req.header('authorization'))
   if (!user) {
