@@ -15,7 +15,7 @@ const corsOrigins = (process.env.CORS_ORIGIN ?? '')
   .filter(Boolean)
 
 app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : {}))
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '10mb', inflate: false }))
 
 interface RequestUser {
   id: string

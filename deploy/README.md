@@ -99,7 +99,7 @@ nano /opt/futa/.env
 ```
 
 ```dotenv
-NODE_ENV=production
+# NODE_ENV is provided by futa.service — do not put it in .env
 PORT=4000
 HOST=127.0.0.1
 MONGODB_URI=mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net/futa_monolith?retryWrites=true&w=majority
@@ -236,7 +236,7 @@ ufw status
 - [ ] ufw active, only 22/80/443 open (`ufw status`)
 - [ ] HTTPS enabled with auto-renewal (`systemctl list-timers | grep certbot`)
 - [ ] SSH key login; consider disabling password auth and `PermitRootLogin`
-- [ ] `npm audit` reviewed (the lockfile reports 20 advisories, mostly build-time)
+- [ ] `npm audit --omit=dev` reports 0 vulnerabilities (dev/build-only advisories reviewed separately)
 - [ ] Any credential ever committed to the repo has been rotated
 
 Useful hardening commands:
