@@ -23,6 +23,8 @@ Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=20s
 KillSignal=SIGTERM
+# systemctl stop/restart delivers SIGTERM (exit code 143); treat it as clean.
+SuccessExitStatus=143
 
 # Hardening
 NoNewPrivileges=true

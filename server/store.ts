@@ -240,6 +240,26 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   password: account.password,
 })
 
+type AccountSummaryDoc = {
+  _id: mongoose.Types.ObjectId
+  name: string
+  team: string
+  role: string
+  sport: string
+  email: string
+  createdAt?: Date
+}
+
+const toAdminAccount = (account: AccountSummaryDoc) => ({
+  id: account._id.toString(),
+  name: account.name,
+  team: account.team,
+  role: account.role,
+  sport: account.sport,
+  email: account.email,
+  createdAt: account.createdAt ? new Date(account.createdAt).toISOString() : null,
+})
+
 interface StoredCommentReply {
   id: string
   text: string
@@ -635,6 +655,47 @@ export const store = {
     }
 
     return { status: 'ok' as const, account: toPublicAccount(account) }
+  },
+  listAccounts: async () => {
+    const accounts = await AccountModel.find(
+      {},
+      { name: 1, team: 1, role: 1, sport: 1, email: 1, createdAt: 1 },
+    )
+      .sort({ createdAt: 1 })
+      .lean<AccountSummaryDoc[]>()
+
+    return accounts.map(toAdminAccount)
+  },
+  setAccountRole: async (accountId: string, role: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(accountId, { role }, { new: true }).lean<AccountSummaryDoc | null>()
+    return account ? toAdminAccount(account) : null
+  },
+  setAccountRoleByEmail: async (email: string, role: string) => {
+    const account = await AccountModel.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { role },
+      { new: true },
+    ).lean<AccountSummaryDoc | null>()
+
+    return account ? toAdminAccount(account) : null
+  },
+  deleteAccount: async (accountId: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndDelete(accountId).lean<AccountSummaryDoc | null>()
+    if (!account) {
+      return null
+    }
+
+    // Invalidate every session belonging to the deleted account.
+    await SessionModel.deleteMany({ accountId: account._id })
+    return toAdminAccount(account)
   },
   createSession: async (accountId: string) => {
     const session = await SessionModel.create({
@@ -1068,6 +1129,10 @@ export const store = {
       id: matchId,
       createdByTeam: teamName,
     })
+    return result.deletedCount > 0
+  },
+  deleteMatch: async (matchId: string) => {
+    const result = await MatchModel.deleteOne({ id: matchId })
     return result.deletedCount > 0
   },
   addFriendlyRequest: async (

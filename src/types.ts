@@ -141,3 +141,13 @@ export interface TeamSummary {
   status?: 'active' | 'inactive'
   updatedAt?: string
 }
+
+export interface AdminAccount {
+  id: string
+  name: string
+  team: string
+  role: string
+  sport: string
+  email: string
+  createdAt?: string | null
+}

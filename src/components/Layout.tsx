@@ -27,6 +27,7 @@ import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined'
+import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { NotificationItem } from '../types'
@@ -208,11 +209,19 @@ export function Layout() {
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
   const canAccessDashboard =
     Boolean(loggedInUser) &&
-    (normalizedRole === 'coach' || normalizedRole === 'tm' || normalizedRole === 'captain')
+    (normalizedRole === 'coach' ||
+      normalizedRole === 'tm' ||
+      normalizedRole === 'captain' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'superadmin')
+  const canAccessAdmin =
+    Boolean(loggedInUser) && (normalizedRole === 'admin' || normalizedRole === 'superadmin')
 
-  const navLinks = canAccessDashboard
-    ? [{ to: '/team-dashboard', label: 'Dashboard' }, ...links]
-    : links
+  const navLinks = [
+    ...(canAccessDashboard ? [{ to: '/team-dashboard', label: 'Dashboard' }] : []),
+    ...(canAccessAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
+    ...links,
+  ]
 
   const handleNotificationRead = async (notificationId: string, alreadyRead: boolean) => {
     if (alreadyRead) {
@@ -398,10 +407,11 @@ export function Layout() {
               }}
             >
               {link.to === '/team-dashboard' ? <DashboardOutlinedIcon sx={{ fontSize: 26 }} />
-                : link.to === '/' ? <HomeOutlinedIcon sx={{ fontSize: 26 }} />
-                  : link.to === '/friendlies' ? <SportsSoccerOutlinedIcon sx={{ fontSize: 26 }} />
-                    : link.to === '/team' ? <GroupsOutlinedIcon sx={{ fontSize: 26 }} />
-                      : <EmojiEventsOutlinedIcon sx={{ fontSize: 26 }} />}
+                : link.to === '/admin' ? <AdminPanelSettingsOutlinedIcon sx={{ fontSize: 26 }} />
+                  : link.to === '/' ? <HomeOutlinedIcon sx={{ fontSize: 26 }} />
+                    : link.to === '/friendlies' ? <SportsSoccerOutlinedIcon sx={{ fontSize: 26 }} />
+                      : link.to === '/team' ? <GroupsOutlinedIcon sx={{ fontSize: 26 }} />
+                        : <EmojiEventsOutlinedIcon sx={{ fontSize: 26 }} />}
               {link.label}
             </Button>
           )

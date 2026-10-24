@@ -90,7 +90,14 @@ export function TeamPage() {
   const teamsPerPage = 3
 
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
-  const canCreateTeam = Boolean(loggedInUser && (normalizedRole === 'tm' || normalizedRole === 'coach' || normalizedRole === 'captain'))
+  const canCreateTeam = Boolean(
+    loggedInUser &&
+      (normalizedRole === 'tm' ||
+        normalizedRole === 'coach' ||
+        normalizedRole === 'captain' ||
+        normalizedRole === 'admin' ||
+        normalizedRole === 'superadmin'),
+  )
 
   const loadTeams = async () => {
     setIsLoadingTeams(true)

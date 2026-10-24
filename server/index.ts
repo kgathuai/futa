@@ -8,7 +8,26 @@ import { connectDatabase, store, type AccountRecord, type TeamPayload } from './
 const app = express()
 const port = Number(process.env.PORT ?? 4000)
 const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/futa_monolith'
-const allowedRoles = new Set(['tm', 'coach', 'captain'])
+const allowedRoles = new Set(['tm', 'coach', 'captain', 'admin', 'superadmin'])
+// Roles a visitor may self-register with. Never includes admin/superadmin.
+const publicRoles = new Set(['tm', 'coach', 'captain', 'player', 'referee', 'fun'])
+// Roles a superadmin may assign from the app. superadmin itself is CLI-only.
+const assignableRoles = new Set([...publicRoles, 'admin'])
+const roleLabels: Record<string, string> = {
+  tm: 'TM',
+  coach: 'Coach',
+  captain: 'captain',
+  player: 'player',
+  referee: 'Referee',
+  fun: 'fun',
+  admin: 'admin',
+}
+const normalizeRole = (role: string) => role.trim().toLowerCase()
+const isAdminRole = (role: string) => {
+  const normalized = normalizeRole(role)
+  return normalized === 'admin' || normalized === 'superadmin'
+}
+const isSuperAdminRole = (role: string) => normalizeRole(role) === 'superadmin'
 const corsOrigins = (process.env.CORS_ORIGIN ?? '')
   .split(',')
   .map((origin) => origin.trim())
@@ -507,15 +526,27 @@ app.delete('/api/matches/:matchId', async (req, res) => {
     return
   }
 
-  const teamName = user.team?.trim()
-  if (!teamName) {
-    res.status(400).json({ error: 'Your account has no team set.' })
-    return
-  }
-
   const matchId = req.params.matchId?.trim()
   if (!matchId) {
     res.status(400).json({ error: 'Match id is required.' })
+    return
+  }
+
+  // Admins and superadmins may remove any match; everyone else only their own.
+  if (isAdminRole(user.role)) {
+    const deleted = await store.deleteMatch(matchId)
+    if (!deleted) {
+      res.status(404).json({ error: 'Match not found.' })
+      return
+    }
+
+    res.status(204).send()
+    return
+  }
+
+  const teamName = user.team?.trim()
+  if (!teamName) {
+    res.status(400).json({ error: 'Your account has no team set.' })
     return
   }
 
@@ -878,6 +909,110 @@ app.get('/api/grounds', async (_req, res) => {
   res.json({ grounds })
 })
 
+// ─── Admin / moderation ──────────────────────────────────────────────────────
+app.get('/api/admin/accounts', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
+    return
+  }
+
+  const accounts = await store.listAccounts()
+  res.json(accounts)
+})
+
+app.patch('/api/admin/accounts/:accountId/role', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
+    return
+  }
+
+  const accountId = req.params.accountId?.trim()
+  const requestedRole = normalizeRole((req.body as { role?: string }).role ?? '')
+  if (!accountId || !assignableRoles.has(requestedRole)) {
+    res.status(400).json({ error: 'A valid account id and role are required.' })
+    return
+  }
+
+  if (accountId === user.id) {
+    res.status(400).json({ error: 'You cannot change your own role.' })
+    return
+  }
+
+  const target = await store.findAccountById(accountId)
+  if (!target) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  if (isSuperAdminRole(target.role)) {
+    res.status(403).json({ error: 'Superadmin roles can only be changed from the server CLI.' })
+    return
+  }
+
+  const updated = await store.setAccountRole(accountId, roleLabels[requestedRole])
+  if (!updated) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  res.json(updated)
+})
+
+app.delete('/api/admin/accounts/:accountId', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
+    return
+  }
+
+  const accountId = req.params.accountId?.trim()
+  if (!accountId) {
+    res.status(400).json({ error: 'Account id is required.' })
+    return
+  }
+
+  if (accountId === user.id) {
+    res.status(400).json({ error: 'You cannot delete your own account.' })
+    return
+  }
+
+  const target = await store.findAccountById(accountId)
+  if (!target) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  if (isSuperAdminRole(target.role)) {
+    res.status(403).json({ error: 'Superadmin accounts cannot be deleted from the app.' })
+    return
+  }
+
+  const deleted = await store.deleteAccount(accountId)
+  if (!deleted) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  res.status(204).send()
+})
+
 app.post('/api/auth/register', async (req, res) => {
   const body = req.body as Partial<AccountRecord>
   const name = body.name?.trim() ?? ''
@@ -892,13 +1027,26 @@ app.post('/api/auth/register', async (req, res) => {
     return
   }
 
+  const requestedRole = normalizeRole(role)
+  if (!publicRoles.has(requestedRole)) {
+    res.status(400).json({ error: 'Choose a valid role.' })
+    return
+  }
+
   const existingAccount = await store.findAccountByEmail(email)
   if (existingAccount) {
     res.status(409).json({ error: 'Email already registered.' })
     return
   }
 
-  const account = await store.createAccount({ name, team, role, sport, email, password })
+  const account = await store.createAccount({
+    name,
+    team,
+    role: roleLabels[requestedRole],
+    sport,
+    email,
+    password,
+  })
   const session = await store.createSession(account.id)
 
   res.status(201).json({

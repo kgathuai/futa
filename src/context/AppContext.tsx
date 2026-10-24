@@ -68,6 +68,7 @@ interface AppContextValue {
   createTeam: (payload: NewTeamProfile) => Promise<void>
   refreshTeam: () => Promise<void>
   updateMatch: (updated: MatchAnnouncement) => void
+  removeMatch: (matchId: string) => void
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined)
@@ -215,6 +216,10 @@ export function AppProvider({ children }: PropsWithChildren) {
     setMatches((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
   }, [])
 
+  const removeMatch = useCallback((matchId: string) => {
+    setMatches((prev) => prev.filter((match) => match.id !== matchId))
+  }, [])
+
   const value = useMemo(
     () => ({
       team,
@@ -228,6 +233,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       createTeam,
       refreshTeam,
       updateMatch,
+      removeMatch,
     }),
     [
       addComment,
@@ -238,6 +244,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       friendlies,
       matches,
       refreshTeam,
+      removeMatch,
       results,
       team,
       updateMatch,

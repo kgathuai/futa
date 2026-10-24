@@ -47,7 +47,11 @@ export function TournamentsPage() {
   const canRegisterTeam = Boolean(
     loggedInUser &&
       loggedInTeam &&
-      (normalizedRole === 'captain' || normalizedRole === 'tm' || normalizedRole === 'coach'),
+      (normalizedRole === 'captain' ||
+        normalizedRole === 'tm' ||
+        normalizedRole === 'coach' ||
+        normalizedRole === 'admin' ||
+        normalizedRole === 'superadmin'),
   )
 
   useEffect(() => {

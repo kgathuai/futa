@@ -139,10 +139,14 @@ export function TeamDashboardPage() {
   const [editingAwayScoreByMatchId, setEditingAwayScoreByMatchId] = useState<Record<string, number>>({})
 
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
-  const canAccessDashboard = Boolean(
-    loggedInUser && (normalizedRole === 'tm' || normalizedRole === 'coach' || normalizedRole === 'captain'),
-  )
-  const canCreateTeam = Boolean(loggedInUser && (normalizedRole === 'tm' || normalizedRole === 'coach' || normalizedRole === 'captain'))
+  const isManagementRole =
+    normalizedRole === 'tm' ||
+    normalizedRole === 'coach' ||
+    normalizedRole === 'captain' ||
+    normalizedRole === 'admin' ||
+    normalizedRole === 'superadmin'
+  const canAccessDashboard = Boolean(loggedInUser && isManagementRole)
+  const canCreateTeam = Boolean(loggedInUser && isManagementRole)
   const canCreateMatches = canCreateTeam
 
   const teamNames = useMemo(() => teamOptions.map((option) => option.name), [teamOptions])

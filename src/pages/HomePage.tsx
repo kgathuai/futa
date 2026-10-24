@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import { useOutletContext } from 'react-router-dom'
@@ -49,8 +50,9 @@ const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball'
 const statuses = ['Scheduled','Playing', 'Finished', ]
 
 export function HomePage() {
-  const { matches, updateMatch } = useAppData()
-  const { loggedInTeam, loggedInAccountId, loggedInUser } = useOutletContext<AuthOutletContext>()
+  const { matches, updateMatch, removeMatch } = useAppData()
+  const { loggedInTeam, loggedInAccountId, loggedInUser, loggedInRole } = useOutletContext<AuthOutletContext>()
+  const canModerateMatches = ['admin', 'superadmin'].includes((loggedInRole ?? '').trim().toLowerCase())
   const [selectedSport, setSelectedSport] = useState('All sports')
   const [selectedStatus, setSelectedStatus] = useState('All')
   const [showAnnounceForm, setShowAnnounceForm] = useState(false)
@@ -190,6 +192,26 @@ export function HomePage() {
     } catch (error) {
       setEngagementMessage(error instanceof Error ? error.message : 'Failed to rate match.')
       return false
+    }
+  }
+
+  const handleDeleteMatch = async (matchId: string) => {
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Please log in to delete matches.')
+      return
+    }
+
+    if (!window.confirm('Delete this match? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      await api.deleteMatch(matchId, token)
+      removeMatch(matchId)
+      setEngagementMessage('Match deleted.')
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Failed to delete match.')
     }
   }
 
@@ -448,16 +470,28 @@ export function HomePage() {
                   >
                     {match.sport} · {match.category}
                   </Typography>
-                  <Chip
-                    label={runtimeStatus}
-                    size="small"
-                    color={runtimeStatus === 'finished' ? 'primary' : 'default'}
-                    sx={
-                      runtimeStatus === 'finished'
-                        ? { color: '#07111f', fontWeight: 700 }
-                        : { bgcolor: 'rgba(159,176,201,0.12)', color: '#aeb8ca' }
-                    }
-                  />
+                  <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
+                    {canModerateMatches && (
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label={`Delete ${match.homeTeam} vs ${match.awayTeam}`}
+                        onClick={() => void handleDeleteMatch(match.id)}
+                      >
+                        <DeleteOutlineRoundedIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    <Chip
+                      label={runtimeStatus}
+                      size="small"
+                      color={runtimeStatus === 'finished' ? 'primary' : 'default'}
+                      sx={
+                        runtimeStatus === 'finished'
+                          ? { color: '#07111f', fontWeight: 700 }
+                          : { bgcolor: 'rgba(159,176,201,0.12)', color: '#aeb8ca' }
+                      }
+                    />
+                  </Stack>
                 </Stack>
 
                 <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>

@@ -1,4 +1,4 @@
-import type { FriendlyRequest, NotificationItem, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { AdminAccount, FriendlyRequest, NotificationItem, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
@@ -98,6 +98,18 @@ export const api = {
     request<TeamProfile | null>('/api/team', { token }),
   getTeams: () => request<{ teams: TeamSummary[] }>('/api/teams'),
   getGrounds: () => request<{ grounds: string[] }>('/api/grounds'),
+  getAdminAccounts: (token: string) => request<AdminAccount[]>('/api/admin/accounts', { token }),
+  updateAccountRole: (accountId: string, role: string, token: string) =>
+    request<AdminAccount>(`/api/admin/accounts/${accountId}/role`, {
+      method: 'PATCH',
+      body: { role },
+      token,
+    }),
+  deleteAccount: (accountId: string, token: string) =>
+    request<void>(`/api/admin/accounts/${accountId}`, {
+      method: 'DELETE',
+      token,
+    }),
   getFriendlies: () => request<FriendlyRequest[]>('/api/friendlies'),
   getNotifications: (token: string) => request<NotificationItem[]>('/api/notifications', { token }),
   markNotificationRead: (notificationId: string, token: string) =>

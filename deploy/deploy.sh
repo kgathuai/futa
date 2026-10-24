@@ -37,8 +37,22 @@ sudo -u "${APP_USER}" bash -c "cd '${APP_DIR}' && npm prune --omit=dev"
 
 echo "==> Restarting ${SERVICE}"
 systemctl restart "${SERVICE}"
-sleep 2
-systemctl --no-pager --lines=20 status "${SERVICE}" || true
 
-echo
-echo "Health: $(curl -fsS http://127.0.0.1:4000/api/health || echo 'FAILED — check journalctl -u futa')"
+echo "==> Waiting for the API to become healthy"
+healthy=0
+for _ in $(seq 1 30); do
+  if curl -fsS http://127.0.0.1:4000/api/health >/dev/null 2>&1; then
+    healthy=1
+    break
+  fi
+  sleep 1
+done
+
+systemctl --no-pager --lines=15 status "${SERVICE}" || true
+
+if [[ "${healthy}" -eq 1 ]]; then
+  echo "Health: $(curl -fsS http://127.0.0.1:4000/api/health)"
+else
+  echo "Health: FAILED after 30s — check 'journalctl -u ${SERVICE} -n 50'" >&2
+  exit 1
+fi

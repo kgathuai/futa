@@ -263,3 +263,40 @@ systemctl reload ssh
 | `systemd/futa.service` | systemd unit (runs as `futa`, port 4000) |
 | `nginx/futa.conf` | static hosting, `/api` proxy, cache + rate-limit rules |
 | `.env.production.example` | production env template |
+
+---
+
+## 11. Roles & moderation
+
+Self-registration only allows the public roles: `TM`, `Coach`, `captain`, `player`,
+`Referee`, `fun`. `admin` and `superadmin` can never be self-assigned.
+
+| Role | Can do |
+| --- | --- |
+| public roles | existing create/manage permissions for their own team |
+| `admin` | delete any match or tournament fixture; view the Admin page and account list |
+| `superadmin` | everything an admin can, plus change account roles and delete admin accounts |
+
+Deleting an account removes the login and its sessions; the person's team, matches, and
+history are kept. Superadmins cannot delete themselves or another superadmin from the app.
+
+### Bootstrap the first superadmin
+
+Register your account in the app first, then on the server:
+
+```bash
+cd /opt/futa
+sudo -u futa npm run make-superadmin -- you@example.com
+```
+
+Refresh the app — an **Admin** item appears in the navigation. From there you can promote
+accounts to `admin`, delete admin accounts, and delete matches.
+
+To promote straight to `admin` instead of `superadmin`:
+
+```bash
+sudo -u futa npm run make-superadmin -- someone@example.com admin
+```
+
+`superadmin` is intentionally CLI-only: it cannot be granted or removed from the web UI.
+
