@@ -149,7 +149,8 @@ const teamSchema = new Schema(
 const accountSchema = new Schema(
   {
     name: { type: String, required: true },
-    team: { type: String, required: true },
+    // Referees are not attached to a team, so this may be empty.
+    team: { type: String, required: false, default: '' },
     role: { type: String, required: true },
     sport: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -233,7 +234,7 @@ type SessionDoc = InferSchemaType<typeof sessionSchema> & { accountId: mongoose.
 const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   id: account._id.toString(),
   name: account.name,
-  team: account.team,
+  team: account.team ?? '',
   role: account.role,
   sport: account.sport,
   email: account.email,
@@ -496,19 +497,24 @@ export const store = {
   getFixturesForTournament: async (tournamentId: string) =>
     MatchModel.find({ tournamentId }).sort({ round: 1, kickoff: 1 }).lean(),
   getTeam: async (ownerAccountId?: string, teamName?: string) => {
-    if (ownerAccountId && mongoose.isValidObjectId(ownerAccountId)) {
-      const owned = await TeamModel.findOne({ ownerAccountId }).sort({ updatedAt: -1 }).lean()
-      if (owned) {
-        return owned
+    if (ownerAccountId) {
+      if (mongoose.isValidObjectId(ownerAccountId)) {
+        const owned = await TeamModel.findOne({ ownerAccountId }).sort({ updatedAt: -1 }).lean()
+        if (owned) {
+          return owned
+        }
       }
-    }
 
-    const safeTeamName = teamName?.trim()
-    if (safeTeamName) {
-      const byName = await TeamModel.findOne({ name: safeTeamName }).sort({ updatedAt: -1 }).lean()
-      if (byName) {
-        return byName
+      const safeTeamName = teamName?.trim()
+      if (safeTeamName) {
+        const byName = await TeamModel.findOne({ name: safeTeamName }).sort({ updatedAt: -1 }).lean()
+        if (byName) {
+          return byName
+        }
       }
+
+      // Signed-in users without a team (e.g. referees) have no profile of their own.
+      return null
     }
 
     return TeamModel.findOne().sort({ updatedAt: -1 }).lean()

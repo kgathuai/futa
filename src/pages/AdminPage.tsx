@@ -543,7 +543,7 @@ export function AdminPage() {
                             textOverflow: 'ellipsis',
                           }}
                         >
-                          {account.team}
+                          {account.team || 'No team'}
                         </Typography>
                         <Typography sx={{ fontSize: '0.58rem', color: '#66708a' }}>
                           {account.sport}

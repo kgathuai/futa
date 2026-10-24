@@ -269,6 +269,11 @@ app.post('/api/matches', async (req, res) => {
     return
   }
 
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can create matches.' })
+    return
+  }
+
   const teamName = user.team?.trim()
   if (!teamName) {
     res.status(400).json({ error: 'Your account has no team set.' })
@@ -1022,7 +1027,7 @@ app.post('/api/auth/register', async (req, res) => {
   const email = body.email?.trim().toLowerCase() ?? ''
   const password = body.password?.trim() ?? ''
 
-  if (!name || !team || !role || !sport || !email || !password) {
+  if (!name || !role || !sport || !email || !password) {
     res.status(400).json({ error: 'Missing required registration fields.' })
     return
   }
@@ -1030,6 +1035,13 @@ app.post('/api/auth/register', async (req, res) => {
   const requestedRole = normalizeRole(role)
   if (!publicRoles.has(requestedRole)) {
     res.status(400).json({ error: 'Choose a valid role.' })
+    return
+  }
+
+  // Referees are not attached to a team.
+  const isReferee = requestedRole === 'referee'
+  if (!isReferee && !team) {
+    res.status(400).json({ error: 'Team is required for this role.' })
     return
   }
 
@@ -1041,7 +1053,7 @@ app.post('/api/auth/register', async (req, res) => {
 
   const account = await store.createAccount({
     name,
-    team,
+    team: isReferee ? '' : team,
     role: roleLabels[requestedRole],
     sport,
     email,

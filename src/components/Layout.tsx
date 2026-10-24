@@ -144,14 +144,15 @@ export function Layout() {
 
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const isReferee = registerRole === 'Referee'
     const safeName = registerName.trim()
-    const safeTeam = registerTeam.trim()
+    const safeTeam = isReferee ? '' : registerTeam.trim()
     const safeRole = registerRole.trim()
     const safeSport = registerSport.trim()
     const safeEmail = registerEmail.trim().toLowerCase()
     const safePassword = registerPassword.trim()
 
-    if (!safeName || !safeTeam || !safeRole || !safeSport || !safeEmail || !safePassword) {
+    if (!safeName || (!isReferee && !safeTeam) || !safeRole || !safeSport || !safeEmail || !safePassword) {
       setAuthMessage('Add your details to create an account.')
       return
     }
@@ -482,20 +483,28 @@ export function Layout() {
                 placeholder="Your name"
                 required
               />
-              <TextField
-                label="Team"
-                value={registerTeam}
-                onChange={(event) => setRegisterTeam(event.target.value)}
-                placeholder="Team name"
-                required
-              />
+              {registerRole !== 'Referee' && (
+                <TextField
+                  label="Team"
+                  value={registerTeam}
+                  onChange={(event) => setRegisterTeam(event.target.value)}
+                  placeholder="Team name"
+                  required
+                />
+              )}
               <FormControl required>
                 <InputLabel id="register-role-label">Role</InputLabel>
                 <Select
                   labelId="register-role-label"
                   value={registerRole}
                   label="Role"
-                  onChange={(event) => setRegisterRole(event.target.value)}
+                  onChange={(event) => {
+                    const nextRole = event.target.value
+                    setRegisterRole(nextRole)
+                    if (nextRole === 'Referee') {
+                      setRegisterTeam('')
+                    }
+                  }}
                 >
                   <MenuItem value="Coach">Coach</MenuItem>
                   <MenuItem value="Referee">Referee</MenuItem>
@@ -505,6 +514,11 @@ export function Layout() {
                   <MenuItem value="TM">TM</MenuItem>
                 </Select>
               </FormControl>
+              {registerRole === 'Referee' && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: -0.6 }}>
+                  Referees are not attached to a team.
+                </Typography>
+              )}
               <FormControl required>
                 <InputLabel id="register-sport-label">Sport</InputLabel>
                 <Select
