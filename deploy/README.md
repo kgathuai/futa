@@ -160,8 +160,9 @@ ssh root@147.182.176.53
 bash /opt/futa/deploy/deploy.sh
 ```
 
-It runs `git pull --ff-only`, `npm ci`, builds, prunes dev dependencies, and restarts the
-service. The health check is printed at the end.
+It syncs the checkout to `origin/main` (discarding accidental server-side edits, while
+preserving the untracked `.env`), then runs `npm ci`, builds, prunes dev dependencies, and
+restarts the service. The health check is printed at the end.
 
 > `deploy.sh` intentionally does **not** overwrite nginx or systemd configs — after
 > certbot those files contain server-specific changes. Update them by hand if needed.

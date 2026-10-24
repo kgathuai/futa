@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 #
-# Pull the latest code, rebuild, and restart Futa.
+# Sync to origin/main, rebuild, and restart Futa.
 # Run as root on the droplet:
 #
 #   bash /opt/futa/deploy/deploy.sh
+#
+# The checkout is hard-reset to origin/main so accidental server-side edits
+# (e.g. a drifted lockfile) can never block a deploy. Untracked files such as
+# /opt/futa/.env are preserved.
 #
 set -euo pipefail
 
@@ -18,8 +22,9 @@ fi
 
 cd "${APP_DIR}"
 
-echo "==> Fetching latest code"
-sudo -u "${APP_USER}" git pull --ff-only
+echo "==> Syncing to origin/main"
+sudo -u "${APP_USER}" git fetch --prune origin main
+sudo -u "${APP_USER}" git reset --hard origin/main
 
 echo "==> Installing dependencies"
 sudo -u "${APP_USER}" bash -c "cd '${APP_DIR}' && npm ci"
