@@ -269,7 +269,7 @@ systemctl reload ssh
 ## 11. Roles & moderation
 
 Self-registration only allows the public roles: `TM`, `Coach`, `captain`, `player`,
-`Referee`, `fun`. `admin` and `superadmin` can never be self-assigned. Referees register
+`Referee`, `Fan`. `admin` and `superadmin` can never be self-assigned. Referees register
 without a team — the Team field is hidden and their account has an empty team.
 
 | Role | Can do |

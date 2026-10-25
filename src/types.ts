@@ -36,6 +36,15 @@ export interface MatchComment {
   replies: MatchCommentReply[]
 }
 
+export interface MatchGoal {
+  id: string
+  team: string
+  scorer: string
+  assist?: string
+}
+
+export type MatchGoalInput = Omit<MatchGoal, 'id'>
+
 export interface MatchAnnouncement {
   id: string
   homeTeam: string
@@ -53,6 +62,7 @@ export interface MatchAnnouncement {
   ratedByMe?: boolean
   status: 'scheduled' | 'playing' | 'finished' | 'postponed'
   comments: MatchComment[]
+  goals?: MatchGoal[]
   tournamentId?: string
   round?: number
   engagement: {
@@ -84,7 +94,7 @@ export interface FriendlyRequest {
 export interface NotificationItem {
   id: string
   accountId: string
-  type: 'friendly-request' | 'friendly-accepted' | 'friendly-declined'
+  type: 'friendly-request' | 'friendly-accepted' | 'friendly-declined' | 'match-score-reminder'
   title: string
   message: string
   relatedFriendlyRequestId?: string

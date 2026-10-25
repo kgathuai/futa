@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { Link, Navigate, useOutletContext } from 'react-router-dom'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined'
@@ -18,6 +19,7 @@ import { api } from '../lib/api'
 import type { FriendlyRequest, MatchAnnouncement, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
+import { getMatchRuntimeStatus } from '../lib/matchStatus'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -27,6 +29,13 @@ interface AuthOutletContext {
 }
 
 type CreateFormKey = 'match' | 'friendly' | 'team' | 'result' | 'tournament' | 'manage'
+
+interface GoalDraft {
+  id: string
+  team: string
+  scorer: string
+  assist: string
+}
 
 const sports: MatchAnnouncement['sport'][] = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 const bookingsPageSize = 5
@@ -43,28 +52,6 @@ const formatPeriod = (startDate: string, endDate: string) => {
   const formattedStart = start.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
   const formattedEnd = end.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
   return `${formattedStart} - ${formattedEnd}`
-}
-
-const getMatchRuntimeStatus = (kickoff: string, durationMinutes?: number): 'scheduled' | 'playing' | 'finished' => {
-  const kickoffTime = new Date(kickoff)
-  if (!Number.isFinite(kickoffTime.getTime())) {
-    return 'scheduled'
-  }
-
-  const now = Date.now()
-  const kickoffMs = kickoffTime.getTime()
-  const duration = (durationMinutes ?? 90) * 60 * 1000
-  const matchEndMs = kickoffMs + duration
-
-  if (now < kickoffMs) {
-    return 'scheduled'
-  }
-
-  if (now >= kickoffMs && now < matchEndMs) {
-    return 'playing'
-  }
-
-  return 'finished'
 }
 
 export function TeamDashboardPage() {
@@ -137,6 +124,7 @@ export function TeamDashboardPage() {
   const [editingKickoffByMatchId, setEditingKickoffByMatchId] = useState<Record<string, string>>({})
   const [editingHomeScoreByMatchId, setEditingHomeScoreByMatchId] = useState<Record<string, number>>({})
   const [editingAwayScoreByMatchId, setEditingAwayScoreByMatchId] = useState<Record<string, number>>({})
+  const [editingGoalsByMatchId, setEditingGoalsByMatchId] = useState<Record<string, GoalDraft[]>>({})
 
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
   const isManagementRole =
@@ -204,15 +192,15 @@ export function TeamDashboardPage() {
   const playedBookingsCount = acceptedBookingsCount + declinedBookingsCount
   const bookingsWinRate = playedBookingsCount === 0 ? 0 : Math.round((acceptedBookingsCount / playedBookingsCount) * 100)
   const scheduledRuntimeMatches = useMemo(
-    () => myMatches.filter((match) => getMatchRuntimeStatus(match.kickoff, match.durationMinutes) === 'scheduled'),
+    () => myMatches.filter((match) => getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore) === 'scheduled'),
     [myMatches],
   )
   const playingRuntimeMatches = useMemo(
-    () => myMatches.filter((match) => getMatchRuntimeStatus(match.kickoff, match.durationMinutes) === 'playing'),
+    () => myMatches.filter((match) => getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore) === 'playing'),
     [myMatches],
   )
   const finishedRuntimeMatches = useMemo(
-    () => myMatches.filter((match) => getMatchRuntimeStatus(match.kickoff, match.durationMinutes) === 'finished'),
+    () => myMatches.filter((match) => getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore) === 'finished'),
     [myMatches],
   )
   const engagedTournaments = useMemo(() => {
@@ -277,6 +265,19 @@ export function TeamDashboardPage() {
       )
       setEditingAwayScoreByMatchId(
         Object.fromEntries(matches.map((match) => [match.id, match.awayScore ?? 0])),
+      )
+      setEditingGoalsByMatchId(
+        Object.fromEntries(
+          matches.map((match) => [
+            match.id,
+            (match.goals ?? []).map((goal) => ({
+              id: goal.id,
+              team: goal.team,
+              scorer: goal.scorer,
+              assist: goal.assist ?? '',
+            })),
+          ]),
+        ),
       )
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to load your matches.')
@@ -567,11 +568,20 @@ export function TeamDashboardPage() {
       return
     }
 
+    const goals = (editingGoalsByMatchId[matchId] ?? [])
+      .map((goal) => ({
+        team: goal.team,
+        scorer: goal.scorer.trim(),
+        assist: goal.assist.trim() || undefined,
+      }))
+      .filter((goal) => goal.scorer)
+
     try {
       await api.updateMatchScore(
         matchId,
         editingHomeScoreByMatchId[matchId] ?? 0,
         editingAwayScoreByMatchId[matchId] ?? 0,
+        goals,
         token,
       )
       setGlobalError('')
@@ -580,6 +590,37 @@ export function TeamDashboardPage() {
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to update score.')
     }
+  }
+
+  const addGoalRow = (matchId: string, team: string) => {
+    setEditingGoalsByMatchId((prev) => ({
+      ...prev,
+      [matchId]: [
+        ...(prev[matchId] ?? []),
+        {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          team,
+          scorer: '',
+          assist: '',
+        },
+      ],
+    }))
+  }
+
+  const updateGoalRow = (matchId: string, goalId: string, patch: Partial<GoalDraft>) => {
+    setEditingGoalsByMatchId((prev) => ({
+      ...prev,
+      [matchId]: (prev[matchId] ?? []).map((goal) =>
+        goal.id === goalId ? { ...goal, ...patch } : goal,
+      ),
+    }))
+  }
+
+  const removeGoalRow = (matchId: string, goalId: string) => {
+    setEditingGoalsByMatchId((prev) => ({
+      ...prev,
+      [matchId]: (prev[matchId] ?? []).filter((goal) => goal.id !== goalId),
+    }))
   }
 
   const handleDeleteMatch = async (matchId: string) => {
@@ -658,8 +699,14 @@ export function TeamDashboardPage() {
   const renderManagedMatchCard = (match: MatchAnnouncement) => {
     const kickoffTime = new Date(match.kickoff)
     const hasStarted = Number.isFinite(kickoffTime.getTime()) && kickoffTime.getTime() <= Date.now()
-    const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes)
+    const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
     const canEditMatch = Boolean(loggedInTeam && match.createdByTeam === loggedInTeam)
+    const canUpdateScore = Boolean(
+      loggedInTeam &&
+        (match.homeTeam === loggedInTeam || match.awayTeam === loggedInTeam) &&
+        canCreateMatches,
+    )
+    const goalsForMatch = editingGoalsByMatchId[match.id] ?? []
     const hasScore = match.homeScore !== undefined && match.awayScore !== undefined
 
     const getStatusChipColor = (status: string) => {
@@ -738,10 +785,11 @@ export function TeamDashboardPage() {
               📍 {match.venue}
             </Typography>
 
-            {/* Edit Section (only for team that created the match) */}
-            {canEditMatch && (
+            {/* Edit Section */}
+            {(canEditMatch || canUpdateScore) && (
               <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid rgba(137,151,178,0.1)' }}>
                 <Stack spacing={1.5}>
+                  {canEditMatch && (
                   <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ alignItems: 'flex-end' }}>
                     <TextField
                       label="Kickoff"
@@ -761,8 +809,9 @@ export function TeamDashboardPage() {
                       Update
                     </Button>
                   </Stack>
+                  )}
 
-                  {hasStarted && (
+                  {canUpdateScore && hasStarted && (
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ alignItems: 'flex-end' }}>
                       <TextField
                         label="Home Score"
@@ -798,22 +847,93 @@ export function TeamDashboardPage() {
                     </Stack>
                   )}
 
-                  {!hasStarted && (
+                  {canUpdateScore && hasStarted && (
+                    <Box sx={{ mt: 0.5 }}>
+                      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.8 }}>
+                        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#8f9ab4', letterSpacing: '0.04em' }}>
+                          SCORERS &amp; ASSISTS
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={() => addGoalRow(match.id, match.homeTeam)}
+                          sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                        >
+                          + Add goal
+                        </Button>
+                      </Stack>
+
+                      {goalsForMatch.length === 0 ? (
+                        <Typography sx={{ fontSize: '0.72rem', color: '#6f7a8f' }}>
+                          No goals recorded yet.
+                        </Typography>
+                      ) : (
+                        <Stack spacing={0.8}>
+                          {goalsForMatch.map((goal) => (
+                            <Stack
+                              key={goal.id}
+                              direction={{ xs: 'column', md: 'row' }}
+                              spacing={0.8}
+                              sx={{ alignItems: { md: 'center' } }}
+                            >
+                              <TextField
+                                select
+                                size="small"
+                                label="Team"
+                                value={goal.team}
+                                onChange={(event) => updateGoalRow(match.id, goal.id, { team: event.target.value })}
+                                sx={{ minWidth: 130, '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                              >
+                                <MenuItem value={match.homeTeam}>{match.homeTeam}</MenuItem>
+                                <MenuItem value={match.awayTeam}>{match.awayTeam}</MenuItem>
+                              </TextField>
+                              <TextField
+                                size="small"
+                                label="Scorer"
+                                value={goal.scorer}
+                                onChange={(event) => updateGoalRow(match.id, goal.id, { scorer: event.target.value })}
+                                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                              />
+                              <TextField
+                                size="small"
+                                label="Assist (optional)"
+                                value={goal.assist}
+                                onChange={(event) => updateGoalRow(match.id, goal.id, { assist: event.target.value })}
+                                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                              />
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => removeGoalRow(match.id, goal.id)}
+                                aria-label="Remove goal"
+                              >
+                                <DeleteOutlineRoundedIcon sx={{ fontSize: '1rem' }} />
+                              </IconButton>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      )}
+                    </Box>
+                  )}
+
+                  {canUpdateScore && !hasStarted && (
                     <Typography variant="body2" sx={{ color: '#8f9ab4', fontSize: '0.75rem', fontStyle: 'italic' }}>
                       ℹ️ Scores can only be updated after match starts
                     </Typography>
                   )}
 
-                  <Button color="error" variant="outlined" size="small" onClick={() => void handleDeleteMatch(match.id)}>
-                    Delete Match
-                  </Button>
+                  {canEditMatch && (
+                    <Button color="error" variant="outlined" size="small" onClick={() => void handleDeleteMatch(match.id)}>
+                      Delete Match
+                    </Button>
+                  )}
                 </Stack>
               </Box>
             )}
 
-            {!canEditMatch && (
+            {!canEditMatch && !canUpdateScore && (
               <Typography sx={{ fontSize: '0.8rem', color: '#8f9ab4', fontStyle: 'italic', mt: 1 }}>
-                💡 Only team managers can edit this match
+                💡 Only the participating team managers can update this match
               </Typography>
             )}
           </Stack>

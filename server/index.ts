@@ -10,7 +10,7 @@ const port = Number(process.env.PORT ?? 4000)
 const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/futa_monolith'
 const allowedRoles = new Set(['tm', 'coach', 'captain', 'admin', 'superadmin'])
 // Roles a visitor may self-register with. Never includes admin/superadmin.
-const publicRoles = new Set(['tm', 'coach', 'captain', 'player', 'referee', 'fun'])
+const publicRoles = new Set(['tm', 'coach', 'captain', 'player', 'referee', 'fan'])
 // Roles a superadmin may assign from the app. superadmin itself is CLI-only.
 const assignableRoles = new Set([...publicRoles, 'admin'])
 const roleLabels: Record<string, string> = {
@@ -19,10 +19,14 @@ const roleLabels: Record<string, string> = {
   captain: 'captain',
   player: 'player',
   referee: 'Referee',
-  fun: 'fun',
+  fan: 'Fan',
+  fun: 'Fan', // legacy alias for pre-rename accounts
   admin: 'admin',
 }
-const normalizeRole = (role: string) => role.trim().toLowerCase()
+const normalizeRole = (role: string) => {
+  const normalized = role.trim().toLowerCase()
+  return normalized === 'fun' ? 'fan' : normalized
+}
 const isAdminRole = (role: string) => {
   const normalized = normalizeRole(role)
   return normalized === 'admin' || normalized === 'superadmin'
@@ -190,7 +194,12 @@ const sanitizeMatchForViewer = (match: MatchWithInteractions, viewerAccountId?: 
   const likedBy = Array.isArray(match.likedByAccountIds) ? match.likedByAccountIds : []
   const ratedBy = Array.isArray(match.ratedByAccountIds) ? match.ratedByAccountIds : []
   const comments = normalizePublicComments(match.comments, viewerAccountId)
-  const { likedByAccountIds: _likedByAccountIds, ratedByAccountIds: _ratedByAccountIds, ...rest } = match
+  const {
+    likedByAccountIds: _likedByAccountIds,
+    ratedByAccountIds: _ratedByAccountIds,
+    scoreReminderSentAt: _scoreReminderSentAt,
+    ...rest
+  } = match
 
   return {
     ...rest,
@@ -347,6 +356,11 @@ app.patch('/api/matches/:matchId/score', async (req, res) => {
     return
   }
 
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can update scores.' })
+    return
+  }
+
   const teamName = user.team?.trim()
   if (!teamName) {
     res.status(400).json({ error: 'Your account has no team set.' })
@@ -354,13 +368,18 @@ app.patch('/api/matches/:matchId/score', async (req, res) => {
   }
 
   const matchId = req.params.matchId?.trim()
-  const body = req.body as { homeScore?: number; awayScore?: number }
+  const body = req.body as {
+    homeScore?: number
+    awayScore?: number
+    goals?: Array<{ team?: string; scorer?: string; assist?: string }>
+  }
   if (!matchId || body.homeScore === undefined || body.awayScore === undefined) {
     res.status(400).json({ error: 'Match id, homeScore and awayScore are required.' })
     return
   }
 
-  const existingMatch = await store.getMatchForCreatorTeam(matchId, teamName)
+  // Either participating team may report the score.
+  const existingMatch = await store.getMatchForParticipant(matchId, teamName)
   if (!existingMatch) {
     res.status(404).json({ error: 'Match not found.' })
     return
@@ -372,7 +391,28 @@ app.patch('/api/matches/:matchId/score', async (req, res) => {
     return
   }
 
-  const updated = await store.updateMatchScore(matchId, teamName, body.homeScore, body.awayScore)
+  const goals = Array.isArray(body.goals)
+    ? body.goals
+        .map((goal) => ({
+          team: typeof goal.team === 'string' ? goal.team.trim() : '',
+          scorer: typeof goal.scorer === 'string' ? goal.scorer.trim() : '',
+          assist: typeof goal.assist === 'string' ? goal.assist.trim() : '',
+        }))
+        .filter(
+          (goal) =>
+            goal.scorer &&
+            (goal.team === existingMatch.homeTeam || goal.team === existingMatch.awayTeam),
+        )
+        .map((goal) => ({ team: goal.team, scorer: goal.scorer, assist: goal.assist || undefined }))
+    : []
+
+  const updated = await store.updateMatchScore(
+    matchId,
+    teamName,
+    body.homeScore,
+    body.awayScore,
+    goals,
+  )
   if (!updated) {
     res.status(404).json({ error: 'Match not found.' })
     return
@@ -1381,6 +1421,42 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(indexPath)) {
   })
 }
 
+const SCORE_REMINDER_INTERVAL_MS = 60_000
+let scoreReminderRunning = false
+
+/**
+ * Once a match's kickoff + duration has passed without a score, notify every
+ * account on both teams. `scoreReminderSentAt` dedupes across restarts.
+ */
+const sendScoreReminders = async () => {
+  if (scoreReminderRunning) {
+    return
+  }
+
+  scoreReminderRunning = true
+  try {
+    const dueMatches = await store.getMatchesAwaitingScore()
+    for (const match of dueMatches) {
+      const accountIds = await store.getAccountIdsForTeams([match.homeTeam, match.awayTeam])
+
+      if (accountIds.length > 0) {
+        await store.createNotifications(accountIds, {
+          type: 'match-score-reminder',
+          title: 'Update the final score',
+          message: `${match.homeTeam} vs ${match.awayTeam} has ended. Update the score and record the scorers and assists.`,
+          relatedMatchId: match.id,
+        })
+      }
+
+      await store.markScoreReminderSent([match.id])
+    }
+  } catch (error) {
+    console.error('Score reminder job failed', error)
+  } finally {
+    scoreReminderRunning = false
+  }
+}
+
 const startServer = async () => {
   await connectDatabase(mongoUri)
 
@@ -1396,6 +1472,11 @@ const startServer = async () => {
   } else {
     app.listen(port, onListening)
   }
+
+  void sendScoreReminders()
+  setInterval(() => {
+    void sendScoreReminders()
+  }, SCORE_REMINDER_INTERVAL_MS)
 }
 
 startServer().catch((error) => {

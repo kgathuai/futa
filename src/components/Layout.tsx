@@ -506,12 +506,12 @@ export function Layout() {
                     }
                   }}
                 >
-                  <MenuItem value="Coach">Coach</MenuItem>
-                  <MenuItem value="Referee">Referee</MenuItem>
-                  <MenuItem value="player">player</MenuItem>
-                  <MenuItem value="captain">captain</MenuItem>
-                  <MenuItem value="fun">fun</MenuItem>
                   <MenuItem value="TM">TM</MenuItem>
+                  <MenuItem value="Coach">COACH</MenuItem>
+                  <MenuItem value="captain">CAPTAIN</MenuItem>
+                  <MenuItem value="player">PLAYER</MenuItem>
+                  <MenuItem value="Referee">REFEREE</MenuItem>
+                  <MenuItem value="Fan">FAN</MenuItem>
                 </Select>
               </FormControl>
               {registerRole === 'Referee' && (

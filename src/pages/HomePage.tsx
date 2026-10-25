@@ -7,6 +7,7 @@ import { api } from '../lib/api'
 import { useOutletContext } from 'react-router-dom'
 import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
 import { useAutoHide } from '../lib/useAutoHide'
+import { getMatchRuntimeStatus } from '../lib/matchStatus'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -24,27 +25,6 @@ const formatDateTime = (value: string) =>
     minute: '2-digit',
   })
 
-const getMatchRuntimeStatus = (kickoff: string, durationMinutes?: number): 'scheduled' | 'playing' | 'finished' => {
-  const kickoffTime = new Date(kickoff)
-  if (!Number.isFinite(kickoffTime.getTime())) {
-    return 'scheduled'
-  }
-
-  const now = Date.now()
-  const kickoffMs = kickoffTime.getTime()
-  const duration = (durationMinutes ?? 90) * 60 * 1000
-  const matchEndMs = kickoffMs + duration
-
-  if (now < kickoffMs) {
-    return 'scheduled'
-  }
-
-  if (now >= kickoffMs && now < matchEndMs) {
-    return 'playing'
-  }
-
-  return 'finished'
-}
 
 const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 const statuses = ['Scheduled','Playing', 'Finished', ]
@@ -217,7 +197,7 @@ export function HomePage() {
 
   const filteredMatches = matches.filter((match) => {
     const sportMatch = selectedSport === 'All sports' || match.sport === selectedSport
-    const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes)
+    const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
 
     if (selectedStatus === 'All') {
       return sportMatch
@@ -458,7 +438,7 @@ export function HomePage() {
 
       <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
         {filteredMatches.map((match) => {
-          const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes)
+          const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
           const firstCommentText = match.comments.find((entry) => entry.text.trim().length > 0)?.text
           return (
             <Card key={match.id} variant="outlined" sx={{ borderRadius: 2.3 }}>

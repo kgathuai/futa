@@ -11,6 +11,7 @@ import {
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import type { MatchAnnouncement, TournamentItem } from '../types'
 import { api } from '../lib/api'
+import { getMatchRuntimeStatus } from '../lib/matchStatus'
 
 interface FixturesTabProps {
   tournament: TournamentItem
@@ -246,6 +247,12 @@ export function FixturesTab({
               <Stack divider={<Box sx={{ height: '1px', bgcolor: 'rgba(170,186,212,0.08)' }} />}>
                 {roundFixtures.map((fixture) => {
                   const hasScore = fixture.homeScore !== undefined && fixture.awayScore !== undefined
+                  const runtimeStatus = getMatchRuntimeStatus(
+                    fixture.kickoff,
+                    fixture.durationMinutes,
+                    fixture.homeScore,
+                    fixture.awayScore,
+                  )
                   const kickoff = new Date(fixture.kickoff)
                   const dateStr = Number.isFinite(kickoff.getTime())
                     ? kickoff.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
@@ -283,16 +290,16 @@ export function FixturesTab({
                           </Typography>
                         )}
                         <Chip
-                          label={fixture.status.toUpperCase()}
+                          label={runtimeStatus.toUpperCase()}
                           size="small"
                           sx={{
                             mt: 0.4,
                             height: 16,
                             fontSize: '0.58rem',
                             fontWeight: 700,
-                            color: statusColor(fixture.status),
+                            color: statusColor(runtimeStatus),
                             bgcolor: 'transparent',
-                            border: `1px solid ${statusColor(fixture.status)}44`,
+                            border: `1px solid ${statusColor(runtimeStatus)}44`,
                             '& .MuiChip-label': { px: 0.6 },
                           }}
                         />

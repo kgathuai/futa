@@ -39,11 +39,15 @@ interface AuthOutletContext {
   loggedInTeam: string | null
 }
 
-const assignableRoles = ['admin', 'TM', 'Coach', 'captain', 'player', 'Referee', 'fun'] as const
-const publicRoles = ['TM', 'Coach', 'captain', 'player', 'Referee', 'fun'] as const
+const assignableRoles = ['admin', 'TM', 'Coach', 'captain', 'player', 'Referee', 'Fan'] as const
+const publicRoles = ['TM', 'Coach', 'captain', 'player', 'Referee', 'Fan'] as const
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table'] as const
 
-const normalizeRole = (role: string | null | undefined) => role?.trim().toLowerCase() ?? ''
+const normalizeRole = (role: string | null | undefined) => {
+  const normalized = role?.trim().toLowerCase() ?? ''
+  return normalized === 'fun' ? 'fan' : normalized
+}
+const displayRole = (role: string) => (normalizeRole(role) === 'fan' ? 'FAN' : role.toUpperCase())
 const isAdminRole = (role: string | null | undefined) => {
   const normalized = normalizeRole(role)
   return normalized === 'admin' || normalized === 'superadmin'
@@ -468,10 +472,10 @@ export function AdminPage() {
             '& .MuiOutlinedInput-root': { borderRadius: 1.4 },
           }}
         >
-          <MenuItem value="all" sx={{ fontSize: '0.76rem' }}>All roles</MenuItem>
-          <MenuItem value="superadmin" sx={{ fontSize: '0.76rem' }}>Superadmins</MenuItem>
-          <MenuItem value="admin" sx={{ fontSize: '0.76rem' }}>Admins</MenuItem>
-          <MenuItem value="members" sx={{ fontSize: '0.76rem' }}>Members</MenuItem>
+          <MenuItem value="all" sx={{ fontSize: '0.76rem' }}>ALL ROLES</MenuItem>
+          <MenuItem value="superadmin" sx={{ fontSize: '0.76rem' }}>SUPERADMINS</MenuItem>
+          <MenuItem value="admin" sx={{ fontSize: '0.76rem' }}>ADMINS</MenuItem>
+          <MenuItem value="members" sx={{ fontSize: '0.76rem' }}>MEMBERS</MenuItem>
         </TextField>
       </Stack>
 
@@ -544,7 +548,7 @@ export function AdminPage() {
                   const avatar = avatarTone(account.role)
                   const currentRole =
                     assignableRoles.find(
-                      (role) => role.toLowerCase() === account.role.trim().toLowerCase(),
+                      (role) => normalizeRole(role) === normalizeRole(account.role),
                     ) ?? 'admin'
 
                   return (
@@ -592,7 +596,7 @@ export function AdminPage() {
                             </Typography>
                             <Chip
                               size="small"
-                              label={account.role.toUpperCase()}
+                              label={displayRole(account.role)}
                               sx={{
                                 height: 16,
                                 fontSize: '0.5rem',
@@ -657,7 +661,7 @@ export function AdminPage() {
                           >
                             {assignableRoles.map((role) => (
                               <MenuItem key={role} value={role} sx={{ fontSize: '0.72rem' }}>
-                                {role}
+                                {role.toUpperCase()}
                               </MenuItem>
                             ))}
                           </TextField>
@@ -866,7 +870,7 @@ export function AdminPage() {
               >
                 {publicRoles.map((role) => (
                   <MenuItem key={role} value={role} sx={{ fontSize: '0.78rem' }}>
-                    {role}
+                    {role.toUpperCase()}
                   </MenuItem>
                 ))}
               </TextField>

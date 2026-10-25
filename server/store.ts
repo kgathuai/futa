@@ -44,7 +44,7 @@ export interface FriendlyRequestRecord {
 export interface NotificationRecord {
   id: string
   accountId: string
-  type: 'friendly-request' | 'friendly-accepted' | 'friendly-declined'
+  type: 'friendly-request' | 'friendly-accepted' | 'friendly-declined' | 'match-score-reminder'
   title: string
   message: string
   relatedFriendlyRequestId?: string
@@ -74,6 +74,16 @@ const engagementSchema = new Schema(
   { _id: false },
 )
 
+const goalSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    team: { type: String, required: true },
+    scorer: { type: String, required: true },
+    assist: { type: String, required: false },
+  },
+  { _id: false },
+)
+
 const matchSchema = new Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -92,6 +102,8 @@ const matchSchema = new Schema(
     ratedByAccountIds: { type: [String], required: true, default: [] },
     status: { type: String, required: true },
     comments: [{ type: Schema.Types.Mixed, required: true }],
+    goals: { type: [goalSchema], required: true, default: [] },
+    scoreReminderSentAt: { type: Date, required: false },
     engagement: { type: engagementSchema, required: true },
     tournamentId: { type: String, required: false },
     round: { type: Number, required: false },
@@ -489,6 +501,100 @@ export const store = {
     MatchModel.find({ $or: [{ homeTeam: teamName }, { awayTeam: teamName }] }).sort({ kickoff: 1 }).lean(),
   getMatchForCreatorTeam: async (matchId: string, teamName: string) =>
     MatchModel.findOne({ id: matchId, createdByTeam: teamName }).lean(),
+  getMatchForParticipant: async (matchId: string, teamName: string) =>
+    MatchModel.findOne({
+      id: matchId,
+      $or: [{ homeTeam: teamName }, { awayTeam: teamName }],
+    }).lean(),
+  getMatchesAwaitingScore: async (now = Date.now()) => {
+    const reminderWindowMs = 7 * 24 * 60 * 60 * 1000
+    const matches = await MatchModel.find({
+      homeScore: { $exists: false },
+      scoreReminderSentAt: { $exists: false },
+      status: { $ne: 'postponed' },
+    }).lean<
+      Array<{
+        id: string
+        homeTeam: string
+        awayTeam: string
+        kickoff: string
+        durationMinutes?: number
+      }>
+    >()
+
+    return matches.filter((match) => {
+      const kickoff = new Date(match.kickoff).getTime()
+      if (!Number.isFinite(kickoff)) {
+        return false
+      }
+      const end = kickoff + (match.durationMinutes ?? 90) * 60_000
+      return end <= now && end >= now - reminderWindowMs
+    })
+  },
+  getAccountIdsForTeams: async (teamNames: string[]) => {
+    const names = [...new Set(teamNames.map((name) => name.trim()).filter(Boolean))]
+    if (names.length === 0) {
+      return []
+    }
+
+    const [accounts, teams] = await Promise.all([
+      AccountModel.find({ team: { $in: names } }, { _id: 1 }).lean<
+        Array<{ _id: mongoose.Types.ObjectId }>
+      >(),
+      TeamModel.find(
+        { name: { $in: names }, ownerAccountId: { $exists: true } },
+        { ownerAccountId: 1 },
+      ).lean<Array<{ ownerAccountId?: mongoose.Types.ObjectId }>>(),
+    ])
+
+    const ids = new Set<string>()
+    for (const account of accounts) {
+      ids.add(account._id.toString())
+    }
+    for (const team of teams) {
+      if (team.ownerAccountId) {
+        ids.add(team.ownerAccountId.toString())
+      }
+    }
+
+    return [...ids]
+  },
+  markScoreReminderSent: async (matchIds: string[]) => {
+    if (matchIds.length === 0) {
+      return
+    }
+
+    await MatchModel.updateMany(
+      { id: { $in: matchIds } },
+      { $set: { scoreReminderSentAt: new Date() } },
+    )
+  },
+  createNotifications: async (
+    accountIds: string[],
+    payload: {
+      type: NotificationRecord['type']
+      title: string
+      message: string
+      relatedMatchId?: string
+    },
+  ) => {
+    if (accountIds.length === 0) {
+      return
+    }
+
+    await NotificationModel.insertMany(
+      accountIds.map((accountId) => ({
+        id: crypto.randomUUID(),
+        accountId,
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        relatedMatchId: payload.relatedMatchId,
+        read: false,
+        createdAt: new Date(),
+      })),
+    )
+  },
   getResults: async () => ResultModel.find().sort({ playedOn: -1 }).lean(),
   getTournaments: async () => {
     const tournaments = await TournamentModel.find().sort({ createdAt: -1 }).lean<TournamentRecord[]>()
@@ -905,15 +1011,32 @@ export const store = {
       { returnDocument: 'after' },
     ).lean()
   },
-  updateMatchScore: async (matchId: string, teamName: string, homeScore: number, awayScore: number) => {
+  updateMatchScore: async (
+    matchId: string,
+    teamName: string,
+    homeScore: number,
+    awayScore: number,
+    goals: Array<{ team: string; scorer: string; assist?: string }> = [],
+  ) => {
+    const normalizedGoals = goals
+      .map((goal) => ({
+        id: crypto.randomUUID(),
+        team: goal.team.trim(),
+        scorer: goal.scorer.trim(),
+        assist: goal.assist?.trim() || undefined,
+      }))
+      .filter((goal) => goal.team && goal.scorer)
+
+    // Either participating team may report the score.
     return MatchModel.findOneAndUpdate(
       {
         id: matchId,
-        createdByTeam: teamName,
+        $or: [{ homeTeam: teamName }, { awayTeam: teamName }],
       },
       {
         homeScore,
         awayScore,
+        goals: normalizedGoals,
         status: 'finished',
       },
       { returnDocument: 'after' },

@@ -35,7 +35,7 @@ export function TournamentsPage() {
   const [venue, setVenue] = useState('')
   const [status, setStatus] = useState<TournamentStatus>('upcoming')
   const [maxTeams, setMaxTeams] = useState<number | ''>('')
-  const [activeTab, setActiveTab] = useState<'standings' | 'fixtures'>('standings')
+  const [activeTab, setActiveTab] = useState<'standings' | 'fixtures' | 'stats'>('standings')
   const [fixtures, setFixtures] = useState<MatchAnnouncement[]>([])
   const [isLoadingFixtures, setIsLoadingFixtures] = useState(false)
   const [statusClock, setStatusClock] = useState(Date.now())
@@ -213,6 +213,43 @@ export function TournamentsPage() {
     return base + selectedTournamentTeams.length * perTeam
   }, [selectedTournamentTeams.length])
   const mvpPreview = selectedTournamentStandings[0] ?? null
+
+  const tournamentStats = useMemo(() => {
+    const scorerMap = new Map<string, { player: string; team: string; goals: number }>()
+    const assistMap = new Map<string, { player: string; team: string; assists: number }>()
+
+    for (const fixture of fixtures) {
+      for (const goal of fixture.goals ?? []) {
+        const scorer = goal.scorer.trim()
+        const team = goal.team.trim()
+        if (!scorer) {
+          continue
+        }
+
+        const scorerKey = `${team}::${scorer.toLowerCase()}`
+        const scorerRow = scorerMap.get(scorerKey) ?? { player: scorer, team, goals: 0 }
+        scorerRow.goals += 1
+        scorerMap.set(scorerKey, scorerRow)
+
+        const assist = goal.assist?.trim()
+        if (assist) {
+          const assistKey = `${team}::${assist.toLowerCase()}`
+          const assistRow = assistMap.get(assistKey) ?? { player: assist, team, assists: 0 }
+          assistRow.assists += 1
+          assistMap.set(assistKey, assistRow)
+        }
+      }
+    }
+
+    return {
+      scorers: [...scorerMap.values()]
+        .sort((a, b) => b.goals - a.goals || a.player.localeCompare(b.player))
+        .slice(0, 10),
+      assists: [...assistMap.values()]
+        .sort((a, b) => b.assists - a.assists || a.player.localeCompare(b.player))
+        .slice(0, 10),
+    }
+  }, [fixtures])
 
   const loadTournaments = async () => {
     setIsLoadingTournaments(true)
@@ -734,7 +771,7 @@ export function TournamentsPage() {
 
           {/* Tab switcher */}
           <Stack direction="row" spacing={0.8}>
-            {(['standings', 'fixtures'] as const).map((tab) => (
+            {(['standings', 'fixtures', 'stats'] as const).map((tab) => (
               <Button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -750,7 +787,7 @@ export function TournamentsPage() {
                   '&:hover': { bgcolor: activeTab === tab ? '#99e600' : 'rgba(255,255,255,0.09)' },
                 }}
               >
-                {tab === 'standings' ? '📊 Standings' : '📅 Fixtures'}
+                {tab === 'standings' ? '📊 Standings' : tab === 'fixtures' ? '📅 Fixtures' : '⚽ Stats'}
               </Button>
             ))}
           </Stack>
@@ -891,6 +928,112 @@ export function TournamentsPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {/* Stats tab */}
+          {activeTab === 'stats' && (
+            <Box sx={{ display: 'grid', gap: 1.6, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+              {[
+                {
+                  title: 'Top scorers',
+                  empty: 'No goals recorded yet.',
+                  accent: '#adff0f',
+                  rows: tournamentStats.scorers.map((row) => ({
+                    player: row.player,
+                    team: row.team,
+                    value: row.goals,
+                  })),
+                },
+                {
+                  title: 'Top assists',
+                  empty: 'No assists recorded yet.',
+                  accent: '#4ce3a3',
+                  rows: tournamentStats.assists.map((row) => ({
+                    player: row.player,
+                    team: row.team,
+                    value: row.assists,
+                  })),
+                },
+              ].map((board) => (
+                <Card
+                  key={board.title}
+                  variant="outlined"
+                  sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}
+                >
+                  <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                    <Stack
+                      direction="row"
+                      sx={{
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        px: 2,
+                        py: 1.4,
+                        borderBottom: '1px solid rgba(159,176,201,0.1)',
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 800, fontSize: '0.95rem' }}>{board.title}</Typography>
+                      <Chip
+                        size="small"
+                        label={board.title === 'Top scorers' ? 'GOALS' : 'ASSISTS'}
+                        sx={{ bgcolor: 'rgba(255,255,255,0.06)', fontSize: '0.6rem', fontWeight: 700 }}
+                      />
+                    </Stack>
+
+                    {board.rows.length === 0 ? (
+                      <Typography sx={{ px: 2, py: 2.4, fontSize: '0.8rem', color: 'text.secondary' }}>
+                        {board.empty}
+                      </Typography>
+                    ) : (
+                      board.rows.map((row, index) => (
+                        <Box
+                          key={`${board.title}-${row.team}-${row.player}`}
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: '34px minmax(0,1fr) auto',
+                            gap: 1,
+                            alignItems: 'center',
+                            px: 2,
+                            py: 1,
+                            borderTop: index === 0 ? 'none' : '1px solid rgba(159,176,201,0.07)',
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#6f7890' }}>
+                            {String(index + 1).padStart(2, '0')}
+                          </Typography>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {row.player}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                fontSize: '0.64rem',
+                                color: '#7f8aa3',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {row.team}
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: board.accent }}>
+                            {row.value}
+                          </Typography>
+                        </Box>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
           )}
 
         </Stack>

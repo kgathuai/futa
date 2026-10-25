@@ -1,4 +1,4 @@
-import type { AdminAccount, FriendlyRequest, NotificationItem, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
@@ -264,10 +264,16 @@ export const api = {
       body: { kickoff },
       token,
     }),
-  updateMatchScore: (matchId: string, homeScore: number, awayScore: number, token: string) =>
+  updateMatchScore: (
+    matchId: string,
+    homeScore: number,
+    awayScore: number,
+    goals: MatchGoalInput[],
+    token: string,
+  ) =>
     request<MatchAnnouncement>(`/api/matches/${matchId}/score`, {
       method: 'PATCH',
-      body: { homeScore, awayScore },
+      body: { homeScore, awayScore, goals },
       token,
     }),
   likeMatch: (matchId: string, token: string) =>
