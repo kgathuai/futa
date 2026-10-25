@@ -7,6 +7,7 @@ export interface AccountRecord {
   id: string
   name: string
   team: string
+  homeGround: string
   role: string
   sport: string
   email: string
@@ -137,6 +138,8 @@ const tournamentSchema = new Schema(
     endDate: { type: String, required: false },
     venue: { type: String, required: true },
     status: { type: String, required: true },
+    // 'open' = any team may register up to maxTeams; 'closed' = owner defines the roster.
+    type: { type: String, required: false, default: 'open' },
     ownerTeam: { type: String, required: false },
     registeredTeams: { type: [String], required: true, default: [] },
     maxTeams: { type: Number, required: false },
@@ -163,6 +166,7 @@ const accountSchema = new Schema(
     name: { type: String, required: true },
     // Referees are not attached to a team, so this may be empty.
     team: { type: String, required: false, default: '' },
+    homeGround: { type: String, required: false, default: '' },
     role: { type: String, required: true },
     sport: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -247,6 +251,7 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   id: account._id.toString(),
   name: account.name,
   team: account.team ?? '',
+  homeGround: account.homeGround ?? '',
   role: account.role,
   sport: account.sport,
   email: account.email,
@@ -627,7 +632,9 @@ export const store = {
   },
   getTeams: async () => {
     const [accountTeams, savedTeams] = await Promise.all([
-      AccountModel.distinct('team'),
+      AccountModel.find({}, { team: 1, homeGround: 1, _id: 0 }).lean<
+        Array<{ team?: string; homeGround?: string }>
+      >(),
       TeamModel.find({}, { name: 1, logoUrl: 1, manager: 1, county: 1, homeGround: 1, level: 1, bio: 1, updatedAt: 1, _id: 0 })
         .lean<Array<{ name?: string; logoUrl?: string; manager?: string; county?: string; homeGround?: string; level?: TeamLevel; bio?: string; updatedAt?: Date }>>(),
     ])
@@ -647,11 +654,12 @@ export const store = {
       }
     >()
 
-    for (const teamName of accountTeams) {
-      const trimmed = teamName?.trim()
+    for (const account of accountTeams) {
+      const trimmed = account.team?.trim()
       if (trimmed) {
         teamsByName.set(trimmed, {
           name: trimmed,
+          homeGround: account.homeGround?.trim() || undefined,
           status: 'inactive',
         })
       }
@@ -676,10 +684,35 @@ export const store = {
 
     return Array.from(teamsByName.values()).sort((a, b) => a.name.localeCompare(b.name))
   },
+  getRegisteredTeamNames: async () => {
+    const [accountTeams, savedTeams] = await Promise.all([
+      AccountModel.distinct('team'),
+      TeamModel.find({}, { name: 1, _id: 0 }).lean<Array<{ name?: string }>>(),
+    ])
+
+    const names = new Set<string>()
+    for (const teamName of accountTeams) {
+      const trimmed = teamName?.trim()
+      if (trimmed) {
+        names.add(trimmed)
+      }
+    }
+    for (const team of savedTeams) {
+      const trimmed = team.name?.trim()
+      if (trimmed) {
+        names.add(trimmed)
+      }
+    }
+
+    return [...names]
+  },
   getGrounds: async () => {
-    const [venues, homeGrounds] = await Promise.all([
+    const [venues, homeGrounds, accountGrounds] = await Promise.all([
       MatchModel.distinct('venue'),
       TeamModel.find({}, { homeGround: 1, _id: 0 }).lean<Array<{ homeGround?: string }>>(),
+      AccountModel.find({ homeGround: { $exists: true } }, { homeGround: 1, _id: 0 }).lean<
+        Array<{ homeGround?: string }>
+      >(),
     ])
 
     const grounds = new Set<string>()
@@ -697,9 +730,16 @@ export const store = {
       }
     }
 
+    for (const account of accountGrounds) {
+      const trimmed = account.homeGround?.trim()
+      if (trimmed) {
+        grounds.add(trimmed)
+      }
+    }
+
     return Array.from(grounds).sort((a, b) => a.localeCompare(b))
   },
-  setTeam: async (payload: TeamPayload, ownerAccountId: string) => {
+  setTeam: async (payload: TeamPayload, ownerAccountId: string, currentTeamName?: string) => {
     const name = payload.name.trim()
     const update = {
       name,
@@ -714,18 +754,30 @@ export const store = {
 
     // Only ever update the team owned by the caller — never the first team in the collection.
     const owned = await TeamModel.findOneAndUpdate({ ownerAccountId }, update, { returnDocument: 'after' }).lean()
-    if (owned) {
-      return owned
+
+    // Adopt a legacy/shared team document under the caller's current team name only,
+    // so a manager cannot overwrite an unrelated team by typing its name.
+    const safeCurrentName = currentTeamName?.trim()
+    const team =
+      owned ??
+      (safeCurrentName
+        ? await TeamModel.findOneAndUpdate(
+            { name: safeCurrentName },
+            update,
+            { returnDocument: 'after' },
+          ).lean()
+        : null)
+    const resolvedTeam = team ?? (await TeamModel.create(update)).toObject()
+
+    // Keep the owner account's team and ground in sync so they can create matches.
+    if (mongoose.isValidObjectId(ownerAccountId)) {
+      await AccountModel.updateOne(
+        { _id: ownerAccountId },
+        { $set: { team: name, homeGround: update.homeGround } },
+      )
     }
 
-    // Adopt a legacy team document that predates owner scoping.
-    const byName = await TeamModel.findOneAndUpdate({ name }, update, { returnDocument: 'after' }).lean()
-    if (byName) {
-      return byName
-    }
-
-    const created = await TeamModel.create(update)
-    return created.toObject()
+    return resolvedTeam
   },
   findAccountByEmail: async (email: string) => {
     const account = await AccountModel.findOne({ email: email.toLowerCase() }).lean<AccountDoc | null>()
@@ -743,6 +795,7 @@ export const store = {
     const account = await AccountModel.create({
       name: payload.name,
       team: payload.team,
+      homeGround: payload.homeGround,
       role: payload.role,
       sport: payload.sport,
       email: payload.email.toLowerCase(),
@@ -750,6 +803,19 @@ export const store = {
     })
 
     return toPublicAccount(account.toObject() as AccountDoc)
+  },
+  updateAccountProfile: async (accountId: string, team: string, homeGround: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(
+      accountId,
+      { $set: { team, homeGround } },
+      { returnDocument: 'after' },
+    ).lean<AccountDoc | null>()
+
+    return account ? toPublicAccount(account) : null
   },
   authenticate: async (email: string, password: string) => {
     const account = await AccountModel.findOne({ email: email.toLowerCase() }).lean<AccountDoc | null>()
@@ -900,6 +966,7 @@ export const store = {
     endDate?: string
     venue: string
     status: TournamentStatus
+    type?: 'open' | 'closed'
     ownerTeam?: string
     registeredTeams?: string[]
     maxTeams?: number
@@ -918,6 +985,7 @@ export const store = {
       endDate: payload.endDate,
       venue: payload.venue,
       status: payload.status,
+      type: payload.type === 'closed' ? 'closed' : 'open',
       ownerTeam: payload.ownerTeam?.trim() || undefined,
       registeredTeams,
       maxTeams: payload.maxTeams ?? undefined,
@@ -940,6 +1008,11 @@ export const store = {
       return 'closed' as const
     }
 
+    // Closed tournaments have an owner-defined roster; teams cannot self-register.
+    if ((existing.type ?? 'open') === 'closed') {
+      return 'closed' as const
+    }
+
     if (
       existing.maxTeams !== undefined &&
       existing.maxTeams !== null &&
@@ -953,6 +1026,46 @@ export const store = {
       { $addToSet: { registeredTeams: safeTeamName } },
       { returnDocument: 'after' },
     ).lean<TournamentRecord | null>()
+  },
+  setTournamentTeams: async (tournamentId: string, ownerTeam: string, teams: string[]) => {
+    const existing = await TournamentModel.findOne({ id: tournamentId }).lean<TournamentRecord | null>()
+    if (!existing) {
+      return { status: 'not-found' as const }
+    }
+
+    if ((existing.type ?? 'open') !== 'closed') {
+      return { status: 'not-closed' as const }
+    }
+
+    if ((existing.ownerTeam ?? '').trim() !== ownerTeam.trim()) {
+      return { status: 'forbidden' as const }
+    }
+
+    const currentStatus = getTournamentStatus(existing)
+    if (currentStatus === 'ongoing' || currentStatus === 'finished') {
+      return { status: 'started' as const }
+    }
+
+    const normalized = [...new Set(teams.map((teamName) => teamName.trim()).filter(Boolean))]
+    if (normalized.length < 2) {
+      return { status: 'too-few' as const }
+    }
+
+    if (
+      existing.maxTeams !== undefined &&
+      existing.maxTeams !== null &&
+      normalized.length > existing.maxTeams
+    ) {
+      return { status: 'too-many' as const }
+    }
+
+    const updated = await TournamentModel.findOneAndUpdate(
+      { id: tournamentId },
+      { $set: { registeredTeams: normalized } },
+      { returnDocument: 'after' },
+    ).lean<TournamentRecord | null>()
+
+    return { status: 'ok' as const, tournament: updated }
   },
   addMatch: async (payload: {
     homeTeam: string

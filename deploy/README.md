@@ -270,7 +270,9 @@ systemctl reload ssh
 
 Self-registration only allows the public roles: `TM`, `Coach`, `captain`, `player`,
 `Referee`, `Fan`. `admin` and `superadmin` can never be self-assigned. Referees register
-without a team — the Team field is hidden and their account has an empty team.
+without a team or home ground. For every other role the team is **optional**; if a team is
+supplied, its home ground is required. Signed-in users can add or change their team and
+home ground later from the account drawer.
 
 | Role | Can do |
 | --- | --- |
@@ -303,4 +305,21 @@ sudo -u futa npm run make-superadmin -- someone@example.com admin
 ```
 
 `superadmin` is intentionally CLI-only: it cannot be granted or removed from the web UI.
+
+---
+
+## 12. Tournament types
+
+Tournaments are created as **open** or **closed**:
+
+| Type | Entry | Team count |
+| --- | --- | --- |
+| **Open** | Any team can self-register while status is `registration open` | Capped by `maxTeams`; required at creation |
+| **Closed** | Self-registration is disabled. The owner selects the teams from the tournament page | The roster is the defined list; `maxTeams` is an optional cap |
+
+- The owner can edit a closed roster with **Manage teams** until fixtures are generated.
+- Fixtures are generated from `registeredTeams` using the chosen format (Knockout, League,
+  Round Robin, or Group+Knockout).
+- Existing tournaments without a type are treated as **open**.
+
 

@@ -143,6 +143,7 @@ export function AdminPage() {
   const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState('player')
   const [newTeam, setNewTeam] = useState('')
+  const [newHomeGround, setNewHomeGround] = useState('')
   const [newSport, setNewSport] = useState('Football')
   const [createError, setCreateError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -288,6 +289,7 @@ export function AdminPage() {
     setNewPassword('')
     setNewRole('player')
     setNewTeam('')
+    setNewHomeGround('')
     setNewSport('Football')
     setCreateError('')
   }
@@ -303,16 +305,22 @@ export function AdminPage() {
     const email = newEmail.trim().toLowerCase()
     const password = newPassword.trim()
     const team = isReferee ? '' : newTeam.trim()
+    const homeGround = isReferee ? '' : newHomeGround.trim()
 
-    if (!name || !email || !password || (!isReferee && !team)) {
+    if (!name || !email || !password) {
       setCreateError('Fill in all required fields.')
+      return
+    }
+
+    if (team && !homeGround) {
+      setCreateError('Add a home ground for the team, or leave the team blank.')
       return
     }
 
     setIsCreating(true)
     try {
       const created = await api.createAccount(
-        { name, email, password, role: newRole, sport: newSport, team },
+        { name, email, password, role: newRole, sport: newSport, team, homeGround: team ? homeGround : '' },
         token,
       )
       setAccounts((prev) => [...prev, created])
@@ -864,6 +872,7 @@ export function AdminPage() {
                   setNewRole(nextRole)
                   if (nextRole === 'Referee') {
                     setNewTeam('')
+                    setNewHomeGround('')
                   }
                 }}
                 sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.78rem' } }}
@@ -890,13 +899,23 @@ export function AdminPage() {
               </TextField>
             </Stack>
             {newRole !== 'Referee' && (
-              <TextField
-                size="small"
-                label="Team"
-                value={newTeam}
-                onChange={(event) => setNewTeam(event.target.value)}
-                sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
-              />
+              <>
+                <TextField
+                  size="small"
+                  label="Team (optional)"
+                  value={newTeam}
+                  onChange={(event) => setNewTeam(event.target.value)}
+                  sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+                />
+                <TextField
+                  size="small"
+                  label="Home ground (optional)"
+                  value={newHomeGround}
+                  onChange={(event) => setNewHomeGround(event.target.value)}
+                  helperText="Required if you set a team."
+                  sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+                />
+              </>
             )}
             {newRole === 'Referee' && (
               <Typography sx={{ fontSize: '0.66rem', color: '#7f8aa3' }}>

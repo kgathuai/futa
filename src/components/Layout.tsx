@@ -65,6 +65,7 @@ export function Layout() {
 
   const [registerName, setRegisterName] = useState('')
   const [registerTeam, setRegisterTeam] = useState('')
+  const [registerHomeGround, setRegisterHomeGround] = useState('')
   const [registerRole, setRegisterRole] = useState('')
   const [registerSport, setRegisterSport] = useState('')
   const [registerEmail, setRegisterEmail] = useState('')
@@ -74,6 +75,10 @@ export function Layout() {
   const [loggedInRole, setLoggedInRole] = useState<string | null>(null)
   const [loggedInAccountId, setLoggedInAccountId] = useState<string | null>(null)
   const [loggedInTeam, setLoggedInTeam] = useState<string | null>(null)
+  const [profileTeam, setProfileTeam] = useState('')
+  const [profileHomeGround, setProfileHomeGround] = useState('')
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isApiLoading, setIsApiLoading] = useState(false)
 
@@ -107,6 +112,8 @@ export function Layout() {
         setLoggedInRole(response.user.role)
         setLoggedInAccountId(response.user.id)
         setLoggedInTeam(response.user.team)
+        setProfileTeam(response.user.team ?? '')
+        setProfileHomeGround(response.user.homeGround ?? '')
         void refreshTeam()
       } catch {
         api.clearToken()
@@ -132,6 +139,8 @@ export function Layout() {
       setLoggedInRole(response.user.role)
       setLoggedInAccountId(response.user.id)
       setLoggedInTeam(response.user.team)
+      setProfileTeam(response.user.team ?? '')
+      setProfileHomeGround(response.user.homeGround ?? '')
       void refreshTeam()
       setAuthMessage(`Signed in as ${response.user.name || response.user.email} (${response.user.role}).`)
       setLoginEmail('')
@@ -147,13 +156,25 @@ export function Layout() {
     const isReferee = registerRole === 'Referee'
     const safeName = registerName.trim()
     const safeTeam = isReferee ? '' : registerTeam.trim()
+    const safeHomeGround = isReferee ? '' : registerHomeGround.trim()
     const safeRole = registerRole.trim()
     const safeSport = registerSport.trim()
     const safeEmail = registerEmail.trim().toLowerCase()
     const safePassword = registerPassword.trim()
 
-    if (!safeName || (!isReferee && !safeTeam) || !safeRole || !safeSport || !safeEmail || !safePassword) {
+    if (
+      !safeName ||
+      !safeRole ||
+      !safeSport ||
+      !safeEmail ||
+      !safePassword
+    ) {
       setAuthMessage('Add your details to create an account.')
+      return
+    }
+
+    if (safeTeam && !safeHomeGround) {
+      setAuthMessage('Add a home ground for your team, or leave the team blank.')
       return
     }
 
@@ -161,6 +182,7 @@ export function Layout() {
       await api.register({
         name: safeName,
         team: safeTeam,
+        homeGround: safeHomeGround,
         role: safeRole,
         sport: safeSport,
         email: safeEmail,
@@ -173,6 +195,7 @@ export function Layout() {
       setAuthMessage('Registration successful. Please log in with your new account.')
       setRegisterName('')
       setRegisterTeam('')
+      setRegisterHomeGround('')
       setRegisterRole('')
       setRegisterSport('')
       setRegisterEmail('')
@@ -198,8 +221,41 @@ export function Layout() {
     setLoggedInAccountId(null)
     setLoggedInTeam(null)
     setNotifications([])
+    setProfileTeam('')
+    setProfileHomeGround('')
+    setProfileMessage('')
     void refreshTeam()
     setAuthMessage('You have logged out.')
+  }
+
+  const handleSaveProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const token = api.getToken()
+    if (!token) {
+      setProfileMessage('Please log in again.')
+      return
+    }
+
+    const team = profileTeam.trim()
+    const homeGround = profileHomeGround.trim()
+    if (team && !homeGround) {
+      setProfileMessage('Add a home ground for your team, or leave the team blank.')
+      return
+    }
+
+    setIsSavingProfile(true)
+    try {
+      const response = await api.updateProfile({ team, homeGround: team ? homeGround : '' }, token)
+      setLoggedInTeam(response.user.team)
+      setProfileTeam(response.user.team ?? '')
+      setProfileHomeGround(response.user.homeGround ?? '')
+      void refreshTeam()
+      setProfileMessage('Team updated.')
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : 'Failed to update your team.')
+    } finally {
+      setIsSavingProfile(false)
+    }
   }
 
   useEffect(() => {
@@ -442,6 +498,36 @@ export function Layout() {
               <Alert severity="success" sx={{ mb: 2 }}>
                 Signed in: {loggedInUser}
               </Alert>
+
+              <Box component="form" onSubmit={handleSaveProfile} sx={{ display: 'grid', gap: 1.3, mb: 2 }}>
+                <Typography variant="overline" color="text.secondary">
+                  Team profile
+                </Typography>
+                <TextField
+                  label="Team (optional)"
+                  value={profileTeam}
+                  onChange={(event) => setProfileTeam(event.target.value)}
+                  placeholder="Team name"
+                  size="small"
+                />
+                <TextField
+                  label="Home ground (optional)"
+                  value={profileHomeGround}
+                  onChange={(event) => setProfileHomeGround(event.target.value)}
+                  placeholder="e.g. Nairobi West Ground"
+                  size="small"
+                  helperText="Required if you set a team."
+                />
+                <Button type="submit" variant="contained" disabled={isSavingProfile}>
+                  {isSavingProfile ? 'Saving…' : 'Save team'}
+                </Button>
+                {profileMessage && (
+                  <Alert severity="info" sx={{ py: 0.3, fontSize: '0.78rem' }}>
+                    {profileMessage}
+                  </Alert>
+                )}
+              </Box>
+
               <Button onClick={handleLogout} variant="outlined" fullWidth>
                 Logout
               </Button>
@@ -484,13 +570,22 @@ export function Layout() {
                 required
               />
               {registerRole !== 'Referee' && (
-                <TextField
-                  label="Team"
-                  value={registerTeam}
-                  onChange={(event) => setRegisterTeam(event.target.value)}
-                  placeholder="Team name"
-                  required
-                />
+                <>
+                  <TextField
+                    label="Team (optional)"
+                    value={registerTeam}
+                    onChange={(event) => setRegisterTeam(event.target.value)}
+                    placeholder="Team name"
+                    helperText="You can add or change this later from your account."
+                  />
+                  <TextField
+                    label="Home ground (optional)"
+                    value={registerHomeGround}
+                    onChange={(event) => setRegisterHomeGround(event.target.value)}
+                    placeholder="e.g. Nairobi West Ground"
+                    helperText="Required if you enter a team."
+                  />
+                </>
               )}
               <FormControl required>
                 <InputLabel id="register-role-label">Role</InputLabel>
@@ -503,6 +598,7 @@ export function Layout() {
                     setRegisterRole(nextRole)
                     if (nextRole === 'Referee') {
                       setRegisterTeam('')
+                      setRegisterHomeGround('')
                     }
                   }}
                 >

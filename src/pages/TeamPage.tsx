@@ -1,14 +1,27 @@
-import type { FormEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { useAppData } from '../context/AppContext'
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { useOutletContext } from 'react-router-dom'
-import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  InputAdornment,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import { useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { TeamSummary } from '../types'
-import { useAutoHide } from '../lib/useAutoHide'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -66,44 +79,184 @@ const KENYA_COUNTIES = [
   'West Pokot',
 ] as const
 
+const levels = ['All Levels', 'Junior', 'Amateur', 'Semi-Pro'] as const
+const teamsPerPage = 9
+
+function StatTile({ label, value, accent = '#edf2f7' }: { label: string; value: number; accent?: string }) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: 1.6,
+        borderColor: 'rgba(159,176,201,0.14)',
+        background: 'linear-gradient(180deg, rgba(21,31,51,0.72) 0%, rgba(14,22,38,0.72) 100%)',
+      }}
+    >
+      <CardContent sx={{ py: 0.8, px: 1.2, '&:last-child': { pb: 0.8 } }}>
+        <Typography sx={{ fontSize: '0.52rem', letterSpacing: '0.14em', fontWeight: 800, color: '#66708a' }}>
+          {label}
+        </Typography>
+        <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, lineHeight: 1.2, color: accent }}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
+  )
+}
+
+function Meta({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          fontSize: '0.5rem',
+          letterSpacing: '0.12em',
+          fontWeight: 800,
+          color: '#5f6a84',
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: '0.76rem',
+          fontWeight: 700,
+          color: accent ? '#9dff20' : '#c3cbdc',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {value}
+      </Typography>
+    </Box>
+  )
+}
+
+function TeamRow({ team, highlighted }: { team: TeamSummary; highlighted: boolean }) {
+  const status = team.status ?? 'inactive'
+
+  return (
+    <Box
+      sx={{
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: {
+          md: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) 88px minmax(0,1.2fr)',
+        },
+        gap: { md: 1.4 },
+        px: { xs: 1.4, md: 1.8 },
+        py: { xs: 1.1, md: 0.85 },
+        alignItems: 'center',
+        borderLeft: highlighted ? '2px solid #adff0f' : '2px solid transparent',
+        bgcolor: highlighted ? 'rgba(173,255,15,0.025)' : 'transparent',
+        transition: 'background-color 120ms ease',
+        '&:hover': { bgcolor: 'rgba(76,227,163,0.03)' },
+      }}
+    >
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: 1,
+            border: '1px solid rgba(159,176,201,0.2)',
+            bgcolor: 'rgba(30,34,50,0.8)',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {team.logoUrl ? (
+            <Avatar src={team.logoUrl} alt={`${team.name} logo`} sx={{ width: 26, height: 26, borderRadius: 0.8 }} />
+          ) : (
+            <Typography sx={{ color: '#8d94a8', fontWeight: 800, fontSize: '0.72rem' }}>
+              {team.name.charAt(0).toUpperCase()}
+            </Typography>
+          )}
+        </Box>
+
+        <Box sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {team.name}
+            </Typography>
+            <Chip
+              size="small"
+              label={status.toUpperCase()}
+              sx={{
+                height: 15,
+                fontSize: '0.46rem',
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                color: status === 'active' ? '#4ce3a3' : '#9fa9c0',
+                bgcolor: status === 'active' ? 'rgba(76,227,163,0.08)' : 'rgba(159,176,201,0.06)',
+                border: `1px solid ${status === 'active' ? 'rgba(76,227,163,0.35)' : 'rgba(159,176,201,0.2)'}`,
+                '& .MuiChip-label': { px: 0.5 },
+              }}
+            />
+          </Stack>
+          <Typography
+            sx={{
+              fontSize: '0.6rem',
+              color: '#7f8aa3',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              fontStyle: team.bio?.trim() ? 'normal' : 'italic',
+            }}
+          >
+            {team.bio?.trim() || 'No team motto yet'}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Box
+        sx={{
+          display: { xs: 'grid', md: 'contents' },
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0,1fr))' },
+          gap: { xs: 0.8, md: 0 },
+          mt: { xs: 1, md: 0 },
+        }}
+      >
+        <Meta label="MANAGER" value={team.manager || 'Not set'} />
+        <Meta label="COUNTY" value={team.county || 'Not set'} />
+        <Meta label="LEVEL" value={team.level || 'Amateur'} accent />
+        <Meta label="GROUND" value={team.homeGround || 'Not set'} />
+      </Box>
+    </Box>
+  )
+}
+
 export function TeamPage() {
-  const { team: teamProfile, createTeam } = useAppData()
-  const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()
-  const [teamName, setTeamName] = useState(teamProfile.name)
-  const [manager, setManager] = useState(teamProfile.manager)
-  const [county, setCounty] = useState(teamProfile.county)
-  const [homeGround, setHomeGround] = useState(teamProfile.homeGround)
-  const [level, setLevel] = useState(teamProfile.level)
-  const [bio, setBio] = useState(teamProfile.bio)
-  const [logoUrl, setLogoUrl] = useState(teamProfile.logoUrl ?? '')
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [teamMessage, setTeamMessage] = useState('')
-  useAutoHide(teamMessage, () => setTeamMessage(''))
-  const [showCreateTeamForm, setShowCreateTeamForm] = useState(false)
+  const { loggedInTeam } = useOutletContext<AuthOutletContext>()
+
   const [teams, setTeams] = useState<TeamSummary[]>([])
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false)
+  const [isLoadingTeams, setIsLoadingTeams] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [selectedLevel, setSelectedLevel] = useState('All Levels')
   const [selectedCounty, setSelectedCounty] = useState('All Counties')
   const [selectedSort, setSelectedSort] = useState<'Recently Active' | 'A-Z'>('Recently Active')
+  const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const canCreateHere = false
-  const teamsPerPage = 3
 
-  const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
-  const canCreateTeam = Boolean(
-    loggedInUser &&
-      (normalizedRole === 'tm' ||
-        normalizedRole === 'coach' ||
-        normalizedRole === 'captain' ||
-        normalizedRole === 'admin' ||
-        normalizedRole === 'superadmin'),
-  )
+  useEffect(() => {
+    let cancelled = false
 
-  const loadTeams = async () => {
-    setIsLoadingTeams(true)
-    try {
-      const response = await api.getTeams()
-      const safeTeams = (response.teams ?? []).reduce<TeamSummary[]>((acc, row) => {
+    const loadTeams = async () => {
+      setIsLoadingTeams(true)
+      try {
+        const response = await api.getTeams()
+        const safeTeams = (response.teams ?? []).reduce<TeamSummary[]>((acc, row) => {
           const safeName = typeof row?.name === 'string' ? row.name.trim() : ''
           if (!safeName) {
             return acc
@@ -114,12 +267,12 @@ export function TeamPage() {
           const safeGround = typeof row.homeGround === 'string' ? row.homeGround.trim() : undefined
           const safeBio = typeof row.bio === 'string' ? row.bio.trim() : undefined
           const safeLogo = typeof row.logoUrl === 'string' ? row.logoUrl.trim() : undefined
-          const safeLevel = row.level === 'Junior' || row.level === 'Amateur' || row.level === 'Semi-Pro'
-            ? row.level
-            : undefined
-          const safeStatus = row.status === 'active' || row.status === 'inactive'
-            ? row.status
-            : undefined
+          const safeLevel =
+            row.level === 'Junior' || row.level === 'Amateur' || row.level === 'Semi-Pro'
+              ? row.level
+              : undefined
+          const safeStatus =
+            row.status === 'active' || row.status === 'inactive' ? row.status : undefined
           const safeUpdatedAt = typeof row.updatedAt === 'string' ? row.updatedAt : undefined
 
           acc.push({
@@ -137,25 +290,27 @@ export function TeamPage() {
           return acc
         }, [])
 
-      setTeams(safeTeams)
-      setTeamMessage('')
-    } catch (error) {
-      setTeamMessage(error instanceof Error ? error.message : 'Failed to load teams.')
-      setTeams([])
-    } finally {
-      setIsLoadingTeams(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!loggedInUser) {
-      setTeams([])
-      setIsLoadingTeams(false)
-      return
+        if (!cancelled) {
+          setTeams(safeTeams)
+          setLoadError('')
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : 'Failed to load teams.')
+          setTeams([])
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingTeams(false)
+        }
+      }
     }
 
     void loadTeams()
-  }, [loggedInUser])
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const countyOptions = useMemo(() => {
     const counties = new Set<string>()
@@ -173,10 +328,24 @@ export function TeamPage() {
   }, [teams])
 
   const filteredTeams = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase()
+
     const next = teams.filter((row) => {
       const levelMatch = selectedLevel === 'All Levels' || row.level === selectedLevel
       const countyMatch = selectedCounty === 'All Counties' || row.county === selectedCounty
-      return levelMatch && countyMatch
+      if (!levelMatch || !countyMatch) {
+        return false
+      }
+
+      if (!term) {
+        return true
+      }
+
+      return [row.name, row.manager, row.county, row.homeGround, row.bio]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(term)
     })
 
     if (selectedSort === 'Recently Active') {
@@ -198,7 +367,7 @@ export function TeamPage() {
 
     next.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
     return next
-  }, [selectedCounty, selectedLevel, selectedSort, teams])
+  }, [searchQuery, selectedCounty, selectedLevel, selectedSort, teams])
 
   const totalPages = Math.max(1, Math.ceil(filteredTeams.length / teamsPerPage))
 
@@ -211,390 +380,259 @@ export function TeamPage() {
     return filteredTeams.slice(startIndex, startIndex + teamsPerPage)
   }, [currentPage, filteredTeams])
 
-  const handleLogoFile = (file: File | null) => {
-    if (!file) {
-      return
-    }
+  const stats = useMemo(
+    () => ({
+      total: teams.length,
+      active: teams.filter((team) => (team.status ?? 'inactive') === 'active').length,
+      counties: new Set(teams.map((team) => team.county).filter(Boolean)).size,
+    }),
+    [teams],
+  )
 
-    if (!file.type.startsWith('image/')) {
-      setTeamMessage('Please upload an image file for the team logo.')
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setLogoUrl(reader.result)
-        setTeamMessage('Team logo selected.')
-      }
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleCreateTeam = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    try {
-      await createTeam({
-        name: teamName,
-        manager,
-        county,
-        homeGround,
-        level,
-        bio,
-        logoUrl: logoUrl.trim() || undefined,
-      })
-      setTeamMessage('Team saved successfully.')
-      setShowCreateTeamForm(false)
-      await loadTeams()
-    } catch (error) {
-      setTeamMessage(error instanceof Error ? error.message : 'Failed to save team.')
-    }
-  }
+  const resetPage = () => setCurrentPage(1)
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2.5}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.2}
+        sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}
+      >
+        <Box>
+          <Stack direction="row" spacing={0.7} sx={{ alignItems: 'center', mb: 0.3 }}>
+            <GroupsOutlinedIcon sx={{ fontSize: '0.9rem', color: '#4ce3a3' }} />
+            <Typography sx={{ fontSize: '0.56rem', letterSpacing: '0.18em', fontWeight: 800, color: '#5f6a84' }}>
+              CLUB DIRECTORY
+            </Typography>
+          </Stack>
+          <Typography
+            sx={{ fontSize: { xs: '1.2rem', md: '1.45rem' }, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}
+          >
+            Teams
+          </Typography>
+          <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary', mt: 0.25 }}>
+            Browse every team in the community — no account needed.
+          </Typography>
+        </Box>
 
-      {canCreateTeam ? (
-        canCreateHere && showCreateTeamForm ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <Card variant="outlined" sx={{ width: '100%', maxWidth: 680 }}>
-              <CardContent>
-                <Typography variant="overline" color="text.secondary">
-                  Team setup
-                </Typography>
-                <Typography variant="h3" sx={{ fontWeight: 800, mb: 1.2, fontSize: { xs: '1.5rem', md: '1.5rem' } }}>
-                  Create a team
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Logged in as {loggedInUser} ({loggedInRole}). You can create or update a team profile.
-                </Typography>
-                <Box component="form" onSubmit={handleCreateTeam} sx={{ display: 'grid', gap: 1.4 }}>
-                  <TextField label="Team name" value={teamName} onChange={(event) => setTeamName(event.target.value)} required />
-                  <TextField label="Manager" value={manager} onChange={(event) => setManager(event.target.value)} required />
-                  <TextField
-                    select
-                    label="County"
-                    value={county}
-                    onChange={(event) => setCounty(event.target.value)}
-                    required
-                  >
-                    {KENYA_COUNTIES.map((item) => (
-                      <MenuItem key={item} value={item}>
-                        {item}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField label="Home ground" value={homeGround} onChange={(event) => setHomeGround(event.target.value)} required />
-                  <TextField select label="Level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)} required>
-                    <MenuItem value="Junior">Junior</MenuItem>
-                    <MenuItem value="Amateur">Amateur</MenuItem>
-                    <MenuItem value="Semi-Pro">Semi-Pro</MenuItem>
-                  </TextField>
-                  <TextField
-                    label="Team logo file (optional)"
-                    type="file"
-                    slotProps={{ inputLabel: { shrink: true }, htmlInput: { accept: 'image/*' } }}
-                    onChange={(event) => {
-                      const input = event.target as HTMLInputElement
-                      handleLogoFile(input.files?.[0] ?? null)
-                    }}
-                    helperText="Upload an image to use as the team logo."
-                  />
-                  <Box
-                    onDragOver={(event) => {
-                      event.preventDefault()
-                      setIsDragOver(true)
-                    }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      setIsDragOver(false)
-                      handleLogoFile(event.dataTransfer.files[0] ?? null)
-                    }}
-                    sx={{
-                      border: '1px dashed',
-                      borderColor: isDragOver ? 'primary.main' : 'rgba(159,176,201,0.38)',
-                      borderRadius: 2,
-                      p: 2,
-                      textAlign: 'center',
-                      bgcolor: isDragOver ? 'rgba(76,227,163,0.08)' : 'transparent',
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Or drag and drop the logo image here
-                    </Typography>
-                  </Box>
-                  <TextField
-                    label="Team logo URL (optional)"
-                    type="url"
-                    value={logoUrl}
-                    onChange={(event) => setLogoUrl(event.target.value)}
-                    placeholder="https://example.com/logo.png"
-                  />
-                  <TextField label="Bio" value={bio} onChange={(event) => setBio(event.target.value)} multiline rows={3} required />
-                  <Button type="submit" variant="contained" sx={{ justifySelf: 'start' }}>
-                    Save team
-                  </Button>
-                  {teamMessage && (
-                    <Alert severity="info">{teamMessage}</Alert>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        ) : null
-      ) : (
-        <Alert severity="info">
-          Only users logged in as TM, Coach, or captain can create a team.
+        <Stack direction="row" spacing={0.8}>
+          <StatTile label="TEAMS" value={stats.total} />
+          <StatTile label="ACTIVE" value={stats.active} accent="#4ce3a3" />
+          <StatTile label="COUNTIES" value={stats.counties} accent="#adff0f" />
+        </Stack>
+      </Stack>
+
+      <Card
+        variant="outlined"
+        sx={{
+          borderRadius: 2,
+          borderColor: 'rgba(159,176,201,0.14)',
+          background: 'linear-gradient(180deg, rgba(21,31,51,0.55) 0%, rgba(13,21,36,0.55) 100%)',
+        }}
+      >
+        <CardContent sx={{ p: 1.3, '&:last-child': { pb: 1.3 } }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1}
+            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+          >
+            <TextField
+              size="small"
+              placeholder="Search teams, managers, grounds…"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value)
+                resetPage()
+              }}
+              sx={{
+                width: { xs: '100%', md: 300 },
+                '& .MuiInputBase-input': { fontSize: '0.76rem', py: 0.6 },
+                '& .MuiOutlinedInput-root': { borderRadius: 1.4 },
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRoundedIcon sx={{ fontSize: '0.95rem', color: '#6b7590' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}>
+              <TextField
+                select
+                size="small"
+                value={selectedLevel}
+                onChange={(event) => {
+                  setSelectedLevel(event.target.value)
+                  resetPage()
+                }}
+                sx={{ minWidth: 128, '& .MuiInputBase-input': { fontSize: '0.74rem', py: 0.6 } }}
+              >
+                {levels.map((level) => (
+                  <MenuItem key={level} value={level} sx={{ fontSize: '0.76rem' }}>
+                    {level.toUpperCase()}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                size="small"
+                value={selectedCounty}
+                onChange={(event) => {
+                  setSelectedCounty(event.target.value)
+                  resetPage()
+                }}
+                sx={{ minWidth: 140, '& .MuiInputBase-input': { fontSize: '0.74rem', py: 0.6 } }}
+              >
+                {countyOptions.map((county) => (
+                  <MenuItem key={county} value={county} sx={{ fontSize: '0.76rem' }}>
+                    {county}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                size="small"
+                value={selectedSort}
+                onChange={(event) => {
+                  setSelectedSort(event.target.value as 'Recently Active' | 'A-Z')
+                  resetPage()
+                }}
+                sx={{ minWidth: 148, '& .MuiInputBase-input': { fontSize: '0.74rem', py: 0.6 } }}
+              >
+                <MenuItem value="Recently Active" sx={{ fontSize: '0.76rem' }}>
+                  RECENTLY ACTIVE
+                </MenuItem>
+                <MenuItem value="A-Z" sx={{ fontSize: '0.76rem' }}>
+                  A-Z
+                </MenuItem>
+              </TextField>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {loadError && (
+        <Alert severity="error" sx={{ fontSize: '0.75rem', py: 0.35 }}>
+          {loadError}
         </Alert>
       )}
 
-      {!showCreateTeamForm && loggedInUser && (
-        <Stack spacing={2}>
+      {isLoadingTeams ? (
+        <Stack sx={{ alignItems: 'center', py: 6 }}>
+          <CircularProgress size={22} sx={{ color: '#adff0f' }} />
+        </Stack>
+      ) : visibleTeams.length === 0 ? (
+        <Card variant="outlined" sx={{ borderRadius: 2, borderColor: 'rgba(159,176,201,0.14)' }}>
+          <Stack sx={{ alignItems: 'center', py: 6, gap: 0.6 }}>
+            <SearchOffRoundedIcon sx={{ fontSize: '1.5rem', color: '#3f4a63' }} />
+            <Typography sx={{ fontSize: '0.76rem', color: '#66708a' }}>
+              No teams match your filters.
+            </Typography>
+          </Stack>
+        </Card>
+      ) : (
+        <>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography sx={{ fontSize: '0.56rem', letterSpacing: '0.14em', fontWeight: 800, color: '#5f6a84' }}>
+              SHOWING {visibleTeams.length} OF {filteredTeams.length} TEAMS
+            </Typography>
+            <Typography sx={{ fontSize: '0.56rem', letterSpacing: '0.14em', fontWeight: 800, color: '#5f6a84' }}>
+              PAGE {currentPage} / {totalPages}
+            </Typography>
+          </Stack>
+
           <Card
             variant="outlined"
             sx={{
-              borderColor: 'rgba(137,151,178,0.2)',
               borderRadius: 2,
-              bgcolor: 'rgba(22,24,34,0.96)',
+              borderColor: 'rgba(159,176,201,0.14)',
+              background: 'linear-gradient(180deg, rgba(21,31,51,0.6) 0%, rgba(13,21,36,0.6) 100%)',
+              overflow: 'hidden',
             }}
           >
-            <CardContent sx={{ py: 1.5 }}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gap: 1.2,
-                  gridTemplateColumns: { xs: '1fr', lg: '1fr auto' },
-                  alignItems: 'center',
-                }}
-              >
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.2} sx={{ alignItems: { xs: 'stretch', md: 'center' } }}>
-                  <Typography sx={{ color: '#8d94a8', letterSpacing: '0.08em', fontWeight: 700, fontSize: '0.82rem' }}>
-                    FILTER BY:
-                  </Typography>
-                  <TextField
-                    select
-                    size="small"
-                    value={selectedLevel}
-                    onChange={(event) => {
-                      setSelectedLevel(event.target.value)
-                      setCurrentPage(1)
-                    }}
-                    sx={{ minWidth: 132 }}
-                  >
-                    {['All Levels', 'Junior', 'Amateur', 'Semi-Pro'].map((item) => (
-                      <MenuItem key={item} value={item}>
-                        {item}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    size="small"
-                    value={selectedCounty}
-                    onChange={(event) => {
-                      setSelectedCounty(event.target.value)
-                      setCurrentPage(1)
-                    }}
-                    sx={{ minWidth: 138 }}
-                  >
-                    {countyOptions.map((item) => (
-                      <MenuItem key={item} value={item}>
-                        {item}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Stack>
-
-                <Stack direction="row" spacing={1.1} sx={{ alignItems: 'center', justifyContent: { xs: 'flex-start', lg: 'flex-end' } }}>
-                  <Typography sx={{ color: '#8d94a8', letterSpacing: '0.08em', fontWeight: 700, fontSize: '0.82rem' }}>
-                    SORT:
-                  </Typography>
-                  <TextField
-                    select
-                    size="small"
-                    value={selectedSort}
-                    onChange={(event) => setSelectedSort(event.target.value as 'Recently Active' | 'A-Z')}
-                    sx={{ minWidth: 150 }}
-                  >
-                    <MenuItem value="Recently Active">Recently Active</MenuItem>
-                    <MenuItem value="A-Z">A-Z</MenuItem>
-                  </TextField>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {isLoadingTeams ? (
-            <Typography color="text.secondary">Loading teams...</Typography>
-          ) : visibleTeams.length === 0 ? (
-            <Typography color="text.secondary">No teams available for this filter.</Typography>
-          ) : (
-            <Stack spacing={1.8}>
-              {visibleTeams.map((row) => {
-                const isHighlighted = Boolean(loggedInTeam && loggedInTeam === row.name)
-                const statusLabel = row.status ?? 'inactive'
-                return (
-                  <Card
-                    key={`team-row-${row.name}`}
-                    variant="outlined"
-                    sx={{
-                      borderColor: isHighlighted ? 'rgba(167,255,46,0.58)' : 'rgba(137,151,178,0.22)',
-                      borderStyle: isHighlighted ? 'dashed' : 'solid',
-                      borderWidth: isHighlighted ? 2 : 1,
-                      borderRadius: 2,
-                      bgcolor: 'rgba(21,23,33,0.96)',
-                    }}
-                  >
-                    <CardContent sx={{ py: 1 }}>
-                      <Box
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: {
-                            xs: '1fr',
-                            md: 'minmax(0,1.8fr) repeat(4, minmax(0,1fr)) auto',
-                          },
-                          gap: { xs: 1, md: 1.2 },
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Stack direction="row" spacing={1.3} sx={{ alignItems: 'center' }}>
-                          <Box
-                            sx={{
-                              width: 56,
-                              height: 56,
-                              borderRadius: 1.3,
-                              border: '1px solid rgba(137,151,178,0.26)',
-                              bgcolor: 'rgba(30,34,50,0.84)',
-                              display: 'grid',
-                              placeItems: 'center',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {row.logoUrl ? (
-                              <Avatar src={row.logoUrl} alt={`${row.name} logo`} sx={{ width: 44, height: 44, borderRadius: 1.1 }} />
-                            ) : (
-                              <Typography sx={{ color: '#8d94a8', fontWeight: 800 }}>
-                                {row.name.slice(0, 1).toUpperCase() || 'T'}
-                              </Typography>
-                            )}
-                          </Box>
-                          <Stack spacing={0.2}>
-                            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                              <Typography sx={{ fontSize: '1.2rem', fontWeight: 800, lineHeight: 1.1 }}>{row.name}</Typography>
-                              <Chip
-                                label={statusLabel}
-                                size="small"
-                                sx={
-                                  statusLabel === 'active'
-                                    ? {
-                                        textTransform: 'uppercase',
-                                        fontWeight: 700,
-                                        color: '#41f0bc',
-                                        border: '1px solid rgba(66,233,178,0.45)',
-                                        bgcolor: 'rgba(41,109,93,0.28)',
-                                      }
-                                    : {
-                                        textTransform: 'uppercase',
-                                        fontWeight: 700,
-                                        color: '#a0a8bd',
-                                        border: '1px solid rgba(137,151,178,0.35)',
-                                        bgcolor: 'rgba(65,70,86,0.24)',
-                                      }
-                                }
-                              />
-                            </Stack>
-                            <Typography sx={{ fontStyle: 'italic', color: '#8d94a8' }}>
-                              "{row.bio?.trim() || 'No team motto yet'}"
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>MANAGER</Typography>
-                          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{row.manager || 'Not set'}</Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>COUNTY</Typography>
-                          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{row.county || 'Not set'}</Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>LEVEL</Typography>
-                          <Typography sx={{ fontWeight: 800, fontSize: '0.88rem', color: '#9dff20' }}>{row.level || 'Amateur'}</Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography sx={{ color: '#666f86', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}>GROUND</Typography>
-                          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{row.homeGround || 'Not set'}</Typography>
-                        </Box>
-
-                        <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                          <Button variant="outlined" sx={{ minWidth: 100, fontWeight: 700, borderColor: 'rgba(137,151,178,0.3)', color: '#b6bed2' }}>
-                            Details
-                          </Button>
-                          <Button variant="outlined" sx={{ minWidth: 0, width: 40, height: 40, p: 0, borderColor: 'rgba(137,151,178,0.3)', color: '#b6bed2' }}>
-                            <OpenInNewRoundedIcon sx={{ fontSize: '1.02rem' }} />
-                          </Button>
-                        </Stack>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </Stack>
-          )}
-
-          <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', justifyContent: 'center', pt: 1 }}>
-            <Button
-              variant="outlined"
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage <= 1}
-              sx={{ minWidth: 0, width: 44, height: 44, p: 0, borderColor: 'rgba(137,151,178,0.35)' }}
+            <Box
+              sx={{
+                display: { xs: 'none', md: 'grid' },
+                gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) 88px minmax(0,1.2fr)',
+                gap: 1.4,
+                px: 1.8,
+                py: 0.6,
+                borderBottom: '1px solid rgba(159,176,201,0.1)',
+                bgcolor: 'rgba(255,255,255,0.012)',
+              }}
             >
-              <ChevronLeftRoundedIcon />
-            </Button>
-
-            {Array.from({ length: totalPages }, (_, index) => {
-              const page = index + 1
-              const isActive = page === currentPage
-              return (
-                <Button
-                  key={`teams-page-${page}`}
-                  variant={isActive ? 'contained' : 'outlined'}
-                  onClick={() => setCurrentPage(page)}
-                  sx={{
-                    minWidth: 0,
-                    width: 44,
-                    height: 44,
-                    p: 0,
-                    fontWeight: 800,
-                    color: isActive ? '#122100' : '#a8b1c7',
-                    borderColor: isActive ? 'transparent' : 'rgba(137,151,178,0.35)',
-                    bgcolor: isActive ? '#adff0f' : 'transparent',
-                    '&:hover': { bgcolor: isActive ? '#99e600' : 'rgba(255,255,255,0.04)' },
-                  }}
+              {['TEAM', 'MANAGER', 'COUNTY', 'LEVEL', 'GROUND'].map((label) => (
+                <Typography
+                  key={`team-head-${label}`}
+                  sx={{ fontSize: '0.52rem', letterSpacing: '0.12em', fontWeight: 800, color: '#5f6a84' }}
                 >
-                  {page}
-                </Button>
-              )
-            })}
+                  {label}
+                </Typography>
+              ))}
+            </Box>
 
-            <Button
-              variant="outlined"
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage >= totalPages}
-              sx={{ minWidth: 0, width: 44, height: 44, p: 0, borderColor: 'rgba(137,151,178,0.35)' }}
-            >
-              <ChevronRightRoundedIcon />
-            </Button>
-          </Stack>
-        </Stack>
+            <Stack divider={<Box sx={{ height: '1px', bgcolor: 'rgba(159,176,201,0.07)' }} />}>
+              {visibleTeams.map((team) => (
+                <TeamRow key={`team-${team.name}`} team={team} highlighted={loggedInTeam === team.name} />
+              ))}
+            </Stack>
+          </Card>
+        </>
       )}
 
-      {!showCreateTeamForm && !loggedInUser && (
-        <Alert severity="info">Log in to view the teams list.</Alert>
+      {totalPages > 1 && (
+        <Stack direction="row" spacing={0.6} sx={{ justifyContent: 'center', alignItems: 'center', pt: 0.5 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage <= 1}
+            sx={{ minWidth: 32, width: 32, height: 32, p: 0, borderColor: 'rgba(159,176,201,0.25)' }}
+          >
+            <ChevronLeftRoundedIcon sx={{ fontSize: '1rem' }} />
+          </Button>
+
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => {
+            const isActive = page === currentPage
+            return (
+              <Button
+                key={`team-page-${page}`}
+                size="small"
+                onClick={() => setCurrentPage(page)}
+                sx={{
+                  minWidth: 32,
+                  width: 32,
+                  height: 32,
+                  p: 0,
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  bgcolor: isActive ? '#adff0f' : 'transparent',
+                  color: isActive ? '#102100' : '#a7afc2',
+                  border: '1px solid rgba(159,176,201,0.18)',
+                  '&:hover': { bgcolor: isActive ? '#99e600' : 'rgba(255,255,255,0.04)' },
+                }}
+              >
+                {page}
+              </Button>
+            )
+          })}
+
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage >= totalPages}
+            sx={{ minWidth: 32, width: 32, height: 32, p: 0, borderColor: 'rgba(159,176,201,0.25)' }}
+          >
+            <ChevronRightRoundedIcon sx={{ fontSize: '1rem' }} />
+          </Button>
+        </Stack>
       )}
     </Stack>
   )

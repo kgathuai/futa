@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { Link, Navigate, useOutletContext } from 'react-router-dom'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -115,6 +115,9 @@ export function TeamDashboardPage() {
   const [tournamentStartDate, setTournamentStartDate] = useState('')
   const [tournamentEndDate, setTournamentEndDate] = useState('')
   const [tournamentStatus, setTournamentStatus] = useState<TournamentStatus>('upcoming')
+  const [tournamentType, setTournamentType] = useState<'open' | 'closed'>('open')
+  const [tournamentMaxTeams, setTournamentMaxTeams] = useState<number | ''>(8)
+  const [tournamentTeams, setTournamentTeams] = useState<string[]>([])
   const [selectedBookingStatusFilter, setSelectedBookingStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'declined'>('all')
   const [bookingSortDirection, setBookingSortDirection] = useState<'desc' | 'asc'>('desc')
   const [currentBookingPage, setCurrentBookingPage] = useState(1)
@@ -134,8 +137,11 @@ export function TeamDashboardPage() {
     normalizedRole === 'admin' ||
     normalizedRole === 'superadmin'
   const canAccessDashboard = Boolean(loggedInUser && isManagementRole)
-  const canCreateTeam = Boolean(loggedInUser && isManagementRole)
-  const canCreateMatches = canCreateTeam
+  const canCreateTeam = Boolean(
+    loggedInUser &&
+      (normalizedRole === 'tm' || normalizedRole === 'coach' || normalizedRole === 'captain'),
+  )
+  const canCreateMatches = Boolean(loggedInUser && isManagementRole)
 
   const teamNames = useMemo(() => teamOptions.map((option) => option.name), [teamOptions])
   const engagedFriendlies = useMemo(() => {
@@ -487,6 +493,29 @@ export function TeamDashboardPage() {
       return
     }
 
+    const maxTeams = tournamentMaxTeams === '' ? undefined : Number(tournamentMaxTeams)
+    if (tournamentType === 'open' && (maxTeams === undefined || maxTeams < 2)) {
+      setGlobalError('Open tournaments need a team limit of at least 2.')
+      return
+    }
+
+    if (maxTeams !== undefined && (!Number.isInteger(maxTeams) || maxTeams < 2)) {
+      setGlobalError('Max teams must be a whole number of 2 or more.')
+      return
+    }
+
+    const selectedTeams = tournamentTeams
+
+    if (tournamentType === 'closed' && selectedTeams.length < 2) {
+      setGlobalError('Pick at least 2 participating teams for a closed tournament.')
+      return
+    }
+
+    if (maxTeams !== undefined && selectedTeams.length > maxTeams) {
+      setGlobalError(`This tournament allows at most ${maxTeams} teams.`)
+      return
+    }
+
     const token = api.getToken()
     if (!token) {
       setGlobalError('Please log in before creating a tournament.')
@@ -501,8 +530,10 @@ export function TeamDashboardPage() {
       period: formatPeriod(tournamentStartDate, tournamentEndDate),
       venue: safeVenue,
       status: tournamentStatus,
+      type: tournamentType,
       ownerTeam: loggedInTeam ?? '',
-      registeredTeams: loggedInTeam ? [loggedInTeam] : [],
+      registeredTeams: selectedTeams,
+      maxTeams,
     }
 
     try {
@@ -516,7 +547,9 @@ export function TeamDashboardPage() {
           endDate: tournamentEndDate,
           venue: createdTournament.venue,
           status: createdTournament.status,
+          type: createdTournament.type,
           registeredTeams: createdTournament.registeredTeams,
+          maxTeams,
         },
         token,
       )
@@ -533,6 +566,9 @@ export function TeamDashboardPage() {
     setTournamentStartDate('')
     setTournamentEndDate('')
     setTournamentStatus('upcoming')
+    setTournamentType('open')
+    setTournamentMaxTeams(8)
+    setTournamentTeams([])
     setOpenCreateForm(null)
     setGlobalError('')
     setGlobalMessage('Tournament created successfully.')
@@ -1033,9 +1069,11 @@ export function TeamDashboardPage() {
                   Request Friendly
                 </Button>
               )}
-              <Button variant="contained" onClick={() => toggleCreateForm('team')}>
-                Create or Update Team
-              </Button>
+              {canCreateTeam && (
+                <Button variant="contained" onClick={() => toggleCreateForm('team')}>
+                  Create or Update Team
+                </Button>
+              )}
               <Button variant="contained" onClick={() => toggleCreateForm('result')}>
                 Submit Result
               </Button>
@@ -1270,21 +1308,36 @@ export function TeamDashboardPage() {
 
               {openCreateForm === 'friendly' && (
                 <Box component="form" onSubmit={handleCreateFriendly} sx={{ display: 'grid', gap: 1.25 }}>
-                  <TextField
-                    select
-                    label="Team"
-                    value={friendlyTeamName}
-                    onChange={(event) => setFriendlyTeamName(event.target.value)}
-                    required
-                  >
-                    {teamOptions
-                      .filter((option) => option.name !== loggedInTeam)
-                      .map((option) => (
-                        <MenuItem key={option.name} value={option.name}>
-                          {option.name}
-                        </MenuItem>
-                      ))}
-                  </TextField>
+                  <Autocomplete
+                    options={teamOptions.map((option) => option.name).filter((name) => name !== loggedInTeam)}
+                    value={friendlyTeamName || null}
+                    onChange={(_, value) => setFriendlyTeamName(value ?? '')}
+                    autoHighlight
+                    noOptionsText="No registered teams match"
+                    renderOption={(props, option) => {
+                      const logo = teamOptions.find((team) => team.name === option)?.logoUrl
+                      return (
+                        <Box component="li" {...props} sx={{ gap: 1 }}>
+                          {logo ? (
+                            <Avatar src={logo} sx={{ width: 22, height: 22 }} />
+                          ) : (
+                            <Avatar sx={{ width: 22, height: 22, fontSize: '0.6rem', bgcolor: 'rgba(76,227,163,0.15)', color: '#4ce3a3' }}>
+                              {option.charAt(0).toUpperCase()}
+                            </Avatar>
+                          )}
+                          {option}
+                        </Box>
+                      )
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Opponent team"
+                        placeholder="Search teams…"
+                        required
+                      />
+                    )}
+                  />
                   <TextField
                     label="Contact"
                     value={friendlyContact}
@@ -1460,6 +1513,84 @@ export function TeamDashboardPage() {
                         </MenuItem>
                       ))}
                     </TextField>
+                    <TextField
+                      select
+                      label="Tournament type"
+                      value={tournamentType}
+                      onChange={(event) => setTournamentType(event.target.value as 'open' | 'closed')}
+                      required
+                      helperText={
+                        tournamentType === 'open'
+                          ? 'Any team can register until the limit is reached.'
+                          : 'You choose the teams; self-registration is disabled.'
+                      }
+                    >
+                      <MenuItem value="open">OPEN — self-registration</MenuItem>
+                      <MenuItem value="closed">CLOSED — organiser picks teams</MenuItem>
+                    </TextField>
+                    <TextField
+                      label={tournamentType === 'open' ? 'Max teams' : 'Roster size (optional)'}
+                      type="number"
+                      value={tournamentMaxTeams}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setTournamentMaxTeams(value === '' ? '' : Math.max(2, Math.floor(Number(value))))
+                      }}
+                      slotProps={{ htmlInput: { min: 2, step: 1 } }}
+                      required={tournamentType === 'open'}
+                      helperText={
+                        tournamentType === 'open'
+                          ? 'Registration closes when this many teams join.'
+                          : 'Leave blank to define the roster later.'
+                      }
+                    />
+                    <Autocomplete
+                      multiple
+                      options={teamNames}
+                      value={tournamentTeams}
+                      onChange={(_, value) => {
+                        const max = tournamentMaxTeams === '' ? undefined : Number(tournamentMaxTeams)
+                        setTournamentTeams(max ? value.slice(0, max) : value)
+                      }}
+                      getOptionDisabled={(option) => {
+                        const max = tournamentMaxTeams === '' ? undefined : Number(tournamentMaxTeams)
+                        return Boolean(
+                          max && !tournamentTeams.includes(option) && tournamentTeams.length >= max,
+                        )
+                      }}
+                      disableCloseOnSelect
+                      autoHighlight
+                      noOptionsText="No registered teams match"
+                      renderOption={(props, option) => {
+                        const logo = teamOptions.find((team) => team.name === option)?.logoUrl
+                        return (
+                          <Box component="li" {...props} sx={{ gap: 1 }}>
+                            {logo ? (
+                              <Avatar src={logo} sx={{ width: 22, height: 22 }} />
+                            ) : (
+                              <Avatar sx={{ width: 22, height: 22, fontSize: '0.6rem', bgcolor: 'rgba(76,227,163,0.15)', color: '#4ce3a3' }}>
+                                {option.charAt(0).toUpperCase()}
+                              </Avatar>
+                            )}
+                            {option}
+                          </Box>
+                        )
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label={tournamentType === 'closed' ? 'Participating teams' : 'Pre-registered teams (optional)'}
+                          placeholder="Search teams…"
+                          helperText={
+                            tournamentType === 'closed'
+                              ? 'Pick at least 2 registered teams. Self-registration is disabled.'
+                              : 'Optional. Others can still register until the limit.'
+                          }
+                          required={tournamentType === 'closed'}
+                        />
+                      )}
+                      sx={{ '& .MuiAutocomplete-tag': { fontSize: '0.72rem' } }}
+                    />
                     <TextField label="Venue" value={tournamentVenue} onChange={(event) => setTournamentVenue(event.target.value)} required />
                     <Stack direction="row" spacing={1.25}>
                       <TextField

@@ -9,6 +9,8 @@ const app = express()
 const port = Number(process.env.PORT ?? 4000)
 const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/futa_monolith'
 const allowedRoles = new Set(['tm', 'coach', 'captain', 'admin', 'superadmin'])
+// Only these roles may create or edit a team profile.
+const teamEditors = new Set(['tm', 'coach', 'captain'])
 // Roles a visitor may self-register with. Never includes admin/superadmin.
 const publicRoles = new Set(['tm', 'coach', 'captain', 'player', 'referee', 'fan'])
 // Roles a superadmin may assign from the app. superadmin itself is CLI-only.
@@ -185,6 +187,7 @@ const sanitizeAccount = (account: AccountRecord) => ({
   id: account.id,
   name: account.name,
   team: account.team,
+  homeGround: account.homeGround,
   role: account.role,
   sport: account.sport,
   email: account.email,
@@ -304,9 +307,23 @@ app.post('/api/matches', async (req, res) => {
     return
   }
 
+  const awayTeam = body.awayTeam.trim()
+  if (awayTeam === teamName) {
+    res.status(400).json({ error: 'Home and away teams must be different.' })
+    return
+  }
+
+  const registeredTeamNames = await store.getRegisteredTeamNames()
+  if (!registeredTeamNames.includes(awayTeam)) {
+    res.status(400).json({
+      error: `"${awayTeam}" is not a registered team. Register the team before adding it to a match.`,
+    })
+    return
+  }
+
   const created = await store.addMatch({
     homeTeam: teamName,
-    awayTeam: body.awayTeam,
+    awayTeam,
     venue: body.venue,
     kickoff: body.kickoff,
     durationMinutes: body.durationMinutes,
@@ -687,17 +704,23 @@ app.post('/api/friendlies', async (req, res) => {
     return
   }
 
-  const request = await store.addFriendlyRequest({
-    teamName: body.teamName,
-    contact: body.contact,
-    preferredDate: body.preferredDate,
-    preferredTime: body.preferredTime,
-    location: body.location,
-    note: body.note,
-    referee: body.referee,
-  }, user.id)
+  try {
+    const request = await store.addFriendlyRequest({
+      teamName: body.teamName,
+      contact: body.contact,
+      preferredDate: body.preferredDate,
+      preferredTime: body.preferredTime,
+      location: body.location,
+      note: body.note,
+      referee: body.referee,
+    }, user.id)
 
-  res.status(201).json(request)
+    res.status(201).json(request)
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Failed to create friendly request.',
+    })
+  }
 })
 
 app.post('/api/friendlies/:requestId/accept', async (req, res) => {
@@ -895,6 +918,13 @@ app.post('/api/tournaments/:tournamentId/generate-fixtures', async (req, res) =>
     return
   }
 
+  const registeredTeamNames = await store.getRegisteredTeamNames()
+  const unregisteredTeams = teams.filter((team) => !registeredTeamNames.includes(team))
+  if (unregisteredTeams.length > 0) {
+    res.status(400).json({ error: `These teams are not registered: ${unregisteredTeams.join(', ')}` })
+    return
+  }
+
   // Check fixtures don't already exist
   const existing = await store.getFixturesForTournament(tournamentId)
   if (existing.length > 0) {
@@ -970,6 +1000,7 @@ app.post('/api/admin/accounts', async (req, res) => {
   const body = req.body as {
     name?: string
     team?: string
+    homeGround?: string
     role?: string
     sport?: string
     email?: string
@@ -977,6 +1008,7 @@ app.post('/api/admin/accounts', async (req, res) => {
   }
   const name = body.name?.trim() ?? ''
   const team = body.team?.trim() ?? ''
+  const homeGround = body.homeGround?.trim() ?? ''
   const role = body.role?.trim() ?? ''
   const sport = body.sport?.trim() ?? ''
   const email = body.email?.trim().toLowerCase() ?? ''
@@ -994,8 +1026,8 @@ app.post('/api/admin/accounts', async (req, res) => {
   }
 
   const isReferee = requestedRole === 'referee'
-  if (!isReferee && !team) {
-    res.status(400).json({ error: 'Team is required for this role.' })
+  if (!isReferee && team && !homeGround) {
+    res.status(400).json({ error: 'Home ground is required when a team is set.' })
     return
   }
 
@@ -1008,6 +1040,7 @@ app.post('/api/admin/accounts', async (req, res) => {
   const account = await store.createAccount({
     name,
     team: isReferee ? '' : team,
+    homeGround: isReferee || !team ? '' : homeGround,
     role: roleLabels[requestedRole],
     sport,
     email,
@@ -1019,6 +1052,7 @@ app.post('/api/admin/accounts', async (req, res) => {
     id: account.id,
     name: account.name,
     team: account.team,
+    homeGround: account.homeGround,
     role: account.role,
     sport: account.sport,
     email: account.email,
@@ -1133,6 +1167,7 @@ app.post('/api/auth/register', async (req, res) => {
   const body = req.body as Partial<AccountRecord>
   const name = body.name?.trim() ?? ''
   const team = body.team?.trim() ?? ''
+  const homeGround = body.homeGround?.trim() ?? ''
   const role = body.role?.trim() ?? ''
   const sport = body.sport?.trim() ?? ''
   const email = body.email?.trim().toLowerCase() ?? ''
@@ -1149,10 +1184,11 @@ app.post('/api/auth/register', async (req, res) => {
     return
   }
 
-  // Referees are not attached to a team.
+  // Referees are not attached to a team. For everyone else the team is optional,
+  // but a team must come with a home ground.
   const isReferee = requestedRole === 'referee'
-  if (!isReferee && !team) {
-    res.status(400).json({ error: 'Team is required for this role.' })
+  if (!isReferee && team && !homeGround) {
+    res.status(400).json({ error: 'Home ground is required when a team is set.' })
     return
   }
 
@@ -1165,6 +1201,7 @@ app.post('/api/auth/register', async (req, res) => {
   const account = await store.createAccount({
     name,
     team: isReferee ? '' : team,
+    homeGround: isReferee || !team ? '' : homeGround,
     role: roleLabels[requestedRole],
     sport,
     email,
@@ -1234,6 +1271,31 @@ app.get('/api/auth/me', async (req, res) => {
   res.json({ user: sanitizeAccount(account) })
 })
 
+app.patch('/api/auth/me', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const body = req.body as { team?: string; homeGround?: string }
+  const team = body.team?.trim() ?? ''
+  const homeGround = body.homeGround?.trim() ?? ''
+
+  if (team && !homeGround) {
+    res.status(400).json({ error: 'Home ground is required when a team is set.' })
+    return
+  }
+
+  const account = await store.updateAccountProfile(user.id, team, team ? homeGround : '')
+  if (!account) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  res.json({ user: sanitizeAccount(account) })
+})
+
 app.post('/api/team', async (req, res) => {
   const user = await getRequestUser(req.header('authorization'))
   if (!user) {
@@ -1241,8 +1303,8 @@ app.post('/api/team', async (req, res) => {
     return
   }
 
-  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
-    res.status(403).json({ error: 'Only TM, Coach, or captain can create a team.' })
+  if (!teamEditors.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, or captain can create or edit a team.' })
     return
   }
 
@@ -1262,7 +1324,7 @@ app.post('/api/team', async (req, res) => {
     return
   }
 
-  const updatedTeam = await store.setTeam(payload, user.id)
+  const updatedTeam = await store.setTeam(payload, user.id, user.team)
   res.status(201).json({ team: updatedTeam })
 })
 
@@ -1331,6 +1393,7 @@ app.post('/api/tournaments', async (req, res) => {
     endDate?: string
     venue?: string
     status?: 'upcoming' | 'registration open' | 'ongoing'
+    type?: 'open' | 'closed'
     registeredTeams?: string[]
     maxTeams?: number
   }
@@ -1346,6 +1409,31 @@ app.post('/api/tournaments', async (req, res) => {
     return
   }
 
+  const type = body.type === 'closed' ? 'closed' : 'open'
+  if (type === 'open' && maxTeams === undefined) {
+    res.status(400).json({ error: 'Open tournaments require a team limit.' })
+    return
+  }
+
+  const requestedTeams = Array.isArray(body.registeredTeams)
+    ? [
+        ...new Set(
+          body.registeredTeams
+            .map((team) => (typeof team === 'string' ? team.trim() : ''))
+            .filter(Boolean),
+        ),
+      ]
+    : []
+
+  if (requestedTeams.length > 0) {
+    const registeredTeamNames = await store.getRegisteredTeamNames()
+    const unregistered = requestedTeams.filter((team) => !registeredTeamNames.includes(team))
+    if (unregistered.length > 0) {
+      res.status(400).json({ error: `These teams are not registered: ${unregistered.join(', ')}` })
+      return
+    }
+  }
+
   const tournament = await store.addTournament({
     sport: body.sport.trim(),
     format: body.format.trim(),
@@ -1355,12 +1443,90 @@ app.post('/api/tournaments', async (req, res) => {
     endDate: body.endDate,
     venue: body.venue.trim(),
     status: body.status,
+    type,
     ownerTeam: user.team,
-    registeredTeams: body.registeredTeams,
+    registeredTeams: requestedTeams,
     maxTeams,
   })
 
   res.status(201).json(tournament)
+})
+
+app.patch('/api/tournaments/:tournamentId/teams', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, or captain can manage tournament teams.' })
+    return
+  }
+
+  const tournamentId = req.params.tournamentId?.trim()
+  if (!tournamentId) {
+    res.status(400).json({ error: 'Tournament id is required.' })
+    return
+  }
+
+  const body = req.body as { teams?: unknown }
+  if (!Array.isArray(body.teams)) {
+    res.status(400).json({ error: 'A teams array is required.' })
+    return
+  }
+
+  const teams = body.teams.filter((team): team is string => typeof team === 'string')
+  const normalizedTeams = teams.map((team) => team.trim()).filter(Boolean)
+  const registeredTeamNames = await store.getRegisteredTeamNames()
+  const unregistered = [
+    ...new Set(normalizedTeams.filter((team) => !registeredTeamNames.includes(team))),
+  ]
+
+  if (unregistered.length > 0) {
+    res.status(400).json({ error: `These teams are not registered: ${unregistered.join(', ')}` })
+    return
+  }
+
+  const existingFixtures = await store.getFixturesForTournament(tournamentId)
+  if (existingFixtures.length > 0) {
+    res.status(409).json({ error: 'Fixtures already exist. Delete them before changing the roster.' })
+    return
+  }
+
+  const result = await store.setTournamentTeams(tournamentId, user.team ?? '', normalizedTeams)
+
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  if (result.status === 'not-closed') {
+    res.status(400).json({ error: 'Only closed tournaments have an owner-defined roster.' })
+    return
+  }
+
+  if (result.status === 'forbidden') {
+    res.status(403).json({ error: 'Only the tournament owner can set the roster.' })
+    return
+  }
+
+  if (result.status === 'started') {
+    res.status(409).json({ error: 'The roster cannot change after the tournament starts.' })
+    return
+  }
+
+  if (result.status === 'too-few') {
+    res.status(400).json({ error: 'Select at least 2 teams.' })
+    return
+  }
+
+  if (result.status === 'too-many') {
+    res.status(400).json({ error: 'Too many teams for this tournament.' })
+    return
+  }
+
+  res.json(result.tournament)
 })
 
 app.post('/api/tournaments/:tournamentId/register', async (req, res) => {

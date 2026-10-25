@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
@@ -40,6 +40,10 @@ export function TournamentsPage() {
   const [isLoadingFixtures, setIsLoadingFixtures] = useState(false)
   const [statusClock, setStatusClock] = useState(Date.now())
   const [generateError, setGenerateError] = useState('')
+  const [manageTeamsOpen, setManageTeamsOpen] = useState(false)
+  const [manageTeamsSelection, setManageTeamsSelection] = useState<string[]>([])
+  const [isSavingTeams, setIsSavingTeams] = useState(false)
+  const [teamsDialogError, setTeamsDialogError] = useState('')
   useAutoHide(message, () => setMessage(''))
   useAutoHide(generateError, () => setGenerateError(''))
   const canCreateHere = false
@@ -433,6 +437,62 @@ export function TournamentsPage() {
     }
   }
 
+  const availableTeams = useMemo(() => {
+    const names = new Set(Object.keys(teamLogosByName))
+    for (const teamName of selectedTournament?.registeredTeams ?? []) {
+      if (teamName.trim()) {
+        names.add(teamName.trim())
+      }
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  }, [selectedTournament, teamLogosByName])
+
+  const openManageTeams = () => {
+    if (!selectedTournament) {
+      return
+    }
+    setManageTeamsSelection(selectedTournament.registeredTeams)
+    setTeamsDialogError('')
+    setManageTeamsOpen(true)
+  }
+
+  const handleSaveTeams = async () => {
+    if (!selectedTournament) {
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      setTeamsDialogError('Please log in.')
+      return
+    }
+
+    if (manageTeamsSelection.length < 2) {
+      setTeamsDialogError('Select at least 2 teams.')
+      return
+    }
+
+    setIsSavingTeams(true)
+    try {
+      const updated = await api.setTournamentTeams(
+        selectedTournament.id,
+        manageTeamsSelection,
+        token,
+      )
+      setTournaments((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      setManageTeamsOpen(false)
+      setTeamsDialogError('')
+      setMessage('Tournament roster saved.')
+      await loadMatches()
+    } catch (error) {
+      setTeamsDialogError(error instanceof Error ? error.message : 'Failed to save roster.')
+    } finally {
+      setIsSavingTeams(false)
+    }
+  }
+
+  const rosterLocked = fixtures.length > 0
+
   return (
     <Stack spacing={3}>
      
@@ -686,6 +746,18 @@ export function TournamentsPage() {
                 <Stack spacing={1.2}>
                   <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
                     <Chip label={selectedTournament.status.toUpperCase()} size="small" sx={{ bgcolor: selectedTournament.status === 'finished' ? '#444958' : '#adff0f', color: selectedTournament.status === 'finished' ? '#f4f7ff' : '#122000', fontWeight: 800, height: { xs: 28, md: 34 }, '& .MuiChip-label': { fontSize: { xs: '0.68rem', md: '0.85rem' }, px: { xs: 1, md: 1.4 } } }} />
+                    <Chip
+                      label={(selectedTournament.type ?? 'open').toUpperCase()}
+                      size="small"
+                      sx={{
+                        bgcolor: 'rgba(76,227,163,0.1)',
+                        color: '#4ce3a3',
+                        border: '1px solid rgba(76,227,163,0.3)',
+                        fontWeight: 800,
+                        height: { xs: 24, md: 28 },
+                        '& .MuiChip-label': { fontSize: { xs: '0.6rem', md: '0.7rem' }, px: { xs: 0.8, md: 1.1 } },
+                      }}
+                    />
                   </Stack>
 
                   <Typography variant="h3" sx={{ fontSize: { xs: '1.15rem', md: '2.05rem' }, fontWeight: 800, lineHeight: 1.1 }}>
@@ -712,30 +784,49 @@ export function TournamentsPage() {
                     {selectedTournament.status === 'registration open' ? 'REGISTRATION OPEN' : selectedTournament.status === 'finished' ? 'TOURNAMENT FINISHED' : 'TOURNAMENT DESK'}
                   </Typography>
                   <Typography sx={{ color: '#99a3bb', fontSize: '0.8rem', mb: 1.6 }}>
-                    {isTournamentFull
-                      ? 'This tournament is full. No more teams can register.'
-                      : selectedTournament.status === 'finished'
-                      ? 'This tournament has ended. Registration is closed.'
-                      : selectedTournament.status === 'registration open'
-                      ? 'Spots are available. Register your team now.'
-                      : 'Manage participants and keep standings updated.'}
+                    {(selectedTournament.type ?? 'open') === 'closed'
+                      ? isOwner
+                        ? 'Closed tournament — select the teams that will take part.'
+                        : 'Closed tournament — the organiser defines the participating teams.'
+                      : isTournamentFull
+                        ? 'This tournament is full. No more teams can register.'
+                        : selectedTournament.status === 'finished'
+                          ? 'This tournament has ended. Registration is closed.'
+                          : selectedTournament.status === 'registration open'
+                            ? 'Spots are available. Register your team now.'
+                            : 'Manage participants and keep standings updated.'}
                   </Typography>
                   {selectedTournament.maxTeams && (
                     <Typography sx={{ color: isTournamentFull ? '#f16f77' : '#adff0f', fontSize: '0.78rem', fontWeight: 700, mb: 1.2 }}>
                       {isTournamentFull
                         ? `Full — ${selectedTournament.maxTeams}/${selectedTournament.maxTeams} teams`
-                        : `${selectedTournamentTeams.length}/${selectedTournament.maxTeams} teams registered`}
+                        : `${selectedTournamentTeams.length}/${selectedTournament.maxTeams} teams ${(selectedTournament.type ?? 'open') === 'closed' ? 'selected' : 'registered'}`}
                     </Typography>
                   )}
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => void handleRegisterTeam()}
-                    disabled={selectedTournament.status !== 'registration open' || !canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam) || isTournamentFull}
-                    sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
-                  >
-                    {isTournamentFull ? 'Tournament Full' : selectedTournament.status === 'finished' ? 'Registration Closed' : selectedTournament.status === 'upcoming' ? 'Registration Not Open' : 'Join Tournament'}
-                  </Button>
+
+                  {(selectedTournament.type ?? 'open') === 'closed' ? (
+                    isOwner ? (
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={openManageTeams}
+                        disabled={selectedTournament.status === 'ongoing' || selectedTournament.status === 'finished' || rosterLocked}
+                        sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
+                      >
+                        {rosterLocked ? 'Roster locked (fixtures generated)' : 'Manage teams'}
+                      </Button>
+                    ) : null
+                  ) : (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={() => void handleRegisterTeam()}
+                      disabled={selectedTournament.status !== 'registration open' || !canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam) || isTournamentFull}
+                      sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
+                    >
+                      {isTournamentFull ? 'Tournament Full' : selectedTournament.status === 'finished' ? 'Registration Closed' : selectedTournament.status === 'upcoming' ? 'Registration Not Open' : 'Join Tournament'}
+                    </Button>
+                  )}
                 </Box>
               </Box>
             </CardContent>
@@ -1038,6 +1129,71 @@ export function TournamentsPage() {
 
         </Stack>
       )}
+
+      <Dialog open={manageTeamsOpen} onClose={() => setManageTeamsOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontSize: '1rem', fontWeight: 800 }}>Manage tournament roster</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary', mb: 1.4 }}>
+            Select the teams that will play.
+            {selectedTournament?.maxTeams
+              ? ` Up to ${selectedTournament.maxTeams}.`
+              : ' You can change this until fixtures are generated.'}
+          </Typography>
+
+          <Autocomplete
+            multiple
+            size="small"
+            options={availableTeams}
+            value={manageTeamsSelection}
+            onChange={(_, value) => {
+              const max = selectedTournament?.maxTeams
+              setManageTeamsSelection(max ? value.slice(0, max) : value)
+            }}
+            getOptionDisabled={(option) => {
+              const max = selectedTournament?.maxTeams
+              return Boolean(
+                max &&
+                  !manageTeamsSelection.includes(option) &&
+                  manageTeamsSelection.length >= max,
+              )
+            }}
+            disableCloseOnSelect
+            autoHighlight
+            noOptionsText="No registered teams match"
+            renderInput={(params) => (
+              <TextField {...params} label="Teams" placeholder="Search teams…" />
+            )}
+            sx={{ '& .MuiAutocomplete-tag': { fontSize: '0.72rem' } }}
+          />
+
+          <Typography sx={{ fontSize: '0.68rem', color: '#7f8aa3', mt: 1.4 }}>
+            {manageTeamsSelection.length} selected
+            {selectedTournament?.maxTeams ? ` of ${selectedTournament.maxTeams} max` : ''}
+          </Typography>
+          <Typography sx={{ fontSize: '0.64rem', color: '#66708a', mt: 0.4 }}>
+            Only teams registered in the community can be selected.
+          </Typography>
+
+          {teamsDialogError && (
+            <Alert severity="error" sx={{ mt: 1.4, fontSize: '0.75rem' }}>
+              {teamsDialogError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManageTeamsOpen(false)} sx={{ fontSize: '0.75rem' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleSaveTeams()}
+            disabled={isSavingTeams}
+            sx={{ fontSize: '0.75rem' }}
+          >
+            {isSavingTeams ? 'Saving…' : 'Save roster'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }

@@ -103,6 +103,7 @@ export const api = {
     payload: {
       name: string
       team: string
+      homeGround: string
       role: string
       sport: string
       email: string
@@ -133,18 +134,24 @@ export const api = {
       method: 'POST',
       token,
     }),
-  register: (payload: { name: string; team: string; role: string; sport: string; email: string; password: string }) =>
-    request<{ token: string; user: { id: string; name: string; team: string; role: string; sport: string; email: string } }>('/api/auth/register', {
+  register: (payload: { name: string; team: string; homeGround: string; role: string; sport: string; email: string; password: string }) =>
+    request<{ token: string; user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/register', {
       method: 'POST',
       body: payload,
     }),
   login: (payload: { email: string; password: string }) =>
-    request<{ token: string; user: { id: string; name: string; team: string; role: string; sport: string; email: string } }>('/api/auth/login', {
+    request<{ token: string; user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/login', {
       method: 'POST',
       body: payload,
     }),
   me: (token: string) =>
-    request<{ user: { id: string; name: string; team: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+    request<{ user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+      token,
+    }),
+  updateProfile: (payload: { team: string; homeGround: string }, token: string) =>
+    request<{ user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+      method: 'PATCH',
+      body: payload,
       token,
     }),
   logout: (token: string) =>
@@ -201,6 +208,7 @@ export const api = {
       endDate?: string
       venue: string
       status: TournamentStatus
+      type?: 'open' | 'closed'
       registeredTeams?: string[]
       maxTeams?: number
     },
@@ -209,6 +217,12 @@ export const api = {
     request<TournamentItem>('/api/tournaments', {
       method: 'POST',
       body: payload,
+      token,
+    }),
+  setTournamentTeams: (tournamentId: string, teams: string[], token: string) =>
+    request<TournamentItem>(`/api/tournaments/${tournamentId}/teams`, {
+      method: 'PATCH',
+      body: { teams },
       token,
     }),
   registerTournamentTeam: (tournamentId: string, token: string) =>

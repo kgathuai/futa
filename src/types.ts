@@ -2,6 +2,8 @@ export type TeamLevel = 'Junior' | 'Amateur' | 'Semi-Pro'
 
 export type TournamentStatus = 'upcoming' | 'registration open' | 'ongoing' | 'finished'
 
+export type TournamentType = 'open' | 'closed'
+
 export interface TournamentItem {
   id: string
   sport: string
@@ -12,6 +14,7 @@ export interface TournamentItem {
   endDate?: string
   venue: string
   status: TournamentStatus
+  type?: TournamentType
   ownerTeam?: string
   registeredTeams: string[]
   maxTeams?: number
@@ -156,6 +159,7 @@ export interface AdminAccount {
   id: string
   name: string
   team: string
+  homeGround?: string
   role: string
   sport: string
   email: string
