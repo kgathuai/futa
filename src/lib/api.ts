@@ -49,6 +49,15 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
   setRequestLoading(false)
 
+  if (response.status === 401) {
+    const isAuthAttempt =
+      path.includes('/api/auth/login') || path.includes('/api/auth/register')
+    if (!isAuthAttempt && typeof window !== 'undefined') {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY)
+      window.dispatchEvent(new Event('futa:unauthorized'))
+    }
+  }
+
   if (!response.ok) {
     const errorPayload = (await response.json().catch(() => null)) as { error?: string } | null
     if (errorPayload?.error) {
@@ -103,6 +112,7 @@ export const api = {
     payload: {
       name: string
       team: string
+      county: string
       homeGround: string
       role: string
       sport: string
@@ -134,22 +144,22 @@ export const api = {
       method: 'POST',
       token,
     }),
-  register: (payload: { name: string; team: string; homeGround: string; role: string; sport: string; email: string; password: string }) =>
-    request<{ token: string; user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/register', {
+  register: (payload: { name: string; team: string; county: string; homeGround: string; role: string; sport: string; email: string; password: string }) =>
+    request<{ token: string; user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/register', {
       method: 'POST',
       body: payload,
     }),
   login: (payload: { email: string; password: string }) =>
-    request<{ token: string; user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/login', {
+    request<{ token: string; user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/login', {
       method: 'POST',
       body: payload,
     }),
   me: (token: string) =>
-    request<{ user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+    request<{ user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
       token,
     }),
-  updateProfile: (payload: { team: string; homeGround: string }, token: string) =>
-    request<{ user: { id: string; name: string; team: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+  updateProfile: (payload: { team: string; county: string; homeGround: string }, token: string) =>
+    request<{ user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
       method: 'PATCH',
       body: payload,
       token,

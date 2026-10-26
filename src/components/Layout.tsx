@@ -33,6 +33,7 @@ import { api, subscribeToApiLoading } from '../lib/api'
 import type { NotificationItem } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { useAppData } from '../context/AppContext'
+import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
@@ -65,6 +66,7 @@ export function Layout() {
 
   const [registerName, setRegisterName] = useState('')
   const [registerTeam, setRegisterTeam] = useState('')
+  const [registerCounty, setRegisterCounty] = useState('')
   const [registerHomeGround, setRegisterHomeGround] = useState('')
   const [registerRole, setRegisterRole] = useState('')
   const [registerSport, setRegisterSport] = useState('')
@@ -76,6 +78,7 @@ export function Layout() {
   const [loggedInAccountId, setLoggedInAccountId] = useState<string | null>(null)
   const [loggedInTeam, setLoggedInTeam] = useState<string | null>(null)
   const [profileTeam, setProfileTeam] = useState('')
+  const [profileCounty, setProfileCounty] = useState('')
   const [profileHomeGround, setProfileHomeGround] = useState('')
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
@@ -83,6 +86,30 @@ export function Layout() {
   const [isApiLoading, setIsApiLoading] = useState(false)
 
   useEffect(() => subscribeToApiLoading(setIsApiLoading), [])
+
+  // A 401 from any authenticated request means the session token expired or was revoked.
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      api.clearToken()
+      setLoggedInUser(null)
+      setLoggedInRole(null)
+      setLoggedInAccountId(null)
+      setLoggedInTeam(null)
+      setNotifications([])
+      setProfileTeam('')
+      setProfileCounty('')
+      setProfileHomeGround('')
+      setProfileMessage('')
+      setAuthView('login')
+      setIsAuthOpen(true)
+      setAuthMessage('Your session has expired. Please log in again.')
+    }
+
+    window.addEventListener('futa:unauthorized', handleUnauthorized)
+    return () => {
+      window.removeEventListener('futa:unauthorized', handleUnauthorized)
+    }
+  }, [])
 
   const loadNotifications = async (accountId: string | null) => {
     const token = api.getToken()
@@ -113,6 +140,7 @@ export function Layout() {
         setLoggedInAccountId(response.user.id)
         setLoggedInTeam(response.user.team)
         setProfileTeam(response.user.team ?? '')
+        setProfileCounty(response.user.county ?? '')
         setProfileHomeGround(response.user.homeGround ?? '')
         void refreshTeam()
       } catch {
@@ -140,6 +168,7 @@ export function Layout() {
       setLoggedInAccountId(response.user.id)
       setLoggedInTeam(response.user.team)
       setProfileTeam(response.user.team ?? '')
+      setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
       void refreshTeam()
       setAuthMessage(`Signed in as ${response.user.name || response.user.email} (${response.user.role}).`)
@@ -156,6 +185,7 @@ export function Layout() {
     const isReferee = registerRole === 'Referee'
     const safeName = registerName.trim()
     const safeTeam = isReferee ? '' : registerTeam.trim()
+    const safeCounty = isReferee ? '' : registerCounty.trim()
     const safeHomeGround = isReferee ? '' : registerHomeGround.trim()
     const safeRole = registerRole.trim()
     const safeSport = registerSport.trim()
@@ -173,8 +203,8 @@ export function Layout() {
       return
     }
 
-    if (safeTeam && !safeHomeGround) {
-      setAuthMessage('Add a home ground for your team, or leave the team blank.')
+    if (safeTeam && (!safeCounty || !safeHomeGround)) {
+      setAuthMessage('Add a county and home ground for your team, or leave the team blank.')
       return
     }
 
@@ -182,6 +212,7 @@ export function Layout() {
       await api.register({
         name: safeName,
         team: safeTeam,
+        county: safeCounty,
         homeGround: safeHomeGround,
         role: safeRole,
         sport: safeSport,
@@ -195,6 +226,7 @@ export function Layout() {
       setAuthMessage('Registration successful. Please log in with your new account.')
       setRegisterName('')
       setRegisterTeam('')
+      setRegisterCounty('')
       setRegisterHomeGround('')
       setRegisterRole('')
       setRegisterSport('')
@@ -222,6 +254,7 @@ export function Layout() {
     setLoggedInTeam(null)
     setNotifications([])
     setProfileTeam('')
+    setProfileCounty('')
     setProfileHomeGround('')
     setProfileMessage('')
     void refreshTeam()
@@ -237,17 +270,22 @@ export function Layout() {
     }
 
     const team = profileTeam.trim()
+    const county = profileCounty.trim()
     const homeGround = profileHomeGround.trim()
-    if (team && !homeGround) {
-      setProfileMessage('Add a home ground for your team, or leave the team blank.')
+    if (team && (!county || !homeGround)) {
+      setProfileMessage('Add a county and home ground for your team, or leave the team blank.')
       return
     }
 
     setIsSavingProfile(true)
     try {
-      const response = await api.updateProfile({ team, homeGround: team ? homeGround : '' }, token)
+      const response = await api.updateProfile(
+        { team, county: team ? county : '', homeGround: team ? homeGround : '' },
+        token,
+      )
       setLoggedInTeam(response.user.team)
       setProfileTeam(response.user.team ?? '')
+      setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
       void refreshTeam()
       setProfileMessage('Team updated.')
@@ -511,6 +549,20 @@ export function Layout() {
                   size="small"
                 />
                 <TextField
+                  select
+                  label="County / Eneo"
+                  value={profileCounty}
+                  onChange={(event) => setProfileCounty(event.target.value)}
+                  size="small"
+                  helperText="Required if you set a team."
+                >
+                  {KENYA_COUNTIES.map((countyName) => (
+                    <MenuItem key={countyName} value={countyName}>
+                      {countyName}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
                   label="Home ground (optional)"
                   value={profileHomeGround}
                   onChange={(event) => setProfileHomeGround(event.target.value)}
@@ -579,6 +631,19 @@ export function Layout() {
                     helperText="You can add or change this later from your account."
                   />
                   <TextField
+                    select
+                    label="County / Eneo"
+                    value={registerCounty}
+                    onChange={(event) => setRegisterCounty(event.target.value)}
+                    helperText="Required if you enter a team."
+                  >
+                    {KENYA_COUNTIES.map((countyName) => (
+                      <MenuItem key={countyName} value={countyName}>
+                        {countyName}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
                     label="Home ground (optional)"
                     value={registerHomeGround}
                     onChange={(event) => setRegisterHomeGround(event.target.value)}
@@ -598,6 +663,7 @@ export function Layout() {
                     setRegisterRole(nextRole)
                     if (nextRole === 'Referee') {
                       setRegisterTeam('')
+                      setRegisterCounty('')
                       setRegisterHomeGround('')
                     }
                   }}

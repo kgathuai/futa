@@ -51,7 +51,14 @@ export function HomePage() {
   const [category, setCategory] = useState<'League' | 'Friendly' | 'Cup'>('Friendly')
   const [sport, setSport] = useState<'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'>('Football')
   const [comment, setComment] = useState('')
-  const canCreateHere = false
+  const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const canCreateHere =
+    Boolean(loggedInUser) &&
+    (normalizedRole === 'tm' ||
+      normalizedRole === 'coach' ||
+      normalizedRole === 'captain' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'superadmin')
 
   useEffect(() => {
     const loadTeams = async () => {
@@ -372,6 +379,18 @@ export function HomePage() {
             </Box>
           </CardContent>
         </Card>
+      )}
+
+      {canCreateHere && (
+        <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            onClick={() => setShowAnnounceForm((prev) => !prev)}
+            sx={{ fontWeight: 800 }}
+          >
+            {showAnnounceForm ? 'Close match form' : '+ Announce match'}
+          </Button>
+        </Stack>
       )}
 
       <Stack

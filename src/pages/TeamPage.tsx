@@ -17,9 +17,10 @@ import {
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import PersonAddAltRoundedIcon from '@mui/icons-material/PersonAddAltRounded'
 import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import { useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { TeamSummary } from '../types'
 
@@ -154,24 +155,29 @@ function TeamRow({ team, highlighted }: { team: TeamSummary; highlighted: boolea
         '&:hover': { bgcolor: 'rgba(76,227,163,0.03)' },
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+      <Stack direction="row" spacing={1.1} sx={{ alignItems: 'center', minWidth: 0 }}>
         <Box
           sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1,
-            border: '1px solid rgba(159,176,201,0.2)',
-            bgcolor: 'rgba(30,34,50,0.8)',
+            width: 46,
+            height: 46,
+            borderRadius: 1.4,
+            border: '1px solid rgba(159,176,201,0.28)',
+            bgcolor: 'rgba(30,34,50,0.9)',
             display: 'grid',
             placeItems: 'center',
             flexShrink: 0,
             overflow: 'hidden',
+            boxShadow: '0 0 0 2px rgba(76,227,163,0.07)',
           }}
         >
           {team.logoUrl ? (
-            <Avatar src={team.logoUrl} alt={`${team.name} logo`} sx={{ width: 26, height: 26, borderRadius: 0.8 }} />
+            <Avatar
+              src={team.logoUrl}
+              alt={`${team.name} logo`}
+              sx={{ width: 40, height: 40, borderRadius: 1.1 }}
+            />
           ) : (
-            <Typography sx={{ color: '#8d94a8', fontWeight: 800, fontSize: '0.72rem' }}>
+            <Typography sx={{ color: '#9dff20', fontWeight: 800, fontSize: '1rem' }}>
               {team.name.charAt(0).toUpperCase()}
             </Typography>
           )}
@@ -238,7 +244,15 @@ function TeamRow({ team, highlighted }: { team: TeamSummary; highlighted: boolea
 }
 
 export function TeamPage() {
-  const { loggedInTeam } = useOutletContext<AuthOutletContext>()
+  const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()
+  const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const canAddTeam =
+    Boolean(loggedInUser) &&
+    (normalizedRole === 'tm' ||
+      normalizedRole === 'coach' ||
+      normalizedRole === 'captain' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'superadmin')
 
   const [teams, setTeams] = useState<TeamSummary[]>([])
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
@@ -415,7 +429,23 @@ export function TeamPage() {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={0.8}>
+        <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.8 }}>
+          {canAddTeam && (
+            <Button
+              component={Link}
+              to="/team-dashboard?create=team"
+              variant="contained"
+              size="small"
+              startIcon={<PersonAddAltRoundedIcon sx={{ fontSize: '0.9rem' }} />}
+              sx={{
+                fontSize: '0.7rem',
+                py: 0.35,
+                px: 1.1,
+              }}
+            >
+              Add team
+            </Button>
+          )}
           <StatTile label="TEAMS" value={stats.total} />
           <StatTile label="ACTIVE" value={stats.active} accent="#4ce3a3" />
           <StatTile label="COUNTIES" value={stats.counties} accent="#adff0f" />
@@ -612,10 +642,10 @@ export function TeamPage() {
                   p: 0,
                   fontSize: '0.72rem',
                   fontWeight: 800,
-                  bgcolor: isActive ? '#adff0f' : 'transparent',
-                  color: isActive ? '#102100' : '#a7afc2',
+                  bgcolor: isActive ? '#4ce3a3' : 'transparent',
+                  color: isActive ? '#07111f' : '#a7afc2',
                   border: '1px solid rgba(159,176,201,0.18)',
-                  '&:hover': { bgcolor: isActive ? '#99e600' : 'rgba(255,255,255,0.04)' },
+                  '&:hover': { bgcolor: isActive ? '#3ecf92' : 'rgba(255,255,255,0.04)' },
                 }}
               >
                 {page}

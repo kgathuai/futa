@@ -159,6 +159,7 @@ export interface AdminAccount {
   id: string
   name: string
   team: string
+  county?: string
   homeGround?: string
   role: string
   sport: string

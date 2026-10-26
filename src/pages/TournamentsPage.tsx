@@ -34,7 +34,7 @@ export function TournamentsPage() {
   const [format, setFormat] = useState('Knockout')
   const [venue, setVenue] = useState('')
   const [status, setStatus] = useState<TournamentStatus>('upcoming')
-  const [maxTeams, setMaxTeams] = useState<number | ''>('')
+  const [maxTeams, setMaxTeams] = useState<number | ''>(8)
   const [activeTab, setActiveTab] = useState<'standings' | 'fixtures' | 'stats'>('standings')
   const [fixtures, setFixtures] = useState<MatchAnnouncement[]>([])
   const [isLoadingFixtures, setIsLoadingFixtures] = useState(false)
@@ -46,8 +46,14 @@ export function TournamentsPage() {
   const [teamsDialogError, setTeamsDialogError] = useState('')
   useAutoHide(message, () => setMessage(''))
   useAutoHide(generateError, () => setGenerateError(''))
-  const canCreateHere = false
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const canCreateHere =
+    Boolean(loggedInUser) &&
+    (normalizedRole === 'tm' ||
+      normalizedRole === 'coach' ||
+      normalizedRole === 'captain' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'superadmin')
   const canRegisterTeam = Boolean(
     loggedInUser &&
       loggedInTeam &&
@@ -370,8 +376,14 @@ export function TournamentsPage() {
 
     const safeName = name.trim()
     const safeVenue = venue.trim()
+    const parsedMaxTeams = maxTeams === '' ? undefined : Number(maxTeams)
     if (!safeName || !safeVenue) {
       setMessage('Please complete all required tournament fields.')
+      return
+    }
+
+    if (parsedMaxTeams === undefined || parsedMaxTeams < 2) {
+      setMessage('Enter the maximum number of teams (at least 2).')
       return
     }
 
@@ -390,7 +402,7 @@ export function TournamentsPage() {
           period: 'TBD',
           venue: safeVenue,
           status,
-          maxTeams: maxTeams !== '' ? maxTeams : undefined,
+          maxTeams: parsedMaxTeams,
         },
         token,
       )
@@ -408,7 +420,7 @@ export function TournamentsPage() {
     setFormat('Knockout')
     setVenue('')
     setStatus('upcoming')
-    setMaxTeams('')
+    setMaxTeams(8)
   }
 
   const handleRegisterTeam = async () => {
@@ -565,7 +577,7 @@ export function TournamentsPage() {
               </TextField>
 
               <TextField
-                label="Max teams (optional)"
+                label="Max teams"
                 type="number"
                 value={maxTeams}
                 onChange={(event) => {
@@ -573,7 +585,8 @@ export function TournamentsPage() {
                   setMaxTeams(val === '' ? '' : Math.max(2, Math.floor(Number(val))))
                 }}
                 slotProps={{ htmlInput: { min: 2, step: 1 } }}
-                helperText="Leave blank for unlimited. Minimum 2."
+                required
+                helperText="Minimum 2. Open tournaments close registration at this limit."
               />
 
               <Stack direction="row" spacing={1}>
@@ -590,6 +603,18 @@ export function TournamentsPage() {
       )}
 
       {message && <Alert severity="info">{message}</Alert>}
+
+      {canCreateHere && (
+        <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            onClick={() => setShowNewForm((prev) => !prev)}
+            sx={{ fontWeight: 800 }}
+          >
+            {showNewForm ? 'Close form' : '+ Create tournament'}
+          </Button>
+        </Stack>
+      )}
 
       <Stack
         direction="row"
@@ -811,7 +836,7 @@ export function TournamentsPage() {
                         variant="contained"
                         onClick={openManageTeams}
                         disabled={selectedTournament.status === 'ongoing' || selectedTournament.status === 'finished' || rosterLocked}
-                        sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
+                        
                       >
                         {rosterLocked ? 'Roster locked (fixtures generated)' : 'Manage teams'}
                       </Button>
@@ -822,7 +847,7 @@ export function TournamentsPage() {
                       variant="contained"
                       onClick={() => void handleRegisterTeam()}
                       disabled={selectedTournament.status !== 'registration open' || !canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam) || isTournamentFull}
-                      sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
+                      
                     >
                       {isTournamentFull ? 'Tournament Full' : selectedTournament.status === 'finished' ? 'Registration Closed' : selectedTournament.status === 'upcoming' ? 'Registration Not Open' : 'Join Tournament'}
                     </Button>
@@ -873,9 +898,9 @@ export function TournamentsPage() {
                   px: 2,
                   py: 0.6,
                   borderRadius: 1.5,
-                  bgcolor: activeTab === tab ? '#adff0f' : 'rgba(255,255,255,0.05)',
-                  color: activeTab === tab ? '#102100' : '#8090b0',
-                  '&:hover': { bgcolor: activeTab === tab ? '#99e600' : 'rgba(255,255,255,0.09)' },
+                  bgcolor: activeTab === tab ? '#4ce3a3' : 'rgba(255,255,255,0.05)',
+                  color: activeTab === tab ? '#07111f' : '#8090b0',
+                  '&:hover': { bgcolor: activeTab === tab ? '#3ecf92' : 'rgba(255,255,255,0.09)' },
                 }}
               >
                 {tab === 'standings' ? '📊 Standings' : tab === 'fixtures' ? '📅 Fixtures' : '⚽ Stats'}

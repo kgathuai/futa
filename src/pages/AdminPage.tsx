@@ -29,6 +29,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
+import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { useAppData } from '../context/AppContext'
 import type { AdminAccount, MatchAnnouncement } from '../types'
 
@@ -143,6 +144,7 @@ export function AdminPage() {
   const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState('player')
   const [newTeam, setNewTeam] = useState('')
+  const [newCounty, setNewCounty] = useState('')
   const [newHomeGround, setNewHomeGround] = useState('')
   const [newSport, setNewSport] = useState('Football')
   const [createError, setCreateError] = useState('')
@@ -289,6 +291,7 @@ export function AdminPage() {
     setNewPassword('')
     setNewRole('player')
     setNewTeam('')
+    setNewCounty('')
     setNewHomeGround('')
     setNewSport('Football')
     setCreateError('')
@@ -305,6 +308,7 @@ export function AdminPage() {
     const email = newEmail.trim().toLowerCase()
     const password = newPassword.trim()
     const team = isReferee ? '' : newTeam.trim()
+    const county = isReferee ? '' : newCounty.trim()
     const homeGround = isReferee ? '' : newHomeGround.trim()
 
     if (!name || !email || !password) {
@@ -312,15 +316,24 @@ export function AdminPage() {
       return
     }
 
-    if (team && !homeGround) {
-      setCreateError('Add a home ground for the team, or leave the team blank.')
+    if (team && (!county || !homeGround)) {
+      setCreateError('Add a county and home ground for the team, or leave the team blank.')
       return
     }
 
     setIsCreating(true)
     try {
       const created = await api.createAccount(
-        { name, email, password, role: newRole, sport: newSport, team, homeGround: team ? homeGround : '' },
+        {
+          name,
+          email,
+          password,
+          role: newRole,
+          sport: newSport,
+          team,
+          county: team ? county : '',
+          homeGround: team ? homeGround : '',
+        },
         token,
       )
       setAccounts((prev) => [...prev, created])
@@ -397,10 +410,6 @@ export function AdminPage() {
               fontSize: '0.7rem',
               py: 0.35,
               px: 1.1,
-              bgcolor: '#4ce3a3',
-              color: '#07111f',
-              fontWeight: 800,
-              '&:hover': { bgcolor: '#3ecf92' },
             }}
           >
             New account
@@ -872,6 +881,7 @@ export function AdminPage() {
                   setNewRole(nextRole)
                   if (nextRole === 'Referee') {
                     setNewTeam('')
+                    setNewCounty('')
                     setNewHomeGround('')
                   }
                 }}
@@ -907,6 +917,20 @@ export function AdminPage() {
                   onChange={(event) => setNewTeam(event.target.value)}
                   sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
                 />
+                <TextField
+                  select
+                  size="small"
+                  label="County / Eneo"
+                  value={newCounty}
+                  onChange={(event) => setNewCounty(event.target.value)}
+                  sx={{ '& .MuiInputBase-input': { fontSize: '0.8rem' } }}
+                >
+                  {KENYA_COUNTIES.map((countyName) => (
+                    <MenuItem key={countyName} value={countyName} sx={{ fontSize: '0.78rem' }}>
+                      {countyName}
+                    </MenuItem>
+                  ))}
+                </TextField>
                 <TextField
                   size="small"
                   label="Home ground (optional)"

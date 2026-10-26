@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import { Box, Card, CardContent, Chip, Stack, TextField, Typography, Button } from '@mui/material'
 import { useAppData } from '../context/AppContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
+
+interface AuthOutletContext {
+  loggedInUser: string | null
+  loggedInRole: string | null
+}
 
 export function ResultsPage() {
   const navigate = useNavigate()
   const { results, addResultReport } = useAppData()
+  const { loggedInUser, loggedInRole } = useOutletContext<AuthOutletContext>()
 
   const [homeTeam, setHomeTeam] = useState('')
   const [awayTeam, setAwayTeam] = useState('')
@@ -14,7 +20,14 @@ export function ResultsPage() {
   const [venue, setVenue] = useState('')
   const [playedOn, setPlayedOn] = useState('')
   const [reportedBy, setReportedBy] = useState('')
-  const canCreateHere = false
+  const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const canCreateHere =
+    Boolean(loggedInUser) &&
+    (normalizedRole === 'tm' ||
+      normalizedRole === 'coach' ||
+      normalizedRole === 'captain' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'superadmin')
 
   return (
     <Stack spacing={3}>
@@ -101,11 +114,15 @@ export function ResultsPage() {
                   Submit a result
                 </Typography>
                 <Typography color="text.secondary">
-                  Result creation has moved to Dashboard.
+                  {loggedInUser
+                    ? 'Only TM, Coach, or captain can submit results.'
+                    : 'Log in as a TM, Coach, or captain to submit results.'}
                 </Typography>
-                <Button variant="contained" onClick={() => navigate('/team-dashboard')}>
-                  Create on Dashboard
-                </Button>
+                {loggedInUser && (
+                  <Button variant="contained" onClick={() => navigate('/team-dashboard')}>
+                    Open Dashboard
+                  </Button>
+                )}
               </Stack>
             )}
           </CardContent>

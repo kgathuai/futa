@@ -270,9 +270,9 @@ systemctl reload ssh
 
 Self-registration only allows the public roles: `TM`, `Coach`, `captain`, `player`,
 `Referee`, `Fan`. `admin` and `superadmin` can never be self-assigned. Referees register
-without a team or home ground. For every other role the team is **optional**; if a team is
-supplied, its home ground is required. Signed-in users can add or change their team and
-home ground later from the account drawer.
+without a team. For every other role the team is **optional**; if a team is supplied, its
+county/eneo and home ground are required. Signed-in users can add or change their team,
+county, and home ground later from the account drawer.
 
 | Role | Can do |
 | --- | --- |

@@ -166,6 +166,11 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [])
 
   const addResultReport = useCallback(async (payload: NewResultReport) => {
+    const token = api.getToken()
+    if (!token) {
+      throw new Error('Please log in before submitting a result.')
+    }
+
     const created = (await api.createResult({
       ...payload,
       engagement: payload.engagement ?? {
@@ -174,7 +179,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         rating: 0,
         ratingCount: 0,
       },
-    })) as ResultReport
+    }, token)) as ResultReport
 
     setResults((prev) => [created, ...prev])
   }, [])

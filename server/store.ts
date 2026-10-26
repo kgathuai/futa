@@ -3,10 +3,18 @@ import mongoose, { Schema, type InferSchemaType } from 'mongoose'
 import type { TeamLevel, TournamentItem, TournamentStatus } from '../src/types.ts'
 import { getTournamentStatus } from '../src/lib/tournamentStatus.ts'
 
+// Sessions expire after 2 hours by default; override with SESSION_TTL_MINUTES.
+const SESSION_TTL_MINUTES = Number(process.env.SESSION_TTL_MINUTES ?? 120)
+const SESSION_TTL_MS =
+  (Number.isFinite(SESSION_TTL_MINUTES) && SESSION_TTL_MINUTES > 0 ? SESSION_TTL_MINUTES : 120) *
+  60 *
+  1000
+
 export interface AccountRecord {
   id: string
   name: string
   team: string
+  county: string
   homeGround: string
   role: string
   sport: string
@@ -58,6 +66,7 @@ export interface SessionRecord {
   token: string
   accountId: string
   createdAt: string
+  expiresAt: string
 }
 
 export interface TournamentRecord extends TournamentItem {
@@ -166,6 +175,7 @@ const accountSchema = new Schema(
     name: { type: String, required: true },
     // Referees are not attached to a team, so this may be empty.
     team: { type: String, required: false, default: '' },
+    county: { type: String, required: false, default: '' },
     homeGround: { type: String, required: false, default: '' },
     role: { type: String, required: true },
     sport: { type: String, required: true },
@@ -180,9 +190,13 @@ const sessionSchema = new Schema(
     token: { type: String, required: true, unique: true },
     accountId: { type: Schema.Types.ObjectId, required: true, ref: 'Account' },
     createdAt: { type: Date, required: true, default: Date.now },
+    expiresAt: { type: Date, required: true },
   },
   { versionKey: false },
 )
+
+// MongoDB removes expired sessions automatically (the read path also enforces expiry).
+sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 
 const friendlyRequestSchema = new Schema(
@@ -251,6 +265,7 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   id: account._id.toString(),
   name: account.name,
   team: account.team ?? '',
+  county: account.county ?? '',
   homeGround: account.homeGround ?? '',
   role: account.role,
   sport: account.sport,
@@ -632,8 +647,8 @@ export const store = {
   },
   getTeams: async () => {
     const [accountTeams, savedTeams] = await Promise.all([
-      AccountModel.find({}, { team: 1, homeGround: 1, _id: 0 }).lean<
-        Array<{ team?: string; homeGround?: string }>
+      AccountModel.find({}, { team: 1, county: 1, homeGround: 1, _id: 0 }).lean<
+        Array<{ team?: string; county?: string; homeGround?: string }>
       >(),
       TeamModel.find({}, { name: 1, logoUrl: 1, manager: 1, county: 1, homeGround: 1, level: 1, bio: 1, updatedAt: 1, _id: 0 })
         .lean<Array<{ name?: string; logoUrl?: string; manager?: string; county?: string; homeGround?: string; level?: TeamLevel; bio?: string; updatedAt?: Date }>>(),
@@ -659,6 +674,7 @@ export const store = {
       if (trimmed) {
         teamsByName.set(trimmed, {
           name: trimmed,
+          county: account.county?.trim() || undefined,
           homeGround: account.homeGround?.trim() || undefined,
           status: 'inactive',
         })
@@ -773,7 +789,7 @@ export const store = {
     if (mongoose.isValidObjectId(ownerAccountId)) {
       await AccountModel.updateOne(
         { _id: ownerAccountId },
-        { $set: { team: name, homeGround: update.homeGround } },
+        { $set: { team: name, county: update.county, homeGround: update.homeGround } },
       )
     }
 
@@ -795,6 +811,7 @@ export const store = {
     const account = await AccountModel.create({
       name: payload.name,
       team: payload.team,
+      county: payload.county,
       homeGround: payload.homeGround,
       role: payload.role,
       sport: payload.sport,
@@ -804,14 +821,14 @@ export const store = {
 
     return toPublicAccount(account.toObject() as AccountDoc)
   },
-  updateAccountProfile: async (accountId: string, team: string, homeGround: string) => {
+  updateAccountProfile: async (accountId: string, team: string, county: string, homeGround: string) => {
     if (!mongoose.isValidObjectId(accountId)) {
       return null
     }
 
     const account = await AccountModel.findByIdAndUpdate(
       accountId,
-      { $set: { team, homeGround } },
+      { $set: { team, county, homeGround } },
       { returnDocument: 'after' },
     ).lean<AccountDoc | null>()
 
@@ -876,16 +893,20 @@ export const store = {
     return toAdminAccount(account)
   },
   createSession: async (accountId: string) => {
+    const createdAt = new Date()
+    const expiresAt = new Date(createdAt.getTime() + SESSION_TTL_MS)
     const session = await SessionModel.create({
       token: crypto.randomUUID(),
       accountId,
-      createdAt: new Date(),
+      createdAt,
+      expiresAt,
     })
 
     return {
       token: session.token,
       accountId: session.accountId.toString(),
       createdAt: session.createdAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
     } satisfies SessionRecord
   },
   getSession: async (token: string) => {
@@ -894,10 +915,26 @@ export const store = {
       return null
     }
 
+    // Legacy sessions created before expiries were added get created-at + TTL.
+    const createdAt = new Date(session.createdAt)
+    const expiresAt = session.expiresAt
+      ? new Date(session.expiresAt)
+      : new Date(createdAt.getTime() + SESSION_TTL_MS)
+
+    if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+      await SessionModel.deleteOne({ token })
+      return null
+    }
+
+    if (!session.expiresAt) {
+      await SessionModel.updateOne({ token }, { $set: { expiresAt } })
+    }
+
     return {
       token: session.token,
       accountId: session.accountId.toString(),
-      createdAt: session.createdAt.toISOString(),
+      createdAt: createdAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
     } satisfies SessionRecord
   },
   clearSession: async (token: string) => {

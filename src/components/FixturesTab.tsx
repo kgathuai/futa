@@ -149,7 +149,7 @@ export function FixturesTab({
             variant="contained"
             onClick={() => void handleGenerate()}
             disabled={generating || tournament.registeredTeams.length < 2}
-            sx={{ bgcolor: '#adff0f', color: '#102100', fontWeight: 800, '&:hover': { bgcolor: '#99e600' } }}
+            
           >
             {generating ? (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

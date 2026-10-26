@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { Link, Navigate, useOutletContext } from 'react-router-dom'
+import { Link, Navigate, useLocation, useOutletContext } from 'react-router-dom'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
@@ -20,6 +20,7 @@ import type { FriendlyRequest, MatchAnnouncement, TeamProfile, TournamentItem, T
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 import { getMatchRuntimeStatus } from '../lib/matchStatus'
+import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -57,6 +58,7 @@ const formatPeriod = (startDate: string, endDate: string) => {
 export function TeamDashboardPage() {
   const { loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } = useOutletContext<AuthOutletContext>()
   const { team, createTeam, addResultReport, friendlies } = useAppData()
+  const location = useLocation()
 
   const [myMatches, setMyMatches] = useState<MatchAnnouncement[]>([])
   const [loadingMyMatches, setLoadingMyMatches] = useState(false)
@@ -137,10 +139,7 @@ export function TeamDashboardPage() {
     normalizedRole === 'admin' ||
     normalizedRole === 'superadmin'
   const canAccessDashboard = Boolean(loggedInUser && isManagementRole)
-  const canCreateTeam = Boolean(
-    loggedInUser &&
-      (normalizedRole === 'tm' || normalizedRole === 'coach' || normalizedRole === 'captain'),
-  )
+  const canCreateTeam = Boolean(loggedInUser && isManagementRole)
   const canCreateMatches = Boolean(loggedInUser && isManagementRole)
 
   const teamNames = useMemo(() => teamOptions.map((option) => option.name), [teamOptions])
@@ -317,6 +316,12 @@ export function TeamDashboardPage() {
     setCurrentBookingPage((prev) => Math.min(prev, bookingTotalPages))
   }, [bookingTotalPages])
 
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('create') === 'team') {
+      setOpenCreateForm('team')
+    }
+  }, [location.search])
+
   if (!canAccessDashboard) {
     return <Navigate to="/" replace />
   }
@@ -427,7 +432,7 @@ export function TeamDashboardPage() {
     event.preventDefault()
 
     if (!canCreateTeam) {
-      setGlobalError('Only TM, Coach, or captain can create a team.')
+      setGlobalError('Only TM, Coach, captain, or an admin can create a team.')
       return
     }
 
@@ -1240,9 +1245,6 @@ export function TeamDashboardPage() {
                             py: 1.1,
                             fontWeight: 900,
                             fontSize: '1.02rem',
-                            color: '#102000',
-                            bgcolor: '#a8ff04',
-                            '&:hover': { bgcolor: '#98e700' },
                           }}
                         >
                           ⊕ Create match
@@ -1405,13 +1407,19 @@ export function TeamDashboardPage() {
                 <>
                   {!canCreateTeam && (
                     <Alert severity="info" sx={{ mb: 1.5 }}>
-                      Only TM, Coach, or captain can create a team.
+                      Only TM, Coach, captain, or an admin can create a team.
                     </Alert>
                   )}
                   <Box component="form" onSubmit={handleSaveTeam} sx={{ display: 'grid', gap: 1.25 }}>
                     <TextField label="Team name" value={teamName} onChange={(event) => setTeamName(event.target.value)} required />
                     <TextField label="Manager" value={manager} onChange={(event) => setManager(event.target.value)} required />
-                    <TextField label="County" value={county} onChange={(event) => setCounty(event.target.value)} required />
+                    <TextField select label="County / Eneo" value={county} onChange={(event) => setCounty(event.target.value)} required>
+                      {KENYA_COUNTIES.map((countyName) => (
+                        <MenuItem key={countyName} value={countyName}>
+                          {countyName}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                     <TextField label="Home ground" value={homeGround} onChange={(event) => setHomeGround(event.target.value)} required />
                     <TextField select label="Level" value={level} onChange={(event) => setLevel(event.target.value as TeamProfile['level'])} required>
                       <MenuItem value="Junior">Junior</MenuItem>
@@ -2348,8 +2356,8 @@ export function TeamDashboardPage() {
                       height: 32,
                       px: 0,
                       borderRadius: 1,
-                      color: currentBookingPage === page ? '#142600' : '#9ea7bf',
-                      bgcolor: currentBookingPage === page ? '#a3ff00' : 'transparent',
+                      color: currentBookingPage === page ? '#07111f' : '#9ea7bf',
+                      bgcolor: currentBookingPage === page ? '#4ce3a3' : 'transparent',
                       border: '1px solid rgba(159,176,201,0.2)',
                       fontWeight: 700,
                     }}

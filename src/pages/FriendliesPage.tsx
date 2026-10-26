@@ -43,7 +43,14 @@ export function FriendliesPage() {
   const [selectedFriendlyForDetails, setSelectedFriendlyForDetails] = useState<string | null>(null)
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null)
   const [statusEditId, setStatusEditId] = useState<string | null>(null)
-  const canCreateHere = false
+  const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const canCreateHere =
+    Boolean(loggedInUser) &&
+    (normalizedRole === 'tm' ||
+      normalizedRole === 'coach' ||
+      normalizedRole === 'captain' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'superadmin')
   const pageSize = 3
 
   useEffect(() => {
@@ -351,7 +358,7 @@ export function FriendliesPage() {
               variant="contained"
               disabled={!canCreateHere}
               onClick={() => setShowRequestForm(true)}
-              sx={{ bgcolor: '#adff0f', color: '#122000', fontWeight: 800, '&:hover': { bgcolor: '#97e600' } }}
+              
             >
               + Schedule Friendly
             </Button>
@@ -479,8 +486,8 @@ export function FriendliesPage() {
               sx={{
                 minWidth: 36,
                 fontWeight: 800,
-                bgcolor: currentPage === page ? '#adff0f' : 'transparent',
-                color: currentPage === page ? '#112000' : '#a7afc2',
+                bgcolor: currentPage === page ? '#4ce3a3' : 'transparent',
+                color: currentPage === page ? '#07111f' : '#a7afc2',
                 border: '1px solid rgba(159,176,201,0.18)',
               }}
             >

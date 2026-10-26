@@ -9,8 +9,8 @@ const app = express()
 const port = Number(process.env.PORT ?? 4000)
 const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/futa_monolith'
 const allowedRoles = new Set(['tm', 'coach', 'captain', 'admin', 'superadmin'])
-// Only these roles may create or edit a team profile.
-const teamEditors = new Set(['tm', 'coach', 'captain'])
+// Profiles can be created/edited by team management; players, fans, and referees cannot.
+const teamEditors = new Set(['tm', 'coach', 'captain', 'admin', 'superadmin'])
 // Roles a visitor may self-register with. Never includes admin/superadmin.
 const publicRoles = new Set(['tm', 'coach', 'captain', 'player', 'referee', 'fan'])
 // Roles a superadmin may assign from the app. superadmin itself is CLI-only.
@@ -187,6 +187,7 @@ const sanitizeAccount = (account: AccountRecord) => ({
   id: account.id,
   name: account.name,
   team: account.team,
+  county: account.county,
   homeGround: account.homeGround,
   role: account.role,
   sport: account.sport,
@@ -682,6 +683,11 @@ app.post('/api/friendlies', async (req, res) => {
     return
   }
 
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, or captain can request friendlies.' })
+    return
+  }
+
   const body = req.body as {
     teamName?: string
     contact?: string
@@ -1000,6 +1006,7 @@ app.post('/api/admin/accounts', async (req, res) => {
   const body = req.body as {
     name?: string
     team?: string
+    county?: string
     homeGround?: string
     role?: string
     sport?: string
@@ -1008,6 +1015,7 @@ app.post('/api/admin/accounts', async (req, res) => {
   }
   const name = body.name?.trim() ?? ''
   const team = body.team?.trim() ?? ''
+  const county = body.county?.trim() ?? ''
   const homeGround = body.homeGround?.trim() ?? ''
   const role = body.role?.trim() ?? ''
   const sport = body.sport?.trim() ?? ''
@@ -1026,8 +1034,8 @@ app.post('/api/admin/accounts', async (req, res) => {
   }
 
   const isReferee = requestedRole === 'referee'
-  if (!isReferee && team && !homeGround) {
-    res.status(400).json({ error: 'Home ground is required when a team is set.' })
+  if (!isReferee && team && (!county || !homeGround)) {
+    res.status(400).json({ error: 'County and home ground are required when a team is set.' })
     return
   }
 
@@ -1040,6 +1048,7 @@ app.post('/api/admin/accounts', async (req, res) => {
   const account = await store.createAccount({
     name,
     team: isReferee ? '' : team,
+    county: isReferee || !team ? '' : county,
     homeGround: isReferee || !team ? '' : homeGround,
     role: roleLabels[requestedRole],
     sport,
@@ -1052,6 +1061,7 @@ app.post('/api/admin/accounts', async (req, res) => {
     id: account.id,
     name: account.name,
     team: account.team,
+    county: account.county,
     homeGround: account.homeGround,
     role: account.role,
     sport: account.sport,
@@ -1167,6 +1177,7 @@ app.post('/api/auth/register', async (req, res) => {
   const body = req.body as Partial<AccountRecord>
   const name = body.name?.trim() ?? ''
   const team = body.team?.trim() ?? ''
+  const county = body.county?.trim() ?? ''
   const homeGround = body.homeGround?.trim() ?? ''
   const role = body.role?.trim() ?? ''
   const sport = body.sport?.trim() ?? ''
@@ -1185,10 +1196,10 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   // Referees are not attached to a team. For everyone else the team is optional,
-  // but a team must come with a home ground.
+  // but a team must come with a county and home ground.
   const isReferee = requestedRole === 'referee'
-  if (!isReferee && team && !homeGround) {
-    res.status(400).json({ error: 'Home ground is required when a team is set.' })
+  if (!isReferee && team && (!county || !homeGround)) {
+    res.status(400).json({ error: 'County and home ground are required when a team is set.' })
     return
   }
 
@@ -1201,6 +1212,7 @@ app.post('/api/auth/register', async (req, res) => {
   const account = await store.createAccount({
     name,
     team: isReferee ? '' : team,
+    county: isReferee || !team ? '' : county,
     homeGround: isReferee || !team ? '' : homeGround,
     role: roleLabels[requestedRole],
     sport,
@@ -1278,16 +1290,22 @@ app.patch('/api/auth/me', async (req, res) => {
     return
   }
 
-  const body = req.body as { team?: string; homeGround?: string }
+  const body = req.body as { team?: string; county?: string; homeGround?: string }
   const team = body.team?.trim() ?? ''
+  const county = body.county?.trim() ?? ''
   const homeGround = body.homeGround?.trim() ?? ''
 
-  if (team && !homeGround) {
-    res.status(400).json({ error: 'Home ground is required when a team is set.' })
+  if (team && (!county || !homeGround)) {
+    res.status(400).json({ error: 'County and home ground are required when a team is set.' })
     return
   }
 
-  const account = await store.updateAccountProfile(user.id, team, team ? homeGround : '')
+  const account = await store.updateAccountProfile(
+    user.id,
+    team,
+    team ? county : '',
+    team ? homeGround : '',
+  )
   if (!account) {
     res.status(404).json({ error: 'Account not found.' })
     return
@@ -1304,7 +1322,7 @@ app.post('/api/team', async (req, res) => {
   }
 
   if (!teamEditors.has(user.role.trim().toLowerCase())) {
-    res.status(403).json({ error: 'Only TM, Coach, or captain can create or edit a team.' })
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can create or edit a team.' })
     return
   }
 
@@ -1329,6 +1347,17 @@ app.post('/api/team', async (req, res) => {
 })
 
 app.post('/api/results', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, or captain can submit results.' })
+    return
+  }
+
   const body = req.body as {
     homeTeam?: string
     awayTeam?: string

@@ -13,6 +13,8 @@ const appTheme = createTheme({
     mode: 'dark',
     primary: {
       main: '#4ce3a3',
+      dark: '#3ecf92',
+      contrastText: '#07111f',
     },
     background: {
       default: '#07111f',
