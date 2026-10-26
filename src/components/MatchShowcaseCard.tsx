@@ -1,6 +1,7 @@
 import { Avatar, Box, Chip, Stack, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import type { MatchAnnouncement } from '../types'
+import { getMatchStatusLabel } from '../lib/matchStatus'
 import { MatchEngagementPanel } from './MatchEngagementPanel'
 
 interface MatchShowcaseCardProps {
@@ -144,7 +145,7 @@ export function MatchShowcaseCard({
           }}
         />
         <Chip
-          label={`● ${runtimeStatus.toUpperCase()}`}
+          label={`● ${getMatchStatusLabel(runtimeStatus).toUpperCase()}`}
           sx={{
             borderRadius: 1.8,
             height: { xs: 18, md: 20 },

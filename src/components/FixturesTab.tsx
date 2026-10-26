@@ -11,7 +11,8 @@ import {
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import type { MatchAnnouncement, TournamentItem } from '../types'
 import { api } from '../lib/api'
-import { getMatchRuntimeStatus } from '../lib/matchStatus'
+import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
+import { useMatchClock } from '../lib/useMatchClock'
 
 interface FixturesTabProps {
   tournament: TournamentItem
@@ -88,6 +89,7 @@ export function FixturesTab({
   onGenerate,
   generateError,
 }: FixturesTabProps) {
+  useMatchClock()
   const [generating, setGenerating] = useState(false)
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set([1]))
 
@@ -290,7 +292,7 @@ export function FixturesTab({
                           </Typography>
                         )}
                         <Chip
-                          label={runtimeStatus.toUpperCase()}
+                          label={getMatchStatusLabel(runtimeStatus).toUpperCase()}
                           size="small"
                           sx={{
                             mt: 0.4,

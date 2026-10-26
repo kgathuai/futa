@@ -140,7 +140,7 @@ export function ResultsPage() {
                   <CardContent>
                     <Stack direction="row" sx={{ mb: 1.2, justifyContent: 'space-between' }}>
                       <Chip label={result.playedOn} size="small" />
-                      <Chip label="finished" size="small" color="primary" sx={{ color: '#07111f' }} />
+                      <Chip label="played" size="small" color="primary" sx={{ color: '#07111f' }} />
                     </Stack>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {result.homeTeam} {result.homeScore} - {result.awayScore} {result.awayTeam}

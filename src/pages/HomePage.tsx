@@ -7,7 +7,8 @@ import { api } from '../lib/api'
 import { useOutletContext } from 'react-router-dom'
 import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
 import { useAutoHide } from '../lib/useAutoHide'
-import { getMatchRuntimeStatus } from '../lib/matchStatus'
+import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
+import { useMatchClock } from '../lib/useMatchClock'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -27,9 +28,10 @@ const formatDateTime = (value: string) =>
 
 
 const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
-const statuses = ['Scheduled','Playing', 'Finished', ]
+const statuses = ['Scheduled', 'Playing', 'Played']
 
 export function HomePage() {
+  useMatchClock()
   const { matches, updateMatch, removeMatch } = useAppData()
   const { loggedInTeam, loggedInAccountId, loggedInUser, loggedInRole } = useOutletContext<AuthOutletContext>()
   const canModerateMatches = ['admin', 'superadmin'].includes((loggedInRole ?? '').trim().toLowerCase())
@@ -214,7 +216,11 @@ export function HomePage() {
       return sportMatch && runtimeStatus === 'scheduled'
     }
 
-    if (selectedStatus === 'Finished') {
+    if (selectedStatus === 'Playing') {
+      return sportMatch && runtimeStatus === 'playing'
+    }
+
+    if (selectedStatus === 'Played') {
       return sportMatch && runtimeStatus === 'finished'
     }
 
@@ -481,7 +487,7 @@ export function HomePage() {
                       </IconButton>
                     )}
                     <Chip
-                      label={runtimeStatus}
+                      label={getMatchStatusLabel(runtimeStatus)}
                       size="small"
                       color={runtimeStatus === 'finished' ? 'primary' : 'default'}
                       sx={
@@ -526,7 +532,11 @@ export function HomePage() {
                   </Typography>
                 </Stack>
                 <Typography sx={{ color: 'primary.main', fontWeight: 800, fontSize: '1.8rem', px: 1.2 }}>
-                  {runtimeStatus === 'finished' ? `${match.homeScore ?? 0} - ${match.awayScore ?? 0}` : 'vs'}
+                  {hasRecordedScore(match.homeScore, match.awayScore)
+                    ? `${match.homeScore} - ${match.awayScore}`
+                    : runtimeStatus === 'playing'
+                      ? 'live'
+                      : 'vs'}
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
                   <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.08rem', textAlign: 'right' }}>

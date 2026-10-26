@@ -19,7 +19,8 @@ import { api } from '../lib/api'
 import type { FriendlyRequest, MatchAnnouncement, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
-import { getMatchRuntimeStatus } from '../lib/matchStatus'
+import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
+import { useMatchClock } from '../lib/useMatchClock'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 
 interface AuthOutletContext {
@@ -56,6 +57,7 @@ const formatPeriod = (startDate: string, endDate: string) => {
 }
 
 export function TeamDashboardPage() {
+  useMatchClock()
   const { loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } = useOutletContext<AuthOutletContext>()
   const { team, createTeam, addResultReport, friendlies } = useAppData()
   const location = useLocation()
@@ -794,7 +796,7 @@ export function TeamDashboardPage() {
 
               <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5 }}>
                 <Chip
-                  label={runtimeStatus.toUpperCase()}
+                  label={getMatchStatusLabel(runtimeStatus).toUpperCase()}
                   size="small"
                   sx={{
                     bgcolor: statusColors.bg,
@@ -1726,7 +1728,7 @@ export function TeamDashboardPage() {
                       )}
                     </Stack>
 
-                    {/* FINISHED MATCHES SECTION */}
+                    {/* PLAYED MATCHES SECTION */}
                     <Stack spacing={1.5}>
                       <Typography
                         sx={{
@@ -1737,7 +1739,7 @@ export function TeamDashboardPage() {
                           textTransform: 'uppercase',
                         }}
                       >
-                        • FINISHED MATCHES
+                        • PLAYED MATCHES
                       </Typography>
                       {finishedRuntimeMatches.length === 0 ? (
                         <Card
@@ -1749,7 +1751,7 @@ export function TeamDashboardPage() {
                           }}
                         >
                           <CardContent sx={{ py: 3.5, textAlign: 'center' }}>
-                            <Typography color="text.secondary">No finished matches yet.</Typography>
+                            <Typography color="text.secondary">No played matches yet.</Typography>
                           </CardContent>
                         </Card>
                       ) : (
