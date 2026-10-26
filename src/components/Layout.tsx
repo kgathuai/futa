@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   Alert,
   AppBar,
   Box,
   Button,
+  Card,
+  CardContent,
+  Chip,
   Container,
   Drawer,
   Badge,
@@ -34,6 +37,8 @@ import type { NotificationItem } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { useAppData } from '../context/AppContext'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
+import { computeTeamStats } from '../lib/teamStats'
+import type { FormResult } from '../lib/teamStats'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
@@ -51,9 +56,73 @@ interface AuthOutletContext {
   loggedInTeam: string | null
 }
 
+const formPalette = (result: FormResult) => {
+  if (result === 'W') {
+    return { bg: 'rgba(76,227,163,0.16)', color: '#4ce3a3', border: 'rgba(76,227,163,0.5)' }
+  }
+  if (result === 'D') {
+    return { bg: 'rgba(250,204,21,0.14)', color: '#facc15', border: 'rgba(250,204,21,0.45)' }
+  }
+  return { bg: 'rgba(255,107,117,0.14)', color: '#ff8a94', border: 'rgba(255,107,117,0.45)' }
+}
+
+const FormDot = ({ result }: { result: FormResult }) => {
+  const palette = formPalette(result)
+  return (
+    <Box
+      sx={{
+        width: 22,
+        height: 22,
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: '0.66rem',
+        fontWeight: 800,
+        bgcolor: palette.bg,
+        color: palette.color,
+        border: `1px solid ${palette.border}`,
+      }}
+    >
+      {result}
+    </Box>
+  )
+}
+
+const StatBox = ({ label, value, accent }: { label: string; value: string | number; accent?: string }) => (
+  <Box
+    sx={{
+      borderRadius: 1.4,
+      border: '1px solid rgba(159,176,201,0.16)',
+      bgcolor: 'rgba(21,31,51,0.7)',
+      px: 0.8,
+      py: 0.85,
+      textAlign: 'center',
+      minWidth: 0,
+    }}
+  >
+    <Typography sx={{ fontWeight: 800, fontSize: '0.98rem', lineHeight: 1.1, color: accent ?? '#edf2f7' }}>
+      {value}
+    </Typography>
+    <Typography
+      sx={{
+        fontSize: '0.56rem',
+        letterSpacing: '0.08em',
+        color: '#8b97ad',
+        textTransform: 'uppercase',
+        mt: 0.3,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+    >
+      {label}
+    </Typography>
+  </Box>
+)
+
 export function Layout() {
   const location = useLocation()
-  const { refreshTeam } = useAppData()
+  const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register'>('login')
@@ -84,6 +153,14 @@ export function Layout() {
   const [profileMessage, setProfileMessage] = useState('')
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isApiLoading, setIsApiLoading] = useState(false)
+
+  const myTeamName = (loggedInTeam ?? '').trim()
+  const myTeamProfile =
+    myTeamName && team.name.trim().toLowerCase() === myTeamName.toLowerCase() ? team : null
+  const myTeamStats = useMemo(() => computeTeamStats(matches, myTeamName), [matches, myTeamName])
+  const myTeamCounty = myTeamProfile?.county || profileCounty
+  const myTeamGround = myTeamProfile?.homeGround || profileHomeGround
+  const myTeamLogo = myTeamProfile?.logoUrl
 
   useEffect(() => subscribeToApiLoading(setIsApiLoading), [])
 
@@ -536,6 +613,132 @@ export function Layout() {
               <Alert severity="success" sx={{ mb: 2 }}>
                 Signed in: {loggedInUser}
               </Alert>
+
+              <Card
+                variant="outlined"
+                sx={{ mb: 2, borderColor: 'rgba(76,227,163,0.26)', bgcolor: 'rgba(76,227,163,0.03)' }}
+              >
+                <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
+                  <Typography
+                    variant="overline"
+                    sx={{ color: 'text.secondary', letterSpacing: '0.12em', display: 'block', mb: 1.2 }}
+                  >
+                    My team
+                  </Typography>
+
+                  {myTeamName ? (
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" spacing={1.3} sx={{ alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            width: 46,
+                            height: 46,
+                            borderRadius: '50%',
+                            flexShrink: 0,
+                            display: 'grid',
+                            placeItems: 'center',
+                            overflow: 'hidden',
+                            bgcolor: 'rgba(7,17,31,0.9)',
+                            border: '2px solid rgba(76,227,163,0.55)',
+                          }}
+                        >
+                          {myTeamLogo ? (
+                            <Box
+                              component="img"
+                              src={myTeamLogo}
+                              alt={`${myTeamName} logo`}
+                              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <Typography sx={{ fontWeight: 900, color: 'primary.main', fontSize: '0.95rem' }}>
+                              {myTeamName.slice(0, 2).toUpperCase()}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontWeight: 800, fontSize: '1.02rem', lineHeight: 1.15 }} noWrap>
+                            {myTeamName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                            {[myTeamCounty, myTeamGround].filter(Boolean).join(' • ') || 'No county or ground set'}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={loggedInRole ? String(loggedInRole).toUpperCase() : 'PLAYER'}
+                            sx={{ mt: 0.5, height: 18, fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.06em' }}
+                          />
+                        </Box>
+                      </Stack>
+
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0.8 }}>
+                        <StatBox label="Played" value={myTeamStats.played} />
+                        <StatBox label="Wins" value={myTeamStats.wins} accent="#4ce3a3" />
+                        <StatBox label="Draws" value={myTeamStats.draws} accent="#facc15" />
+                        <StatBox label="Losses" value={myTeamStats.losses} accent="#ff8a94" />
+                        <StatBox label="Goals for" value={myTeamStats.goalsFor} />
+                        <StatBox label="Goals against" value={myTeamStats.goalsAgainst} />
+                        <StatBox
+                          label="Goal diff"
+                          value={`${myTeamStats.goalDifference > 0 ? '+' : ''}${myTeamStats.goalDifference}`}
+                          accent={myTeamStats.goalDifference > 0 ? '#4ce3a3' : myTeamStats.goalDifference < 0 ? '#ff8a94' : undefined}
+                        />
+                        <StatBox label="Points" value={myTeamStats.points} accent="#adff0f" />
+                        <StatBox label="Win rate" value={`${myTeamStats.winRate}%`} />
+                        <StatBox label="Clean sheets" value={myTeamStats.cleanSheets} />
+                        <StatBox label="Upcoming" value={myTeamStats.upcoming} />
+                        <StatBox label="Live" value={myTeamStats.playing} accent={myTeamStats.playing > 0 ? '#facc15' : undefined} />
+                      </Box>
+
+                      <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.8 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
+                          FORM
+                        </Typography>
+                        {myTeamStats.form.length > 0 ? (
+                          myTeamStats.form.map((result, index) => <FormDot key={`form-${index}`} result={result} />)
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            No results yet
+                          </Typography>
+                        )}
+                      </Stack>
+
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary">
+                          Home {myTeamStats.homeRecord.wins}W · {myTeamStats.homeRecord.draws}D ·{' '}
+                          {myTeamStats.homeRecord.losses}L &nbsp;|&nbsp; Away {myTeamStats.awayRecord.wins}W ·{' '}
+                          {myTeamStats.awayRecord.draws}D · {myTeamStats.awayRecord.losses}L
+                        </Typography>
+                        {myTeamStats.lastResult && (
+                          <Typography variant="caption" color="text.secondary">
+                            Last: {myTeamStats.lastResult.outcome} {myTeamStats.lastResult.score} vs{' '}
+                            {myTeamStats.lastResult.opponent}
+                          </Typography>
+                        )}
+                        {myTeamStats.topScorer && (
+                          <Typography variant="caption" sx={{ color: '#edf2f7' }}>
+                            ⚽ Top scorer: {myTeamStats.topScorer.name} — {myTeamStats.topScorer.goals}{' '}
+                            {myTeamStats.topScorer.goals === 1 ? 'goal' : 'goals'}
+                          </Typography>
+                        )}
+                      </Stack>
+
+                      <Button
+                        component={NavLink}
+                        to="/team-dashboard"
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setIsAuthOpen(false)}
+                      >
+                        Open team dashboard
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Alert severity="info" sx={{ py: 0.4, fontSize: '0.8rem' }}>
+                      No team on this account yet. Set one below to track wins, goals and top scorers.
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
 
               <Box component="form" onSubmit={handleSaveProfile} sx={{ display: 'grid', gap: 1.3, mb: 2 }}>
                 <Typography variant="overline" color="text.secondary">
