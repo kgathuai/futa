@@ -42,7 +42,7 @@ export function TopToast({
       aria-live="polite"
       sx={{
         position: 'fixed',
-        top: { xs: '48px', sm: '52px' },
+        top: 0,
         left: 0,
         right: 0,
         width: '100%',
