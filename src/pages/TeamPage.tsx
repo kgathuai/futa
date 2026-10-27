@@ -237,7 +237,7 @@ function TeamRow({
                   {isFollowing ? (
                     <StarRoundedIcon sx={{ fontSize: '0.9rem', color: '#4ce3a3' }} />
                   ) : (
-                    <StarBorderRoundedIcon sx={{ fontSize: '0.9rem', color: '#7f8aa3' }} />
+                    <StarBorderRoundedIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
                   )}
                 </IconButton>
               </Tooltip>
@@ -246,7 +246,7 @@ function TeamRow({
           <Typography
             sx={{
               fontSize: '0.6rem',
-              color: '#7f8aa3',
+              color: 'text.secondary',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -634,7 +634,7 @@ export function TeamPage() {
       {isLoadingTeams ? (
         <Stack spacing={1} sx={{ py: 3 }}>
           <LoadingBar label="Loading teams…" />
-          <Typography sx={{ fontSize: '0.76rem', color: '#8b97ad' }}>Loading teams…</Typography>
+          <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Loading teams…</Typography>
         </Stack>
       ) : visibleTeams.length === 0 ? (
         <Card variant="outlined" sx={{ borderRadius: 2, borderColor: 'rgba(159,176,201,0.14)' }}>

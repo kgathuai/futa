@@ -957,7 +957,7 @@ export function TeamDashboardPage() {
         sx={{
           borderRadius: 2.2,
           borderColor: 'rgba(159,176,201,0.16)',
-          bgcolor: 'rgba(13,22,40,0.7)',
+          bgcolor: 'background.paper',
           overflow: 'hidden',
         }}
       >
@@ -1186,10 +1186,10 @@ export function TeamDashboardPage() {
                               spacing={0.8}
                               sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                             >
-                              <Typography sx={{ fontSize: '0.72rem', color: '#c3cbdc' }} noWrap>
+                              <Typography sx={{ fontSize: '0.72rem', color: 'text.primary' }} noWrap>
                                 {event.minute ? `${event.minute}'` : '—'}{' '}
                                 {event.type === 'goal' ? '⚽' : event.type === 'yellow' ? '🟨' : event.type === 'red' ? '🟥' : '🔁'}{' '}
-                                {event.player} <Typography component="span" sx={{ fontSize: '0.66rem', color: '#7f8aa3' }}>({event.team})</Typography>
+                                {event.player} <Typography component="span" sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>({event.team})</Typography>
                               </Typography>
                               <IconButton size="small" onClick={() => void handleDeleteEvent(match.id, event.id)} aria-label="Remove event">
                                 <DeleteOutlineRoundedIcon sx={{ fontSize: '0.85rem' }} />
@@ -1461,7 +1461,7 @@ export function TeamDashboardPage() {
               width: '100%',
               maxWidth: openCreateForm === 'match' ? 980 : 620,
               borderColor: 'rgba(137,151,178,0.18)',
-              bgcolor: 'rgba(10,12,20,0.95)',
+              bgcolor: 'background.paper',
             }}
           >
             <CardContent>
@@ -2265,7 +2265,7 @@ export function TeamDashboardPage() {
               size="small"
               variant="outlined"
               startIcon={<CalendarMonthOutlinedIcon sx={{ fontSize: '0.95rem' }} />}
-              sx={{ textTransform: 'none', borderColor: 'rgba(159,176,201,0.2)', color: '#9ea7bf', bgcolor: 'rgba(25,28,44,0.95)' }}
+              sx={{ textTransform: 'none', borderColor: 'rgba(159,176,201,0.2)', color: '#9ea7bf', bgcolor: 'background.paper' }}
             >
               Aug 15, 2026 - Aug 22, 2026
             </Button>
@@ -2273,7 +2273,7 @@ export function TeamDashboardPage() {
               size="small"
               variant="outlined"
               startIcon={<IosShareOutlinedIcon sx={{ fontSize: '0.95rem' }} />}
-              sx={{ textTransform: 'none', borderColor: 'rgba(159,176,201,0.2)', color: '#d7deef', bgcolor: 'rgba(25,28,44,0.95)' }}
+              sx={{ textTransform: 'none', borderColor: 'rgba(159,176,201,0.2)', color: '#d7deef', bgcolor: 'background.paper' }}
             >
               Export
             </Button>
@@ -2286,7 +2286,7 @@ export function TeamDashboardPage() {
             sx={{
               borderRadius: 2.2,
               borderColor: 'rgba(159,176,201,0.16)',
-              bgcolor: 'rgba(13,16,28,0.92)',
+              bgcolor: 'background.paper',
               overflow: 'hidden',
               minHeight: 290,
             }}
@@ -2329,7 +2329,7 @@ export function TeamDashboardPage() {
                         {featuredFriendly.requesterTeam.charAt(0).toUpperCase()}
                       </Avatar>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ color: '#8f98af', fontSize: { xs: '0.58rem', md: '0.68rem' }, letterSpacing: '0.08em' }}>HOME</Typography>
+                        <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.68rem' }, letterSpacing: '0.08em' }}>HOME</Typography>
                         <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', sm: '1.45rem', md: '1.85rem' }, lineHeight: 1.05, overflowWrap: 'anywhere' }}>{featuredFriendly.requesterTeam}</Typography>
                       </Box>
                     </Stack>
@@ -2351,7 +2351,7 @@ export function TeamDashboardPage() {
 
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
                       <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                        <Typography sx={{ color: '#8f98af', fontSize: { xs: '0.58rem', md: '0.68rem' }, letterSpacing: '0.08em' }}>AWAY</Typography>
+                        <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.68rem' }, letterSpacing: '0.08em' }}>AWAY</Typography>
                         <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', sm: '1.45rem', md: '1.85rem' }, lineHeight: 1.05, overflowWrap: 'anywhere' }}>{featuredFriendly.recipientTeam}</Typography>
                       </Box>
                       <Avatar sx={{ width: 44, height: 44, bgcolor: 'rgba(250,204,21,0.2)', color: '#ffdf76', fontWeight: 800 }}>
@@ -2401,7 +2401,7 @@ export function TeamDashboardPage() {
             sx={{
               borderRadius: 2.2,
               borderColor: 'rgba(159,176,201,0.16)',
-              bgcolor: 'rgba(13,16,28,0.92)',
+              bgcolor: 'background.paper',
               minHeight: 290,
             }}
           >
@@ -2420,7 +2420,7 @@ export function TeamDashboardPage() {
                 >
                   <StarRoundedIcon sx={{ fontSize: '0.92rem' }} />
                 </Box>
-                <Typography sx={{ color: '#8f98af', fontSize: '0.76rem' }}>All-time</Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: '0.76rem' }}>All-time</Typography>
               </Stack>
 
               <Typography sx={{ color: '#7f88a0', fontSize: '0.82rem' }}>Head to Head Statistics</Typography>
@@ -2471,7 +2471,7 @@ export function TeamDashboardPage() {
           sx={{
             borderRadius: 2.2,
             borderColor: 'rgba(159,176,201,0.16)',
-            bgcolor: 'rgba(13,16,28,0.92)',
+            bgcolor: 'background.paper',
           }}
         >
           <CardContent>
@@ -2482,7 +2482,7 @@ export function TeamDashboardPage() {
                 to="/tournaments"
                 state={{ showTournamentList: true }}
                 sx={{
-                  color: '#8f98af',
+                  color: 'text.secondary',
                   fontSize: '0.82rem',
                   textDecoration: 'none',
                   '&:hover': { color: '#d9e1f2' },
@@ -2494,7 +2494,7 @@ export function TeamDashboardPage() {
 
             <Box sx={{ display: 'grid', gap: 1, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
               {engagedTournaments.length === 0 && (
-                <Typography sx={{ color: '#8f98af', fontSize: '0.86rem', px: 0.2, py: 0.8 }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: '0.86rem', px: 0.2, py: 0.8 }}>
                   No active tournaments for your team yet.
                 </Typography>
               )}
@@ -2556,7 +2556,7 @@ export function TeamDashboardPage() {
                       </Box>
                       <Box>
                         <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{tournament.name}</Typography>
-                        <Typography sx={{ color: '#8f98af', fontSize: '0.72rem' }}>{statusText}</Typography>
+                        <Typography sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>{statusText}</Typography>
                       </Box>
                     </Stack>
                     <Box sx={{ width: 40, height: 24, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.03)' }} />
@@ -2572,13 +2572,13 @@ export function TeamDashboardPage() {
           sx={{
             borderRadius: 2.2,
             borderColor: 'rgba(159,176,201,0.16)',
-            bgcolor: 'rgba(13,16,28,0.92)',
+            bgcolor: 'background.paper',
           }}
         >
           <CardContent>
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.2 }}>
               <Typography sx={{ fontWeight: 700 }}>Available Referees</Typography>
-              <Typography sx={{ color: '#8f98af', fontSize: '0.82rem' }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>
                 {refereeOptions.length} Registered
               </Typography>
             </Stack>
@@ -2625,10 +2625,10 @@ export function TeamDashboardPage() {
                     </Avatar>
                     <Box>
                       <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{referee.name}</Typography>
-                      <Typography sx={{ color: '#8f98af', fontSize: '0.68rem' }}>Referee</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '0.68rem' }}>Referee</Typography>
                     </Box>
                   </Stack>
-                  <Typography sx={{ color: '#8f98af', fontSize: '0.7rem' }}>→</Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>→</Typography>
                 </Box>
               ))}
             </Box>
@@ -2640,7 +2640,7 @@ export function TeamDashboardPage() {
           sx={{
             borderRadius: 2.2,
             borderColor: 'rgba(159,176,201,0.16)',
-            bgcolor: 'rgba(13,16,28,0.92)',
+            bgcolor: 'background.paper',
             overflow: 'hidden',
           }}
         >
@@ -2665,7 +2665,7 @@ export function TeamDashboardPage() {
                   }}
                   sx={{
                     minWidth: 152,
-                    '& .MuiOutlinedInput-root': { bgcolor: 'rgba(25,28,44,0.95)' },
+                    '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' },
                     '& .MuiInputBase-input': { fontSize: '0.86rem' },
                   }}
                   slotProps={{
@@ -2691,7 +2691,7 @@ export function TeamDashboardPage() {
                   sx={{
                     borderColor: 'rgba(159,176,201,0.2)',
                     color: 'text.secondary',
-                    bgcolor: 'rgba(25,28,44,0.95)',
+                    bgcolor: 'background.paper',
                     textTransform: 'none',
                     fontSize: '0.86rem',
                   }}
@@ -2751,12 +2751,12 @@ export function TeamDashboardPage() {
                         borderTop: '1px solid rgba(159,176,201,0.12)',
                       }}
                     >
-                      <Typography sx={{ color: '#8f98af', fontSize: '0.82rem', letterSpacing: '0.05em' }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem', letterSpacing: '0.05em' }}>
                         {getBookingMatchId(friendly.id)}
                       </Typography>
 
                       <Typography sx={{ fontSize: '1rem', fontWeight: 700 }}>
-                        {friendly.requesterTeam} <Typography component="span" sx={{ color: '#8f98af', fontWeight: 500 }}>vs</Typography> {friendly.recipientTeam}
+                        {friendly.requesterTeam} <Typography component="span" sx={{ color: 'text.secondary', fontWeight: 500 }}>vs</Typography> {friendly.recipientTeam}
                       </Typography>
 
                       <Stack direction="row" spacing={0.9} sx={{ alignItems: 'center' }}>
@@ -2808,7 +2808,7 @@ export function TeamDashboardPage() {
             </Box>
 
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mt: 1.6, gap: 1, flexWrap: 'wrap' }}>
-              <Typography sx={{ color: '#8f98af', fontSize: '0.95rem' }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '0.95rem' }}>
                 Showing {bookingRangeStart}-{bookingRangeEnd} of {sortedBookingFriendlies.length} bookings
               </Typography>
 
@@ -3053,7 +3053,7 @@ export function TeamDashboardPage() {
           </DialogTitle>
           <DialogContent sx={{ pt: 1.5 }}>
             {sortedBookingFriendlies.length === 0 ? (
-              <Typography sx={{ color: '#8f98af', py: 2, textAlign: 'center' }}>
+              <Typography sx={{ color: 'text.secondary', py: 2, textAlign: 'center' }}>
                 No match history available.
               </Typography>
             ) : (
@@ -3093,13 +3093,13 @@ export function TeamDashboardPage() {
                         </Box>
 
                         {/* Date & Location */}
-                        <Stack direction="row" spacing={1} sx={{ fontSize: '0.85rem', color: '#8f98af' }}>
+                        <Stack direction="row" spacing={1} sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
                           <Typography>📅 {formatBookingDateTime(match.preferredDate, match.preferredTime)}</Typography>
                           <Typography>📍 {match.location}</Typography>
                         </Stack>
 
                         {/* Referee */}
-                        <Typography sx={{ fontSize: '0.85rem', color: '#8f98af' }}>
+                        <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
                           🏆 Referee: {getBookingReferee(match.id)}
                         </Typography>
                       </Stack>

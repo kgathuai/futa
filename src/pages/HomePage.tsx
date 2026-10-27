@@ -574,7 +574,7 @@ export function HomePage() {
                       sx={
                         runtimeStatus === 'finished'
                           ? { color: '#07111f', fontWeight: 700 }
-                          : { bgcolor: 'rgba(159,176,201,0.12)', color: '#aeb8ca' }
+                          : { bgcolor: 'rgba(159,176,201,0.12)', color: 'text.secondary' }
                       }
                     />
                   </Stack>

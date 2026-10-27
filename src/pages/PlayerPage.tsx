@@ -11,7 +11,7 @@ const StatTile = ({ label, value, accent }: { label: string; value: number | str
     sx={{
       border: '1px solid rgba(159,176,201,0.16)',
       borderRadius: 1.4,
-      bgcolor: 'rgba(21,31,51,0.7)',
+      bgcolor: 'background.paper',
       px: 1.2,
       py: 1,
       textAlign: 'center',
@@ -20,7 +20,7 @@ const StatTile = ({ label, value, accent }: { label: string; value: number | str
     <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: accent ?? '#edf2f7', lineHeight: 1.1 }}>
       {value}
     </Typography>
-    <Typography sx={{ fontSize: '0.56rem', letterSpacing: '0.08em', color: '#8b97ad', textTransform: 'uppercase', mt: 0.3 }}>
+    <Typography sx={{ fontSize: '0.56rem', letterSpacing: '0.08em', color: 'text.secondary', textTransform: 'uppercase', mt: 0.3 }}>
       {label}
     </Typography>
   </Box>
@@ -193,7 +193,7 @@ export function PlayerPage() {
                       {new Date(entry.kickoff).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: '#a7b3c9' }}>
+                  <Typography sx={{ fontSize: '0.74rem', fontWeight: 700, color: 'text.secondary' }}>
                     {entry.score}
                     {entry.goals > 0 ? ` · ${entry.goals}G` : ''}
                     {entry.assists > 0 ? ` · ${entry.assists}A` : ''}

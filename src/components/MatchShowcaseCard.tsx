@@ -73,7 +73,7 @@ export function MatchShowcaseCard({
             height: { xs: 37, sm: 42, md: 50 },
             borderRadius: '50%',
             border: { xs: `2px solid ${accent}`, sm: `2px solid ${accent}` },
-            bgcolor: 'rgba(23,27,42,0.92)',
+            bgcolor: 'background.paper',
             display: 'grid',
             placeItems: 'center',
             boxShadow: {

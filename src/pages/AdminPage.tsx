@@ -652,7 +652,7 @@ export function AdminPage() {
       {isLoading ? (
         <Stack spacing={1} sx={{ py: 3 }}>
           <LoadingBar label="Loading accounts…" />
-          <Typography sx={{ fontSize: '0.76rem', color: '#8b97ad' }}>Loading accounts…</Typography>
+          <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Loading accounts…</Typography>
         </Stack>
       ) : (
         <Box
@@ -783,7 +783,7 @@ export function AdminPage() {
                           <Typography
                             sx={{
                               fontSize: '0.64rem',
-                              color: '#7f8aa3',
+                              color: 'text.secondary',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -927,14 +927,14 @@ export function AdminPage() {
                         {match.awayTeam}
                       </Typography>
                       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: '0.6rem', color: '#7f8aa3', whiteSpace: 'nowrap' }}>
+                        <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
                           {formatMatchDate(match.kickoff)}
                         </Typography>
                         <Typography sx={{ fontSize: '0.6rem', color: '#4c556b' }}>·</Typography>
                         <Typography
                           sx={{
                             fontSize: '0.6rem',
-                            color: '#7f8aa3',
+                            color: 'text.secondary',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -1096,7 +1096,7 @@ export function AdminPage() {
               </>
             )}
             {newRole === 'Referee' && (
-              <Typography sx={{ fontSize: '0.66rem', color: '#7f8aa3' }}>
+              <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>
                 Referees are not attached to a team.
               </Typography>
             )}

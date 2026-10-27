@@ -132,7 +132,7 @@ export function ArchivePage() {
 
       {seasons.map(([year, rows]) => (
         <Stack key={year} spacing={1.2}>
-          <Typography sx={{ fontWeight: 800, fontSize: '0.86rem', color: '#8b97ad' }}>{year}</Typography>
+          <Typography sx={{ fontWeight: 800, fontSize: '0.86rem', color: 'text.secondary' }}>{year}</Typography>
           <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' } }}>
             {rows.map((row) => (
               <Card key={row.tournament.id} variant="outlined">
@@ -153,23 +153,23 @@ export function ArchivePage() {
 
                   <Stack direction="row" spacing={2} sx={{ mt: 1.2 }}>
                     <Box>
-                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: '#8b97ad' }}>CHAMPION</Typography>
+                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: 'text.secondary' }}>CHAMPION</Typography>
                       <Typography sx={{ fontWeight: 800, fontSize: '0.78rem', color: 'primary.main' }} noWrap>
                         {row.champion}
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: '#8b97ad' }}>RUNNER-UP</Typography>
+                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: 'text.secondary' }}>RUNNER-UP</Typography>
                       <Typography sx={{ fontWeight: 700, fontSize: '0.78rem' }} noWrap>
                         {row.runnerUp}
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: '#8b97ad' }}>MATCHES</Typography>
+                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: 'text.secondary' }}>MATCHES</Typography>
                       <Typography sx={{ fontWeight: 700, fontSize: '0.78rem' }}>{row.playedMatches}</Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: '#8b97ad' }}>GOALS</Typography>
+                      <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: 'text.secondary' }}>GOALS</Typography>
                       <Typography sx={{ fontWeight: 700, fontSize: '0.78rem' }}>{row.goals}</Typography>
                     </Box>
                   </Stack>

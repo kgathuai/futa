@@ -119,7 +119,7 @@ const StatBox = ({ label, value, accent }: { label: string; value: string | numb
     sx={{
       borderRadius: 1.4,
       border: '1px solid rgba(159,176,201,0.16)',
-      bgcolor: 'rgba(21,31,51,0.7)',
+      bgcolor: 'background.paper',
       px: 0.8,
       py: 0.85,
       textAlign: 'center',
@@ -133,7 +133,7 @@ const StatBox = ({ label, value, accent }: { label: string; value: string | numb
       sx={{
         fontSize: '0.56rem',
         letterSpacing: '0.08em',
-        color: '#8b97ad',
+        color: 'text.secondary',
         textTransform: 'uppercase',
         mt: 0.3,
         whiteSpace: 'nowrap',
@@ -1047,7 +1047,7 @@ export function Layout() {
                           fontSize: '0.6rem',
                           fontWeight: 700,
                           bgcolor: 'rgba(159,176,201,0.1)',
-                          color: '#a7b3c9',
+                          color: 'text.secondary',
                         }}
                       />
                     )}
@@ -1210,7 +1210,7 @@ export function Layout() {
                           </Typography>
                         )}
                         {myTeamStats.topScorer && (
-                          <Typography variant="caption" sx={{ color: '#edf2f7' }}>
+                          <Typography variant="caption" sx={{ color: 'text.primary' }}>
                             ⚽ Top scorer: {myTeamStats.topScorer.name} — {myTeamStats.topScorer.goals}{' '}
                             {myTeamStats.topScorer.goals === 1 ? 'goal' : 'goals'}
                           </Typography>
@@ -1341,7 +1341,7 @@ export function Layout() {
                                 border: '1px solid rgba(159,176,201,0.16)',
                                 borderRadius: 1.6,
                                 p: 1.1,
-                                bgcolor: 'rgba(21,31,51,0.55)',
+                                bgcolor: 'background.paper',
                               }}
                             >
                               <Stack
@@ -1377,7 +1377,7 @@ export function Layout() {
                               </Stack>
 
                               {booking.report ? (
-                                <Typography sx={{ mt: 0.8, fontSize: '0.72rem', color: '#a7b3c9' }}>
+                                <Typography sx={{ mt: 0.8, fontSize: '0.72rem', color: 'text.secondary' }}>
                                   Reported {booking.report.homeScore} – {booking.report.awayScore}
                                   {booking.report.notes ? ` · ${booking.report.notes}` : ''}
                                 </Typography>

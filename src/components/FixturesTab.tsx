@@ -131,7 +131,7 @@ export function FixturesTab({
     return (
       <Stack spacing={1.2} sx={{ py: 3 }}>
         <LoadingBar label="Loading fixtures…" />
-        <Typography sx={{ color: '#8e98b0', fontSize: '0.8rem' }}>Loading fixtures…</Typography>
+        <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>Loading fixtures…</Typography>
       </Stack>
     )
   }
@@ -141,7 +141,7 @@ export function FixturesTab({
       {/* Header row */}
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
         <Box>
-          <Typography sx={{ color: '#8e98b0', fontSize: '0.68rem', letterSpacing: '0.1em', fontWeight: 700 }}>
+          <Typography sx={{ color: 'text.secondary', fontSize: '0.68rem', letterSpacing: '0.1em', fontWeight: 700 }}>
             {tournament.format.toUpperCase()} · {tournament.registeredTeams.length} TEAMS
           </Typography>
           <Typography sx={{ fontWeight: 800, fontSize: '1.1rem' }}>Fixture List</Typography>
@@ -187,7 +187,7 @@ export function FixturesTab({
           }}
         >
           <SportsSoccerIcon sx={{ fontSize: '2rem', color: 'rgba(173,255,15,0.3)', mb: 1 }} />
-          <Typography sx={{ color: '#6f7890', fontSize: '0.88rem' }}>
+          <Typography sx={{ color: 'text.secondary', fontSize: '0.88rem' }}>
             {isOwner
               ? tournament.registeredTeams.length < 2
                 ? 'Register at least 2 teams before generating fixtures.'
@@ -247,7 +247,7 @@ export function FixturesTab({
                   }}
                 />
               </Stack>
-              <Typography sx={{ color: '#6f7890', fontSize: '0.9rem', userSelect: 'none' }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem', userSelect: 'none' }}>
                 {isExpanded ? '▲' : '▼'}
               </Typography>
             </Stack>
@@ -291,11 +291,11 @@ export function FixturesTab({
                       {/* Score / date block */}
                       <Stack sx={{ alignItems: 'center', minWidth: 72 }}>
                         {hasScore ? (
-                          <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#f4f7ff', letterSpacing: '0.06em' }}>
+                          <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: 'text.primary', letterSpacing: '0.06em' }}>
                             {fixture.homeScore} – {fixture.awayScore}
                           </Typography>
                         ) : (
-                          <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#6f7890', textAlign: 'center' }}>
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', textAlign: 'center' }}>
                             {dateStr}
                           </Typography>
                         )}

@@ -367,7 +367,7 @@ export function FriendliesPage() {
               }}
               sx={{
                 minWidth: 104,
-                '& .MuiOutlinedInput-root': { bgcolor: 'rgba(26,30,45,0.95)', fontSize: '0.78rem' },
+                '& .MuiOutlinedInput-root': { bgcolor: 'background.paper', fontSize: '0.78rem' },
               }}
             >
               <MenuItem value="all">Filter</MenuItem>
@@ -406,7 +406,7 @@ export function FriendliesPage() {
                 sx={{
                   borderRadius: { xs: 1.5, md: 2.2 },
                   borderColor: request.status === 'accepted' ? 'rgba(123,183,58,0.5)' : 'rgba(159,176,201,0.18)',
-                  bgcolor: 'rgba(17,19,31,0.94)',
+                  bgcolor: 'background.paper',
                   overflow: 'hidden',
                 }}
               >
@@ -446,23 +446,23 @@ export function FriendliesPage() {
 
                   <Box sx={{ display: 'grid', gap: { xs: 1.1, md: 1.2 }, px: { xs: 1.5, md: 2.8 }, py: { xs: 1.5, md: 2 }, gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(6, 1fr)' } }}>
                     <Box>
-                      <Typography sx={{ color: '#6f7890', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>DATE & TIME</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>DATE & TIME</Typography>
                       <Typography sx={{ color: '#a9b3c8', fontWeight: 600, fontSize: { xs: '0.78rem', md: '0.9rem' }, overflowWrap: 'anywhere' }}>{formatFriendlyDateTime(request.preferredDate, request.preferredTime)}</Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ color: '#6f7890', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>VENUE</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>VENUE</Typography>
                       <Typography sx={{ color: '#a9b3c8', fontWeight: 600, fontSize: { xs: '0.78rem', md: '0.9rem' }, overflowWrap: 'anywhere' }}>{request.location}</Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ color: '#6f7890', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>CONTACT</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>CONTACT</Typography>
                       <Typography sx={{ color: '#a9b3c8', fontWeight: 600, fontSize: { xs: '0.78rem', md: '0.9rem' }, overflowWrap: 'anywhere' }}>{request.contact}</Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ color: '#6f7890', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>REQUESTED BY</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>REQUESTED BY</Typography>
                       <Typography sx={{ color: '#a9b3c8', fontWeight: 600, fontSize: { xs: '0.78rem', md: '0.9rem' }, overflowWrap: 'anywhere' }}>{request.requesterName}</Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ color: '#6f7890', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>REFEREE</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.58rem', md: '0.65rem' }, letterSpacing: '0.08em' }}>REFEREE</Typography>
                       <Typography sx={{ color: request.referee ? '#a9b3c8' : '#555e72', fontWeight: 600, fontStyle: request.referee ? 'normal' : 'italic', fontSize: { xs: '0.78rem', md: '0.9rem' }, overflowWrap: 'anywhere' }}>
                         {request.referee || 'Not assigned'}
                       </Typography>
