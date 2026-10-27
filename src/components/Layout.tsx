@@ -931,16 +931,6 @@ export function Layout() {
                         <StatBox label="Losses" value={myTeamStats.losses} accent="#ff8a94" />
                         <StatBox label="Goals for" value={myTeamStats.goalsFor} />
                         <StatBox label="Goals against" value={myTeamStats.goalsAgainst} />
-                        <StatBox
-                          label="Goal diff"
-                          value={`${myTeamStats.goalDifference > 0 ? '+' : ''}${myTeamStats.goalDifference}`}
-                          accent={myTeamStats.goalDifference > 0 ? '#4ce3a3' : myTeamStats.goalDifference < 0 ? '#ff8a94' : undefined}
-                        />
-                        <StatBox label="Points" value={myTeamStats.points} accent="#adff0f" />
-                        <StatBox label="Win rate" value={`${myTeamStats.winRate}%`} />
-                        <StatBox label="Clean sheets" value={myTeamStats.cleanSheets} />
-                        <StatBox label="Upcoming" value={myTeamStats.upcoming} />
-                        <StatBox label="Live" value={myTeamStats.playing} accent={myTeamStats.playing > 0 ? '#facc15' : undefined} />
                       </Box>
 
                       <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.8 }}>
