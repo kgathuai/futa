@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   InputAdornment,
   MenuItem,
   Stack,
@@ -22,6 +21,7 @@ import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
+import { LoadingBar } from '../components/LoadingBar'
 import type { TeamSummary } from '../types'
 
 interface AuthOutletContext {
@@ -554,8 +554,9 @@ export function TeamPage() {
       )}
 
       {isLoadingTeams ? (
-        <Stack sx={{ alignItems: 'center', py: 6 }}>
-          <CircularProgress size={22} sx={{ color: '#adff0f' }} />
+        <Stack spacing={1} sx={{ py: 3 }}>
+          <LoadingBar label="Loading teams…" />
+          <Typography sx={{ fontSize: '0.76rem', color: '#8b97ad' }}>Loading teams…</Typography>
         </Stack>
       ) : visibleTeams.length === 0 ? (
         <Card variant="outlined" sx={{ borderRadius: 2, borderColor: 'rgba(159,176,201,0.14)' }}>

@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -30,6 +29,7 @@ import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
+import { LoadingBar } from '../components/LoadingBar'
 import { useAppData } from '../context/AppContext'
 import type { AdminAccount, MatchAnnouncement } from '../types'
 
@@ -497,8 +497,9 @@ export function AdminPage() {
       </Stack>
 
       {isLoading ? (
-        <Stack sx={{ alignItems: 'center', py: 6 }}>
-          <CircularProgress size={22} sx={{ color: '#adff0f' }} />
+        <Stack spacing={1} sx={{ py: 3 }}>
+          <LoadingBar label="Loading accounts…" />
+          <Typography sx={{ fontSize: '0.76rem', color: '#8b97ad' }}>Loading accounts…</Typography>
         </Stack>
       ) : (
         <Box

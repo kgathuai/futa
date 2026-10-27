@@ -4,6 +4,7 @@ import { useLocation, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 import { FixturesTab } from '../components/FixturesTab'
+import { LoadingBar } from '../components/LoadingBar'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 
@@ -644,9 +645,12 @@ export function TournamentsPage() {
       </Stack>
 
       {isLoadingTournaments && (
-        <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
-          Loading tournaments...
-        </Typography>
+        <Stack spacing={0.8}>
+          <LoadingBar label="Loading tournaments…" />
+          <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
+            Loading tournaments…
+          </Typography>
+        </Stack>
       )}
       {!isLoadingTournaments && filteredTournaments.length === 0 && (
         <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>

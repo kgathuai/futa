@@ -37,6 +37,7 @@ import { api, subscribeToApiLoading } from '../lib/api'
 import type { NotificationItem } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { useAppData } from '../context/AppContext'
+import { LoadingBar } from './LoadingBar'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { computeTeamStats } from '../lib/teamStats'
 import { fileToAvatarDataUrl } from '../lib/avatar'
@@ -557,35 +558,7 @@ export function Layout() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
-      {isApiLoading && (
-        <Box
-          role="progressbar"
-          aria-label="Loading"
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            zIndex: 2000,
-            overflow: 'hidden',
-            bgcolor: 'rgba(76,227,163,0.2)',
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              width: '35%',
-              bgcolor: '#4ce3a3',
-              animation: 'futa-loading-progress 1.1s ease-in-out infinite',
-            },
-            '@keyframes futa-loading-progress': {
-              '0%': { left: '-35%' },
-              '100%': { left: '100%' },
-            },
-          }}
-        />
-      )}
+      {isApiLoading && <LoadingBar fixed />}
       <AppBar
         position="sticky"
         elevation={0}

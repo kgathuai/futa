@@ -41,6 +41,20 @@ const appTheme = createTheme({
         },
       },
     },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          height: 4,
+          borderRadius: 999,
+          backgroundColor: 'rgba(76,227,163,0.18)',
+          overflow: 'hidden',
+        },
+        bar: {
+          backgroundColor: '#4ce3a3',
+          boxShadow: '0 0 10px rgba(76,227,163,0.85), 0 0 22px rgba(76,227,163,0.45)',
+        },
+      },
+    },
     MuiChip: {
       styleOverrides: {
         root: {

@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Stack,
   Typography,
 } from '@mui/material'
@@ -12,6 +11,7 @@ import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import type { MatchAnnouncement, TournamentItem } from '../types'
 import { api } from '../lib/api'
 import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
+import { LoadingBar } from './LoadingBar'
 import { useMatchClock } from '../lib/useMatchClock'
 
 interface FixturesTabProps {
@@ -129,8 +129,9 @@ export function FixturesTab({
 
   if (isLoading) {
     return (
-      <Stack sx={{ alignItems: 'center', py: 4 }}>
-        <CircularProgress size={28} sx={{ color: '#adff0f' }} />
+      <Stack spacing={1.2} sx={{ py: 3 }}>
+        <LoadingBar label="Loading fixtures…" />
+        <Typography sx={{ color: '#8e98b0', fontSize: '0.8rem' }}>Loading fixtures…</Typography>
       </Stack>
     )
   }
@@ -154,8 +155,15 @@ export function FixturesTab({
             
           >
             {generating ? (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <CircularProgress size={14} sx={{ color: '#102100' }} />
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 150 }}>
+                <LoadingBar
+                  height={6}
+                  label="Generating fixtures…"
+                  sx={{
+                    bgcolor: 'rgba(7,17,31,0.25)',
+                    '& .MuiLinearProgress-bar': { bgcolor: '#07111f', boxShadow: 'none' },
+                  }}
+                />
                 <span>Generating…</span>
               </Stack>
             ) : (
