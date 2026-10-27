@@ -778,7 +778,7 @@ export function TournamentsPage() {
               <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' } }}>
                 <Stack spacing={1.2}>
                   <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
-                    <Chip label={selectedTournament.status.toUpperCase()} size="small" sx={{ bgcolor: selectedTournament.status === 'finished' ? '#444958' : '#adff0f', color: selectedTournament.status === 'finished' ? '#f4f7ff' : '#122000', fontWeight: 800, height: { xs: 28, md: 34 }, '& .MuiChip-label': { fontSize: { xs: '0.68rem', md: '0.85rem' }, px: { xs: 1, md: 1.4 } } }} />
+                    <Chip label={selectedTournament.status.toUpperCase()} size="small" sx={{ bgcolor: selectedTournament.status === 'finished' ? '#444958' : '#adff0f', color: selectedTournament.status === 'finished' ? '#f4f7ff' : '#122000', fontWeight: 800, height: { xs: 22, md: 24 }, '& .MuiChip-label': { fontSize: { xs: '0.58rem', md: '0.66rem' }, px: { xs: 0.8, md: 1 } } }} />
                     <Chip
                       label={(selectedTournament.type ?? 'open').toUpperCase()}
                       size="small"
@@ -787,20 +787,20 @@ export function TournamentsPage() {
                         color: '#4ce3a3',
                         border: '1px solid rgba(76,227,163,0.3)',
                         fontWeight: 800,
-                        height: { xs: 24, md: 28 },
-                        '& .MuiChip-label': { fontSize: { xs: '0.6rem', md: '0.7rem' }, px: { xs: 0.8, md: 1.1 } },
+                        height: { xs: 20, md: 22 },
+                        '& .MuiChip-label': { fontSize: { xs: '0.54rem', md: '0.6rem' }, px: { xs: 0.7, md: 0.9 } },
                       }}
                     />
                   </Stack>
 
-                  <Typography variant="h3" sx={{ fontSize: { xs: '1rem', md: '1.45rem' }, fontWeight: 800, lineHeight: 1.15 }}>
+                  <Typography variant="h3" sx={{ fontSize: { xs: '0.92rem', md: '1.15rem' }, fontWeight: 800, lineHeight: 1.15 }}>
                     {selectedTournament.name}
                   </Typography>
 
                   <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', color: '#99a3bb' }}>
-                    <Typography sx={{ fontSize: '0.76rem' }}>{selectedTournament.period}</Typography>
-                    <Typography sx={{ fontSize: '0.76rem' }}>{selectedTournament.venue}</Typography>
-                    <Typography sx={{ fontSize: '0.76rem' }}>{selectedTournamentTeams.length} Teams{selectedTournament.maxTeams ? ` / ${selectedTournament.maxTeams} Max` : ' Participating'}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem' }}>{selectedTournament.period}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem' }}>{selectedTournament.venue}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem' }}>{selectedTournamentTeams.length} Teams{selectedTournament.maxTeams ? ` / ${selectedTournament.maxTeams} Max` : ' Participating'}</Typography>
                   </Stack>
                 </Stack>
 
@@ -813,10 +813,10 @@ export function TournamentsPage() {
                     boxShadow: '0 0 30px rgba(173,255,15,0.08)',
                   }}
                 >
-                  <Typography sx={{ color: '#f4f7ff', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.04em', mb: 1 }}>
+                  <Typography sx={{ color: '#f4f7ff', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.04em', mb: 0.8 }}>
                     {selectedTournament.status === 'registration open' ? 'REGISTRATION OPEN' : selectedTournament.status === 'finished' ? 'TOURNAMENT FINISHED' : 'TOURNAMENT DESK'}
                   </Typography>
-                  <Typography sx={{ color: '#99a3bb', fontSize: '0.74rem', mb: 1.4 }}>
+                  <Typography sx={{ color: '#99a3bb', fontSize: '0.68rem', mb: 1.2 }}>
                     {(selectedTournament.type ?? 'open') === 'closed'
                       ? isOwner
                         ? 'Closed tournament — select the teams that will take part.'
@@ -868,18 +868,18 @@ export function TournamentsPage() {
           <Box sx={{ display: 'grid', gap: 1.4, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
               <CardContent>
-                <Typography sx={{ color: '#8e98b0', fontSize: '0.6rem', letterSpacing: '0.08em' }}>TOTAL PRIZE POOL</Typography>
-                <Typography sx={{ fontSize: { xs: '1.05rem', md: '1.4rem' }, fontWeight: 800, mt: 0.3 }}>Ksh {estimatedPrizePool.toLocaleString()}</Typography>
+                <Typography sx={{ color: '#8e98b0', fontSize: '0.55rem', letterSpacing: '0.07em' }}>TOTAL PRIZE POOL</Typography>
+                <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.15rem' }, fontWeight: 800, mt: 0.2 }}>Ksh {estimatedPrizePool.toLocaleString()}</Typography>
               </CardContent>
             </Card>
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
               <CardContent>
-                <Typography sx={{ color: '#8e98b0', fontSize: '0.6rem', letterSpacing: '0.08em' }}>TOURNAMENT MVP</Typography>
+                <Typography sx={{ color: '#8e98b0', fontSize: '0.55rem', letterSpacing: '0.07em' }}>TOURNAMENT MVP</Typography>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.6 }}>
                   <Avatar sx={{ width: 24, height: 24, fontSize: '0.74rem', bgcolor: 'rgba(173,255,15,0.15)', color: '#adff0f' }}>
                     {(mvpPreview?.team ?? 'N').charAt(0).toUpperCase()}
                   </Avatar>
-                  <Typography sx={{ fontWeight: 700, fontSize: '1.02rem' }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.86rem' }}>
                     {mvpPreview?.team ?? 'No data'}
                   </Typography>
                 </Stack>
@@ -887,8 +887,8 @@ export function TournamentsPage() {
             </Card>
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
               <CardContent>
-                <Typography sx={{ color: '#8e98b0', fontSize: '0.6rem', letterSpacing: '0.08em' }}>MATCH EFFICIENCY</Typography>
-                <Typography sx={{ fontSize: { xs: '1.05rem', md: '1.4rem' }, fontWeight: 800, mt: 0.3 }}>{selectedTournamentEfficiency}%</Typography>
+                <Typography sx={{ color: '#8e98b0', fontSize: '0.55rem', letterSpacing: '0.07em' }}>MATCH EFFICIENCY</Typography>
+                <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.15rem' }, fontWeight: 800, mt: 0.2 }}>{selectedTournamentEfficiency}%</Typography>
               </CardContent>
             </Card>
           </Box>
@@ -901,10 +901,10 @@ export function TournamentsPage() {
                 onClick={() => setActiveTab(tab)}
                 sx={{
                   fontWeight: 700,
-                  fontSize: '0.74rem',
+                  fontSize: '0.66rem',
                   textTransform: 'capitalize',
-                  px: 1.5,
-                  py: 0.45,
+                  px: 1.2,
+                  py: 0.35,
                   borderRadius: 1.5,
                   bgcolor: activeTab === tab ? '#4ce3a3' : 'rgba(255,255,255,0.05)',
                   color: activeTab === tab ? '#07111f' : '#8090b0',
@@ -938,11 +938,11 @@ export function TournamentsPage() {
           <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'rgba(17,19,31,0.94)' }}>
             <CardContent sx={{ p: 0 }}>
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', px: 2.2, py: 1.8 }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, fontSize: { xs: '0.86rem', md: '0.95rem' } }}>League Standings</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, fontSize: { xs: '0.78rem', md: '0.84rem' } }}>League Standings</Typography>
                 <Stack direction="row" spacing={0.9}>
-                  <Chip size="small" label="All Groups" sx={{ bgcolor: 'rgba(255,255,255,0.08)', fontSize: '0.64rem', height: 22 }} />
-                  <Chip size="small" label="Group A" variant="outlined" sx={{ fontSize: '0.64rem', height: 22 }} />
-                  <Chip size="small" label="Group B" variant="outlined" sx={{ fontSize: '0.64rem', height: 22 }} />
+                  <Chip size="small" label="All Groups" sx={{ bgcolor: 'rgba(255,255,255,0.08)', fontSize: '0.56rem', height: 19 }} />
+                  <Chip size="small" label="Group A" variant="outlined" sx={{ fontSize: '0.56rem', height: 19 }} />
+                  <Chip size="small" label="Group B" variant="outlined" sx={{ fontSize: '0.56rem', height: 19 }} />
                 </Stack>
               </Stack>
 
@@ -961,7 +961,7 @@ export function TournamentsPage() {
                         py: 1.05,
                         minWidth: 760,
                         color: '#99a3bb',
-                        fontSize: '0.62rem',
+                        fontSize: '0.55rem',
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
                       }}
@@ -999,7 +999,7 @@ export function TournamentsPage() {
                             borderTop: index === 0 ? '1px solid rgba(159,176,201,0.1)' : '1px solid rgba(159,176,201,0.08)',
                           }}
                         >
-                          <Typography sx={{ color: '#d6deee', fontWeight: 700 }}>0{index + 1}</Typography>
+                          <Typography sx={{ color: '#d6deee', fontWeight: 700, fontSize: '0.74rem' }}>0{index + 1}</Typography>
                           <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
                             {teamLogosByName[standing.team] ? (
                               <Avatar src={teamLogosByName[standing.team]} sx={{ width: 20, height: 20 }} />
@@ -1008,16 +1008,16 @@ export function TournamentsPage() {
                                 {standing.team.charAt(0).toUpperCase()}
                               </Avatar>
                             )}
-                            <Typography sx={{ fontWeight: 700 }}>{standing.team}</Typography>
+                            <Typography sx={{ fontWeight: 700, fontSize: '0.76rem' }}>{standing.team}</Typography>
                           </Stack>
-                          <Typography sx={{ textAlign: 'center' }}>{standing.played}</Typography>
-                          <Typography sx={{ textAlign: 'center' }}>{standing.won}</Typography>
-                          <Typography sx={{ textAlign: 'center' }}>{standing.drawn}</Typography>
-                          <Typography sx={{ textAlign: 'center' }}>{standing.lost}</Typography>
-                          <Typography sx={{ textAlign: 'center', color: standing.goalDifference >= 0 ? '#adff0f' : '#f16f77', fontWeight: 700 }}>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.played}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.won}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.drawn}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.lost}</Typography>
+                          <Typography sx={{ textAlign: 'center', color: standing.goalDifference >= 0 ? '#adff0f' : '#f16f77', fontWeight: 700, fontSize: '0.76rem' }}>
                             {standing.goalDifference >= 0 ? `+${standing.goalDifference}` : standing.goalDifference}
                           </Typography>
-                          <Typography sx={{ textAlign: 'center', fontWeight: 800 }}>{standing.points}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontWeight: 800, fontSize: '0.76rem' }}>{standing.points}</Typography>
                           <Stack direction="row" spacing={0.4} sx={{ justifyContent: 'center' }}>
                             {formBadges.map((badge, badgeIndex) => (
                               <Box
