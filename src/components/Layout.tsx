@@ -35,9 +35,10 @@ import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettin
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { FriendlyRequest, NotificationItem } from '../types'
-import { useAutoHide } from '../lib/useAutoHide'
 import { useAppData } from '../context/AppContext'
 import { LoadingBar } from './LoadingBar'
+import { TopToast } from './TopToast'
+import type { ToastMessage } from './TopToast'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { computeTeamStats } from '../lib/teamStats'
 import { fileToAvatarDataUrl } from '../lib/avatar'
@@ -145,7 +146,18 @@ export function Layout() {
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register'>('login')
   const [authMessage, setAuthMessage] = useState('')
-  useAutoHide(authMessage, () => setAuthMessage(''))
+  const [toast, setToast] = useState<ToastMessage | null>(null)
+  const refereeNoticeShown = useRef(false)
+
+  // Auth messages surface at the top of the screen and clear themselves.
+  useEffect(() => {
+    if (!authMessage) {
+      return
+    }
+    setToast({ message: authMessage, severity: 'info' })
+    const timer = window.setTimeout(() => setAuthMessage(''), 5000)
+    return () => window.clearTimeout(timer)
+  }, [authMessage])
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
 
   const [loginEmail, setLoginEmail] = useState('')
@@ -188,6 +200,22 @@ export function Layout() {
   const myRoleLabel = roleLabel(loggedInRole)
   const isRefereeAccount = (loggedInRole ?? '').trim().toLowerCase() === 'referee'
   const [refereeBookings, setRefereeBookings] = useState<FriendlyRequest[]>([])
+
+  // Referees get a one-off reminder that they are not tied to a team.
+  useEffect(() => {
+    if (!isAuthOpen) {
+      refereeNoticeShown.current = false
+      return
+    }
+    if (!isRefereeAccount || refereeNoticeShown.current) {
+      return
+    }
+    refereeNoticeShown.current = true
+    setToast({
+      message: 'Referee accounts are not attached to a team. Your bookings appear above.',
+      severity: 'info',
+    })
+  }, [isAuthOpen, isRefereeAccount])
 
   const upcomingMatches = useMemo(() => {
     const now = Date.now()
@@ -572,6 +600,7 @@ export function Layout() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+      <TopToast toast={toast} onClose={() => setToast(null)} />
       {isApiLoading && <LoadingBar fixed />}
       <AppBar
         position="sticky"
@@ -1191,12 +1220,6 @@ export function Layout() {
                 </CardContent>
               </Card>
 
-              {isRefereeAccount && (
-                <Alert severity="info" sx={{ mb: 2, py: 0.4, fontSize: '0.8rem' }}>
-                  Referee accounts are not attached to a team. Your bookings appear above.
-                </Alert>
-              )}
-
               {!isRefereeAccount && (
               <Box component="form" onSubmit={handleSaveProfile} sx={{ display: 'grid', gap: 1.3, mb: 2 }}>
                 <Typography variant="overline" color="text.secondary">
@@ -1390,11 +1413,6 @@ export function Layout() {
             </Box>
           )}
 
-          {authMessage && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              {authMessage}
-            </Alert>
-          )}
         </Box>
       </Drawer>
 
