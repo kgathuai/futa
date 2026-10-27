@@ -36,6 +36,9 @@ import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
+import FacebookIcon from '@mui/icons-material/Facebook'
+import InstagramIcon from '@mui/icons-material/Instagram'
+import XIcon from '@mui/icons-material/X'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { FriendlyRequest, NotificationItem } from '../types'
@@ -50,6 +53,20 @@ import type { TranslationKey } from '../lib/i18n'
 import { computeTeamStats } from '../lib/teamStats'
 import { fileToAvatarDataUrl } from '../lib/avatar'
 import { hasRecordedScore } from '../lib/matchStatus'
+
+// Social profiles shown in the footer — replace with the club's own handles.
+const socialLinks = [
+  { label: 'Facebook', href: 'https://facebook.com/kambumbu', icon: 'facebook' as const },
+  { label: 'TikTok', href: 'https://tiktok.com/@kambumbu', icon: 'tiktok' as const },
+  { label: 'X', href: 'https://x.com/kambumbu', icon: 'x' as const },
+  { label: 'Instagram', href: 'https://instagram.com/kambumbu', icon: 'instagram' as const },
+]
+
+const TikTokIcon = ({ fontSize = '1.15rem' }: { fontSize?: string }) => (
+  <Box component="svg" viewBox="0 0 24 24" sx={{ width: fontSize, height: fontSize, fill: 'currentColor' }}>
+    <path d="M16.6 5.82a5.3 5.3 0 0 1-1.2-3.32h-3.1v11.2a2.6 2.6 0 1 1-1.86-2.5V8.05a5.7 5.7 0 1 0 4.96 5.65V8.9a8.4 8.4 0 0 0 4.4 1.26V7.06a5.3 5.3 0 0 1-3.2-1.24Z" />
+  </Box>
+)
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
@@ -1943,14 +1960,50 @@ export function Layout() {
           sx={{
             px: { xs: 2, md: 3 },
             display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
             justifyContent: 'center',
             alignItems: 'center',
-            gap: 1,
+            gap: { xs: 1.2, sm: 2 },
           }}
         >
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
             © {currentYear} Nurevie. For Sports Updates.
           </Typography>
+
+          <Stack
+            component="nav"
+            aria-label="Futa on social media"
+            direction="row"
+            spacing={0.4}
+            sx={{ alignItems: 'center' }}
+          >
+            {socialLinks.map((social) => (
+              <IconButton
+                key={social.label}
+                component="a"
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Futa on ${social.label}`}
+                size="small"
+                sx={{
+                  color: 'text.secondary',
+                  transition: 'color 120ms ease, transform 120ms ease',
+                  '&:hover': { color: 'primary.main', transform: 'translateY(-1px)' },
+                }}
+              >
+                {social.icon === 'facebook' ? (
+                  <FacebookIcon sx={{ fontSize: '1.15rem' }} />
+                ) : social.icon === 'x' ? (
+                  <XIcon sx={{ fontSize: '1.05rem' }} />
+                ) : social.icon === 'instagram' ? (
+                  <InstagramIcon sx={{ fontSize: '1.15rem' }} />
+                ) : (
+                  <TikTokIcon />
+                )}
+              </IconButton>
+            ))}
+          </Stack>
         </Container>
       </Box>
     </Box>
