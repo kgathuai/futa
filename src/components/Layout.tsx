@@ -39,6 +39,7 @@ import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettin
 import FacebookIcon from '@mui/icons-material/Facebook'
 import InstagramIcon from '@mui/icons-material/Instagram'
 import XIcon from '@mui/icons-material/X'
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { FriendlyRequest, NotificationItem } from '../types'
@@ -56,6 +57,8 @@ import { hasRecordedScore } from '../lib/matchStatus'
 
 // Social profiles shown in the footer — replace with the club's own handles.
 const socialLinks = [
+  // Replace 254700000000 with the support line you want chats to reach.
+  { label: 'WhatsApp', href: 'https://wa.me/254700000000?text=Hi%20Futa%20support', icon: 'whatsapp' as const },
   { label: 'Facebook', href: 'https://facebook.com/kambumbu', icon: 'facebook' as const },
   { label: 'TikTok', href: 'https://tiktok.com/@kambumbu', icon: 'tiktok' as const },
   { label: 'X', href: 'https://x.com/kambumbu', icon: 'x' as const },
@@ -1992,7 +1995,9 @@ export function Layout() {
                   '&:hover': { color: 'primary.main', transform: 'translateY(-1px)' },
                 }}
               >
-                {social.icon === 'facebook' ? (
+                {social.icon === 'whatsapp' ? (
+                  <WhatsAppIcon sx={{ fontSize: '1.2rem', color: '#25d366' }} />
+                ) : social.icon === 'facebook' ? (
                   <FacebookIcon sx={{ fontSize: '1.15rem' }} />
                 ) : social.icon === 'x' ? (
                   <XIcon sx={{ fontSize: '1.05rem' }} />
