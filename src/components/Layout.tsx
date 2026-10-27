@@ -45,6 +45,7 @@ import { TopToast } from './TopToast'
 import type { ToastMessage } from './TopToast'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { useI18n } from '../lib/i18n'
+import { useColorMode } from '../theme/ColorModeProvider'
 import type { TranslationKey } from '../lib/i18n'
 import { computeTeamStats } from '../lib/teamStats'
 import { fileToAvatarDataUrl } from '../lib/avatar'
@@ -150,6 +151,7 @@ export function Layout() {
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
   const { language, setLanguage, t } = useI18n()
+  const { mode, toggleMode } = useColorMode()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login')
   const [authMessage, setAuthMessage] = useState('')
@@ -779,7 +781,7 @@ export function Layout() {
         position="sticky"
         elevation={0}
         sx={{
-          bgcolor: '#0d1524',
+          bgcolor: 'background.paper',
           borderTop: '1px solid rgba(76,227,163,0.25)',
           borderBottom: '1px solid rgba(159,176,201,0.14)',
           overflow: 'visible',
@@ -895,7 +897,7 @@ export function Layout() {
           px: 0.5,
           pt: 0.75,
           pb: 'calc(0.75rem + env(safe-area-inset-bottom))',
-          bgcolor: '#000000',
+          bgcolor: 'background.paper',
           borderTop: '1px solid rgba(255,255,255,0.18)',
           boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.35)',
         }}
@@ -1057,6 +1059,15 @@ export function Layout() {
                 <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
                   {t('language').toUpperCase()}
                 </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={toggleMode}
+                  aria-label="Toggle colour mode"
+                  sx={{ minWidth: 0, px: 1, py: 0.1, fontSize: '0.64rem', fontWeight: 800, ml: 'auto !important' }}
+                >
+                  {mode === 'dark' ? '☀ Light' : '☾ Dark'}
+                </Button>
                 {(['en', 'sw'] as const).map((code) => (
                   <Button
                     key={code}
@@ -1891,7 +1902,7 @@ export function Layout() {
         component="footer"
         sx={{
           borderTop: '1px solid rgba(159,176,201,0.14)',
-          bgcolor: '#0d1524',
+          bgcolor: 'background.paper',
           py: 2.5,
           mt: 'auto',
         }}
