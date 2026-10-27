@@ -9,6 +9,10 @@ import {
   CardContent,
   Chip,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   Badge,
   FormControl,
@@ -204,6 +208,12 @@ export function Layout() {
   const myRoleLabel = roleLabel(loggedInRole)
   const isRefereeAccount = (loggedInRole ?? '').trim().toLowerCase() === 'referee'
   const [refereeBookings, setRefereeBookings] = useState<FriendlyRequest[]>([])
+  const [refereeActionId, setRefereeActionId] = useState('')
+  const [reportBooking, setReportBooking] = useState<FriendlyRequest | null>(null)
+  const [reportHomeScore, setReportHomeScore] = useState('')
+  const [reportAwayScore, setReportAwayScore] = useState('')
+  const [reportNotes, setReportNotes] = useState('')
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
 
   // Referees get a one-off reminder that they are not tied to a team.
   useEffect(() => {
@@ -451,6 +461,74 @@ export function Layout() {
       })
     } finally {
       setIsResendingVerification(false)
+    }
+  }
+
+  const handleRefereeRespond = async (bookingId: string, status: 'accepted' | 'declined') => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    setRefereeActionId(bookingId)
+    try {
+      const response = await api.respondToRefereeBooking(bookingId, status, token)
+      setRefereeBookings((prev) =>
+        prev.map((booking) => (booking.id === bookingId ? response.booking : booking)),
+      )
+      setToast({
+        message: status === 'accepted' ? 'Booking confirmed.' : 'Booking declined.',
+        severity: status === 'accepted' ? 'success' : 'info',
+      })
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Could not update that booking.',
+        severity: 'error',
+      })
+    } finally {
+      setRefereeActionId('')
+    }
+  }
+
+  const handleSubmitRefereeReport = async () => {
+    if (!reportBooking) {
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    const homeScore = Number(reportHomeScore)
+    const awayScore = Number(reportAwayScore)
+    if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore) || reportHomeScore === '' || reportAwayScore === '') {
+      setToast({ message: 'Enter both scores.', severity: 'error' })
+      return
+    }
+
+    setIsSubmittingReport(true)
+    try {
+      const response = await api.submitRefereeReport(
+        reportBooking.id,
+        { homeScore, awayScore, notes: reportNotes },
+        token,
+      )
+      setRefereeBookings((prev) =>
+        prev.map((booking) => (booking.id === reportBooking.id ? response.booking : booking)),
+      )
+      setToast({ message: 'Match report submitted.', severity: 'success' })
+      setReportBooking(null)
+      setReportHomeScore('')
+      setReportAwayScore('')
+      setReportNotes('')
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Could not submit that report.',
+        severity: 'error',
+      })
+    } finally {
+      setIsSubmittingReport(false)
     }
   }
 
@@ -1109,12 +1187,15 @@ export function Layout() {
                     ) : (
                       <Stack spacing={1}>
                         {refereeBookings.map((booking) => {
-                          const statusTheme =
-                            booking.status === 'accepted'
+                          const refereeState = booking.report
+                            ? { label: 'REPORTED', bg: 'rgba(76,227,163,0.2)', color: '#4ce3a3' }
+                            : booking.refereeStatus === 'accepted'
                               ? { label: 'CONFIRMED', bg: 'rgba(76,227,163,0.16)', color: '#4ce3a3' }
-                              : booking.status === 'declined'
-                                ? { label: 'CANCELLED', bg: 'rgba(255,107,117,0.14)', color: '#ff8a94' }
-                                : { label: 'PENDING', bg: 'rgba(250,204,21,0.14)', color: '#facc15' }
+                              : booking.refereeStatus === 'declined'
+                                ? { label: 'DECLINED', bg: 'rgba(255,107,117,0.14)', color: '#ff8a94' }
+                                : { label: 'AWAITING REPLY', bg: 'rgba(250,204,21,0.14)', color: '#facc15' }
+
+                          const busy = refereeActionId === booking.id
 
                           return (
                             <Box
@@ -1147,16 +1228,63 @@ export function Layout() {
                                 </Box>
                                 <Chip
                                   size="small"
-                                  label={statusTheme.label}
+                                  label={refereeState.label}
                                   sx={{
                                     height: 19,
-                                    fontSize: '0.55rem',
+                                    fontSize: '0.53rem',
                                     fontWeight: 800,
-                                    bgcolor: statusTheme.bg,
-                                    color: statusTheme.color,
+                                    bgcolor: refereeState.bg,
+                                    color: refereeState.color,
                                   }}
                                 />
                               </Stack>
+
+                              {booking.report ? (
+                                <Typography sx={{ mt: 0.8, fontSize: '0.72rem', color: '#a7b3c9' }}>
+                                  Reported {booking.report.homeScore} – {booking.report.awayScore}
+                                  {booking.report.notes ? ` · ${booking.report.notes}` : ''}
+                                </Typography>
+                              ) : (
+                                <Stack direction="row" spacing={0.6} sx={{ mt: 0.9 }}>
+                                  {booking.refereeStatus !== 'accepted' && (
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      disabled={busy}
+                                      onClick={() => void handleRefereeRespond(booking.id, 'accepted')}
+                                      sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                                    >
+                                      Accept
+                                    </Button>
+                                  )}
+                                  {booking.refereeStatus !== 'declined' && (
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="inherit"
+                                      disabled={busy}
+                                      onClick={() => void handleRefereeRespond(booking.id, 'declined')}
+                                      sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                                    >
+                                      Decline
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="small"
+                                    variant="text"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setReportBooking(booking)
+                                      setReportHomeScore('')
+                                      setReportAwayScore('')
+                                      setReportNotes('')
+                                    }}
+                                    sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                                  >
+                                    Report score
+                                  </Button>
+                                </Stack>
+                              )}
                             </Box>
                           )
                         })}
@@ -1571,6 +1699,61 @@ export function Layout() {
           )}
         </Box>
       </Drawer>
+
+      <Dialog open={Boolean(reportBooking)} onClose={() => setReportBooking(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 800 }}>Match report</DialogTitle>
+        <DialogContent>
+          {reportBooking && (
+            <Stack spacing={1.4} sx={{ mt: 0.5 }}>
+              <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+                {reportBooking.requesterTeam} vs {reportBooking.recipientTeam} ·{' '}
+                {formatBookingWhen(reportBooking.preferredDate, reportBooking.preferredTime)}
+              </Typography>
+              <Stack direction="row" spacing={1.2}>
+                <TextField
+                  label={reportBooking.requesterTeam}
+                  type="number"
+                  size="small"
+                  value={reportHomeScore}
+                  onChange={(event) => setReportHomeScore(event.target.value)}
+                  slotProps={{ htmlInput: { min: 0 } }}
+                  fullWidth
+                />
+                <TextField
+                  label={reportBooking.recipientTeam}
+                  type="number"
+                  size="small"
+                  value={reportAwayScore}
+                  onChange={(event) => setReportAwayScore(event.target.value)}
+                  slotProps={{ htmlInput: { min: 0 } }}
+                  fullWidth
+                />
+              </Stack>
+              <TextField
+                label="Notes (optional)"
+                size="small"
+                multiline
+                rows={2}
+                value={reportNotes}
+                onChange={(event) => setReportNotes(event.target.value)}
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReportBooking(null)} size="small">
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => void handleSubmitRefereeReport()}
+            disabled={isSubmittingReport}
+          >
+            {isSubmittingReport ? 'Sending…' : 'Submit report'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Container maxWidth="lg" sx={{ py: 4, pb: { xs: 12, sm: 4 }, px: { xs: 2, md: 3 }, flex: 1, width: '100%' }}>
         <Outlet

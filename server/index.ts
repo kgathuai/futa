@@ -700,6 +700,69 @@ app.get('/api/referees', async (_req, res) => {
   res.json({ referees })
 })
 
+app.post('/api/referee/bookings/:requestId/respond', rateLimit('referee-respond', 30, 60_000), async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const status = (req.body as { status?: string }).status?.trim().toLowerCase()
+  if (status !== 'accepted' && status !== 'declined') {
+    res.status(400).json({ error: 'Respond with accepted or declined.' })
+    return
+  }
+
+  const result = await store.respondToRefereeBooking(
+    String(req.params.requestId ?? ''),
+    user.id,
+    user.name,
+    status,
+  )
+
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Booking not found.' })
+    return
+  }
+  if (result.status === 'forbidden') {
+    res.status(403).json({ error: 'That booking is not assigned to you.' })
+    return
+  }
+
+  res.json({ booking: result.booking })
+})
+
+app.post('/api/referee/bookings/:requestId/report', rateLimit('referee-report', 20, 60_000), async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const body = req.body as { homeScore?: number; awayScore?: number; notes?: string }
+  if (!Number.isFinite(body.homeScore) || !Number.isFinite(body.awayScore)) {
+    res.status(400).json({ error: 'Enter both scores.' })
+    return
+  }
+
+  const result = await store.submitRefereeReport(String(req.params.requestId ?? ''), user.id, user.name, {
+    homeScore: Number(body.homeScore),
+    awayScore: Number(body.awayScore),
+    notes: body.notes,
+  })
+
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'Booking not found.' })
+    return
+  }
+  if (result.status === 'forbidden') {
+    res.status(403).json({ error: 'That booking is not assigned to you.' })
+    return
+  }
+
+  res.json({ booking: result.booking, result: result.result })
+})
+
 // Friendly bookings where the signed-in account is the assigned referee.
 app.get('/api/referee/bookings', async (req, res) => {
   const user = await getRequestUser(req.header('authorization'))

@@ -90,6 +90,14 @@ export interface FriendlyRequest {
   note: string
   referee?: string
   refereeAccountId?: string
+  refereeStatus?: 'pending' | 'accepted' | 'declined'
+  refereeRespondedAt?: string | null
+  report?: {
+    homeScore: number
+    awayScore: number
+    notes?: string
+    createdAt: string
+  } | null
   status: 'pending' | 'accepted' | 'declined'
   createdAt: string
   respondedAt?: string | null

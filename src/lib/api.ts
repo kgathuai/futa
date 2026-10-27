@@ -163,6 +163,20 @@ export const api = {
     }),
   getRefereeBookings: (token: string) =>
     request<FriendlyRequest[]>('/api/referee/bookings', { token }),
+  respondToRefereeBooking: (bookingId: string, status: 'accepted' | 'declined', token: string) =>
+    request<{ booking: FriendlyRequest }>(
+      `/api/referee/bookings/${encodeURIComponent(bookingId)}/respond`,
+      { method: 'POST', body: { status }, token },
+    ),
+  submitRefereeReport: (
+    bookingId: string,
+    payload: { homeScore: number; awayScore: number; notes?: string },
+    token: string,
+  ) =>
+    request<{ booking: FriendlyRequest; result: ResultReport }>(
+      `/api/referee/bookings/${encodeURIComponent(bookingId)}/report`,
+      { method: 'POST', body: payload, token },
+    ),
   getNotifications: (token: string) => request<NotificationItem[]>('/api/notifications', { token }),
   markNotificationRead: (notificationId: string, token: string) =>
     request<NotificationItem>(`/api/notifications/${notificationId}/read`, {

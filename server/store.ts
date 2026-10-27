@@ -57,6 +57,14 @@ export interface FriendlyRequestRecord {
   note: string
   referee?: string
   refereeAccountId?: string
+  refereeStatus?: 'pending' | 'accepted' | 'declined'
+  refereeRespondedAt?: string | null
+  report?: {
+    homeScore: number
+    awayScore: number
+    notes?: string
+    createdAt: string
+  } | null
   status: 'pending' | 'accepted' | 'declined'
   createdAt: string
   respondedAt?: string | null
@@ -249,6 +257,21 @@ const friendlyRequestSchema = new Schema(
     note: { type: String, required: true },
     referee: { type: String, required: false },
     refereeAccountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
+    refereeStatus: { type: String, required: false, default: 'pending' },
+    refereeRespondedAt: { type: String, required: false },
+    report: {
+      type: new Schema(
+        {
+          homeScore: { type: Number, required: true },
+          awayScore: { type: Number, required: true },
+          notes: { type: String, required: false, default: '' },
+          createdAt: { type: String, required: true },
+        },
+        { versionKey: false, _id: false },
+      ),
+      required: false,
+      default: null,
+    },
     status: { type: String, required: true, default: 'pending' },
     respondedAt: { type: String, required: false },
   },
@@ -1703,6 +1726,116 @@ export const store = {
     })
 
     return request.toObject()
+  },
+  respondToRefereeBooking: async (
+    requestId: string,
+    refereeAccountId: string,
+    refereeName: string,
+    status: 'accepted' | 'declined',
+  ) => {
+    const request = await FriendlyRequestModel.findOne({ id: requestId }).lean<FriendlyRequestRecord | null>()
+    if (!request) {
+      return { status: 'not-found' as const }
+    }
+
+    const linkedById = request.refereeAccountId?.toString() === refereeAccountId
+    const linkedByName =
+      Boolean(request.referee) &&
+      request.referee!.trim().toLowerCase() === refereeName.trim().toLowerCase()
+    if (!linkedById && !linkedByName) {
+      return { status: 'forbidden' as const }
+    }
+
+    const updated = await FriendlyRequestModel.findOneAndUpdate(
+      { id: requestId },
+      { refereeStatus: status, refereeRespondedAt: new Date().toISOString() },
+      { returnDocument: 'after' },
+    ).lean<FriendlyRequestRecord | null>()
+
+    if (!updated) {
+      return { status: 'not-found' as const }
+    }
+
+    const message =
+      status === 'accepted'
+        ? `${refereeName} confirmed they will referee ${request.requesterTeam} vs ${request.recipientTeam} on ${request.preferredDate}.`
+        : `${refereeName} can no longer referee ${request.requesterTeam} vs ${request.recipientTeam} on ${request.preferredDate}.`
+
+    for (const accountId of [request.requesterAccountId, request.recipientAccountId]) {
+      if (accountId && mongoose.isValidObjectId(accountId.toString())) {
+        await createNotification({
+          accountId: accountId.toString(),
+          type: status === 'accepted' ? 'friendly-accepted' : 'friendly-declined',
+          title: status === 'accepted' ? 'Referee confirmed' : 'Referee unavailable',
+          message,
+          relatedFriendlyRequestId: requestId,
+        })
+      }
+    }
+
+    return { status: 'updated' as const, booking: updated }
+  },
+  submitRefereeReport: async (
+    requestId: string,
+    refereeAccountId: string,
+    refereeName: string,
+    payload: { homeScore: number; awayScore: number; notes?: string },
+  ) => {
+    const request = await FriendlyRequestModel.findOne({ id: requestId }).lean<FriendlyRequestRecord | null>()
+    if (!request) {
+      return { status: 'not-found' as const }
+    }
+
+    const linkedById = request.refereeAccountId?.toString() === refereeAccountId
+    const linkedByName =
+      Boolean(request.referee) &&
+      request.referee!.trim().toLowerCase() === refereeName.trim().toLowerCase()
+    if (!linkedById && !linkedByName) {
+      return { status: 'forbidden' as const }
+    }
+
+    const report = {
+      homeScore: payload.homeScore,
+      awayScore: payload.awayScore,
+      notes: payload.notes?.trim() ?? '',
+      createdAt: new Date().toISOString(),
+    }
+
+    const updated = await FriendlyRequestModel.findOneAndUpdate(
+      { id: requestId },
+      { report },
+      { returnDocument: 'after' },
+    ).lean<FriendlyRequestRecord | null>()
+
+    if (!updated) {
+      return { status: 'not-found' as const }
+    }
+
+    const result = await ResultModel.create({
+      id: makeEntityId(),
+      homeTeam: request.requesterTeam,
+      awayTeam: request.recipientTeam,
+      homeScore: report.homeScore,
+      awayScore: report.awayScore,
+      venue: request.location,
+      playedOn: request.preferredDate,
+      reportedBy: `${refereeName} (referee)`,
+      engagement: { likes: 0, comments: 0, rating: 0, ratingCount: 0 },
+    })
+
+    for (const accountId of [request.requesterAccountId, request.recipientAccountId]) {
+      if (accountId && mongoose.isValidObjectId(accountId.toString())) {
+        await createNotification({
+          accountId: accountId.toString(),
+          type: 'friendly-accepted',
+          title: 'Match report submitted',
+          message: `${refereeName} reported ${request.requesterTeam} ${report.homeScore} - ${report.awayScore} ${request.recipientTeam}.`,
+          relatedFriendlyRequestId: requestId,
+        })
+      }
+    }
+
+    return { status: 'updated' as const, booking: updated, result: result.toObject() }
   },
   acceptFriendlyRequest: async (requestId: string, ownerAccountId: string) => {
     const request = await FriendlyRequestModel.findOne({ id: requestId }).lean<FriendlyRequestRecord | null>()
