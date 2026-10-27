@@ -89,9 +89,15 @@ export interface FriendlyRequest {
   location: string
   note: string
   referee?: string
+  refereeAccountId?: string
   status: 'pending' | 'accepted' | 'declined'
   createdAt: string
   respondedAt?: string | null
+}
+
+export interface RefereeSummary {
+  id: string
+  name: string
 }
 
 export interface NotificationItem {
@@ -103,6 +109,7 @@ export interface NotificationItem {
     | 'friendly-declined'
     | 'match-score-reminder'
     | 'comment-reply'
+    | 'referee-booking'
   title: string
   message: string
   relatedFriendlyRequestId?: string

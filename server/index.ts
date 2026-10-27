@@ -644,6 +644,23 @@ app.get('/api/friendlies', async (_req, res) => {
   res.json(friendlies)
 })
 
+app.get('/api/referees', async (_req, res) => {
+  const referees = await store.getReferees()
+  res.json({ referees })
+})
+
+// Friendly bookings where the signed-in account is the assigned referee.
+app.get('/api/referee/bookings', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const bookings = await store.getRefereeBookings(user.id, user.name)
+  res.json(bookings)
+})
+
 app.get('/api/notifications', async (req, res) => {
   const user = await getRequestUser(req.header('authorization'))
   if (!user) {

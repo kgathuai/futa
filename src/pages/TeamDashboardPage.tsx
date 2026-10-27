@@ -42,7 +42,6 @@ interface GoalDraft {
 
 const sports: MatchAnnouncement['sport'][] = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 const bookingsPageSize = 5
-const refereeNames = ['M. Reyes', 'S. Okafor', 'D. Whitman', 'L. Tanaka', 'P. Mensah', 'A. Carter', 'R. Singh']
 
 const formatPeriod = (startDate: string, endDate: string) => {
   const start = new Date(startDate)
@@ -91,6 +90,7 @@ export function TeamDashboardPage() {
   const [friendlyPreferredTime, setFriendlyPreferredTime] = useState('')
   const [friendlyLocation, setFriendlyLocation] = useState('')
   const [friendlyReferee, setFriendlyReferee] = useState('')
+  const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
   const [friendlyNote, setFriendlyNote] = useState('')
 
   const [teamName, setTeamName] = useState(team.name)
@@ -296,6 +296,19 @@ export function TeamDashboardPage() {
 
   useEffect(() => {
     void loadMyMatches()
+  }, [])
+
+  useEffect(() => {
+    const loadReferees = async () => {
+      try {
+        const response = await api.getReferees()
+        setRefereeOptions(response.referees)
+      } catch {
+        // Keep the booking form usable when the referee directory is unavailable.
+      }
+    }
+
+    void loadReferees()
   }, [])
 
   useEffect(() => {
@@ -992,8 +1005,8 @@ export function TeamDashboardPage() {
   }
 
   const getBookingReferee = (requestId: string) => {
-    const hash = requestId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-    return refereeNames[hash % refereeNames.length]
+    const booking = dashboardFriendlies.find((friendly) => friendly.id === requestId)
+    return booking?.referee || 'Not assigned'
   }
 
   const getBookingStatusLabel = (status: 'pending' | 'accepted' | 'declined') => {
@@ -1389,14 +1402,17 @@ export function TeamDashboardPage() {
                   </TextField>
                   <TextField
                     select
-                    label="Referee"
+                    label={refereeOptions.length > 0 ? 'Referee' : 'Referee (optional)'}
                     value={friendlyReferee}
                     onChange={(event) => setFriendlyReferee(event.target.value)}
-                    required
+                    helperText={
+                      refereeOptions.length === 0 ? 'No referee accounts registered yet.' : undefined
+                    }
+                    required={refereeOptions.length > 0}
                   >
-                    {refereeNames.map((refereeName) => (
-                      <MenuItem key={refereeName} value={refereeName}>
-                        {refereeName}
+                    {refereeOptions.map((referee) => (
+                      <MenuItem key={referee.id} value={referee.name}>
+                        {referee.name}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -2117,14 +2133,14 @@ export function TeamDashboardPage() {
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.2 }}>
               <Typography sx={{ fontWeight: 700 }}>Available Referees</Typography>
               <Typography sx={{ color: '#8f98af', fontSize: '0.82rem' }}>
-                {refereeNames.length} Registered
+                {refereeOptions.length} Registered
               </Typography>
             </Stack>
 
             <Box sx={{ display: 'grid', gap: 1, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
-              {refereeNames.map((refereeName) => (
+              {refereeOptions.map((referee) => (
                 <Box
-                  key={refereeName}
+                  key={referee.id}
                   sx={{
                     border: '1px solid rgba(159,176,201,0.14)',
                     borderRadius: 1.4,
@@ -2159,10 +2175,10 @@ export function TeamDashboardPage() {
                         fontWeight: 800,
                       }}
                     >
-                      {refereeName.charAt(0)}
+                      {referee.name.charAt(0)}
                     </Avatar>
                     <Box>
-                      <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{refereeName}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: '0.88rem' }}>{referee.name}</Typography>
                       <Typography sx={{ color: '#8f98af', fontSize: '0.68rem' }}>Referee</Typography>
                     </Box>
                   </Stack>

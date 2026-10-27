@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import EventIcon from '@mui/icons-material/Event'
@@ -33,6 +33,7 @@ export function FriendliesPage() {
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [teamOptions, setTeamOptions] = useState<{ name: string; logoUrl?: string }[]>([])
   const [groundOptions, setGroundOptions] = useState<string[]>([])
+  const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
   const [optionLoadError, setOptionLoadError] = useState('')
   const [requestMessage, setRequestMessage] = useState('')
   const [showSignedIn, setShowSignedIn] = useState(true)
@@ -56,9 +57,14 @@ export function FriendliesPage() {
   useEffect(() => {
     const loadFriendlyOptions = async () => {
       try {
-        const [teamResponse, groundResponse] = await Promise.all([api.getTeams(), api.getGrounds()])
+        const [teamResponse, groundResponse, refereeResponse] = await Promise.all([
+          api.getTeams(),
+          api.getGrounds(),
+          api.getReferees(),
+        ])
         setTeamOptions(teamResponse.teams)
         setGroundOptions(groundResponse.grounds)
+        setRefereeOptions(refereeResponse.referees)
       } catch {
         setOptionLoadError('Failed to load teams and grounds from backend.')
       }
@@ -305,12 +311,24 @@ export function FriendliesPage() {
                 rows={3}
                 required
               />
-              <TextField
-                label="Referee (optional)"
+              <Autocomplete
+                freeSolo
+                options={refereeOptions.map((option) => option.name)}
                 value={referee}
-                onChange={(event) => setReferee(event.target.value)}
-                placeholder="Referee name"
-                helperText="Enter the name of the referee officiating the match."
+                onChange={(_event, value) => setReferee(value ?? '')}
+                onInputChange={(_event, value) => setReferee(value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Referee (optional)"
+                    placeholder="Pick a registered referee"
+                    helperText={
+                      refereeOptions.length > 0
+                        ? 'Pick a registered referee so it shows up in their account.'
+                        : 'No referees registered yet — type a name to assign one.'
+                    }
+                  />
+                )}
               />
               {optionLoadError && <Typography color="error.main">{optionLoadError}</Typography>}
               {requestMessage && <Typography color="text.secondary">{requestMessage}</Typography>}

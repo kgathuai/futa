@@ -34,7 +34,7 @@ import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
-import type { NotificationItem } from '../types'
+import type { FriendlyRequest, NotificationItem } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { useAppData } from '../context/AppContext'
 import { LoadingBar } from './LoadingBar'
@@ -76,6 +76,20 @@ const formatKickoffLabel = (value: string) => {
     return 'Kickoff TBC'
   }
   return date.toLocaleString([], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const formatBookingWhen = (date: string, time: string) => {
+  const parsed = new Date(`${date}T${time || '00:00'}`)
+  if (!Number.isFinite(parsed.getTime())) {
+    return `${date} ${time}`.trim()
+  }
+  return parsed.toLocaleString([], {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -172,6 +186,8 @@ export function Layout() {
   const myTeamGround = myTeamProfile?.homeGround || profileHomeGround
   const myTeamLogo = myTeamProfile?.logoUrl
   const myRoleLabel = roleLabel(loggedInRole)
+  const isRefereeAccount = (loggedInRole ?? '').trim().toLowerCase() === 'referee'
+  const [refereeBookings, setRefereeBookings] = useState<FriendlyRequest[]>([])
 
   const upcomingMatches = useMemo(() => {
     const now = Date.now()
@@ -480,6 +496,37 @@ export function Layout() {
       setIsSavingAvatar(false)
     }
   }
+
+  // Referees are not attached to a team — load the friendly fixtures they officiate.
+  useEffect(() => {
+    if (!isRefereeAccount || !loggedInAccountId) {
+      setRefereeBookings([])
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    let active = true
+    void api
+      .getRefereeBookings(token)
+      .then((bookings) => {
+        if (active) {
+          setRefereeBookings(bookings)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRefereeBookings([])
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isRefereeAccount, loggedInAccountId])
 
   // Re-fetch on sign-in and whenever a drawer opens so new replies show up.
   useEffect(() => {
@@ -844,6 +891,7 @@ export function Layout() {
                 </Alert>
               )}
 
+              {!isRefereeAccount && (
               <Card
                 variant="outlined"
                 sx={{ mb: 2, borderColor: 'rgba(76,227,163,0.26)', bgcolor: 'rgba(76,227,163,0.03)' }}
@@ -937,6 +985,85 @@ export function Layout() {
                 </CardContent>
               </Card>
 
+              )}
+
+              {isRefereeAccount ? (
+                <Card variant="outlined" sx={{ mb: 2 }}>
+                  <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
+                    <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.1 }}>
+                      <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em' }}>
+                        Booked games
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={refereeBookings.length}
+                        sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800 }}
+                      />
+                    </Stack>
+
+                    {refereeBookings.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+                        No games booked for you yet. Teams choose a referee when they request a friendly.
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1}>
+                        {refereeBookings.map((booking) => {
+                          const statusTheme =
+                            booking.status === 'accepted'
+                              ? { label: 'CONFIRMED', bg: 'rgba(76,227,163,0.16)', color: '#4ce3a3' }
+                              : booking.status === 'declined'
+                                ? { label: 'CANCELLED', bg: 'rgba(255,107,117,0.14)', color: '#ff8a94' }
+                                : { label: 'PENDING', bg: 'rgba(250,204,21,0.14)', color: '#facc15' }
+
+                          return (
+                            <Box
+                              key={booking.id}
+                              sx={{
+                                border: '1px solid rgba(159,176,201,0.16)',
+                                borderRadius: 1.6,
+                                p: 1.1,
+                                bgcolor: 'rgba(21,31,51,0.55)',
+                              }}
+                            >
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                              >
+                                <Box sx={{ minWidth: 0 }}>
+                                  <Typography sx={{ fontWeight: 700, fontSize: '0.85rem' }} noWrap>
+                                    {booking.requesterTeam} vs {booking.recipientTeam}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: 'block' }}
+                                    noWrap
+                                  >
+                                    {formatBookingWhen(booking.preferredDate, booking.preferredTime)} ·{' '}
+                                    {booking.location}
+                                  </Typography>
+                                </Box>
+                                <Chip
+                                  size="small"
+                                  label={statusTheme.label}
+                                  sx={{
+                                    height: 19,
+                                    fontSize: '0.55rem',
+                                    fontWeight: 800,
+                                    bgcolor: statusTheme.bg,
+                                    color: statusTheme.color,
+                                  }}
+                                />
+                              </Stack>
+                            </Box>
+                          )
+                        })}
+                      </Stack>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
                   <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.1 }}>
@@ -1008,6 +1135,8 @@ export function Layout() {
                 </CardContent>
               </Card>
 
+              )}
+
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
                   <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.1 }}>
@@ -1062,6 +1191,13 @@ export function Layout() {
                 </CardContent>
               </Card>
 
+              {isRefereeAccount && (
+                <Alert severity="info" sx={{ mb: 2, py: 0.4, fontSize: '0.8rem' }}>
+                  Referee accounts are not attached to a team. Your bookings appear above.
+                </Alert>
+              )}
+
+              {!isRefereeAccount && (
               <Box component="form" onSubmit={handleSaveProfile} sx={{ display: 'grid', gap: 1.3, mb: 2 }}>
                 <Typography variant="overline" color="text.secondary">
                   Team profile
@@ -1108,6 +1244,7 @@ export function Layout() {
                   </Alert>
                 )}
               </Box>
+              )}
 
               <Button onClick={handleLogout} variant="outlined" fullWidth>
                 Logout

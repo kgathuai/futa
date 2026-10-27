@@ -46,6 +46,7 @@ export interface FriendlyRequestRecord {
   location: string
   note: string
   referee?: string
+  refereeAccountId?: string
   status: 'pending' | 'accepted' | 'declined'
   createdAt: string
   respondedAt?: string | null
@@ -60,6 +61,7 @@ export interface NotificationRecord {
     | 'friendly-declined'
     | 'match-score-reminder'
     | 'comment-reply'
+    | 'referee-booking'
   title: string
   message: string
   relatedFriendlyRequestId?: string
@@ -221,6 +223,7 @@ const friendlyRequestSchema = new Schema(
     location: { type: String, required: true },
     note: { type: String, required: true },
     referee: { type: String, required: false },
+    refereeAccountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
     status: { type: String, required: true, default: 'pending' },
     respondedAt: { type: String, required: false },
   },
@@ -1173,6 +1176,35 @@ export const store = {
       recipientAccountId: request.recipientAccountId?.toString?.() ?? String(request.recipientAccountId),
     }))
   },
+  getRefereeBookings: async (accountId: string, refereeName: string) => {
+    const escaped = refereeName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const filters: Array<Record<string, unknown>> = []
+    if (mongoose.isValidObjectId(accountId)) {
+      filters.push({ refereeAccountId: new mongoose.Types.ObjectId(accountId) })
+    }
+    if (escaped) {
+      filters.push({ referee: { $regex: `^${escaped}$`, $options: 'i' } })
+    }
+    if (filters.length === 0) {
+      return []
+    }
+
+    const requests = await FriendlyRequestModel.find({ $or: filters })
+      .sort({ preferredDate: 1, preferredTime: 1 })
+      .lean()
+    return requests.map((request) => ({
+      ...request,
+      requesterAccountId: request.requesterAccountId?.toString?.() ?? String(request.requesterAccountId),
+      recipientAccountId: request.recipientAccountId?.toString?.() ?? String(request.recipientAccountId),
+    }))
+  },
+  getReferees: async () => {
+    const referees = await AccountModel.find({ role: 'referee' })
+      .select({ name: 1 })
+      .sort({ name: 1 })
+      .lean<Array<{ _id: mongoose.Types.ObjectId; name: string }>>()
+    return referees.map((referee) => ({ id: referee._id.toString(), name: referee.name }))
+  },
   updateMatchKickoff: async (matchId: string, teamName: string, kickoff: string) => {
     return MatchModel.findOneAndUpdate(
       {
@@ -1476,6 +1508,14 @@ export const store = {
       throw new Error('That team does not have an owner yet.')
     }
 
+    const refereeName = payload.referee?.trim() || ''
+    const refereeAccount = refereeName
+      ? await AccountModel.findOne({
+          name: new RegExp(`^${refereeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+          role: 'referee',
+        }).lean<AccountDoc | null>()
+      : null
+
     const request = await FriendlyRequestModel.create({
       id: makeEntityId(),
       requesterAccountId: senderAccount._id,
@@ -1488,10 +1528,21 @@ export const store = {
       preferredTime: payload.preferredTime,
       location: payload.location,
       note: payload.note,
-      referee: payload.referee?.trim() || undefined,
+      referee: refereeName || undefined,
+      refereeAccountId: refereeAccount?._id,
       status: 'pending',
       respondedAt: null,
     })
+
+    if (refereeAccount) {
+      await createNotification({
+        accountId: refereeAccount._id.toString(),
+        type: 'referee-booking',
+        title: 'You have been booked as referee',
+        message: `${senderAccount.name} booked you for ${senderAccount.team} vs ${recipientTeamName} on ${payload.preferredDate} at ${payload.preferredTime}.`,
+        relatedFriendlyRequestId: request.id,
+      })
+    }
 
     await createNotification({
       accountId: recipientAccountId,
