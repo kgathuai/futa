@@ -372,7 +372,11 @@ export function HomePage() {
                 rows={2}
               />
 
-              {announceMessage && <Alert severity="info">{announceMessage}</Alert>}
+              {announceMessage && (
+                <Alert severity="info" onClose={() => setAnnounceMessage('')}>
+                  {announceMessage}
+                </Alert>
+              )}
 
               <Stack direction="row" spacing={1}>
                 <Button type="submit" variant="contained">

@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * Calls `clear` after `delay` ms whenever `value` becomes truthy.
- * Cancels the timer if value changes before it fires.
+ * Optionally calls `clear` after `delay` ms whenever `value` becomes truthy.
+ *
+ * Auto-hide is opt-in: with the default `delay` of 0 a message stays on screen
+ * until the user dismisses it or a newer message replaces it.
  */
-export function useAutoHide(value: string, clear: () => void, delay = 4000) {
+export function useAutoHide(value: string, clear: () => void, delay = 0) {
   const clearRef = useRef(clear)
 
   useEffect(() => {
@@ -12,7 +14,7 @@ export function useAutoHide(value: string, clear: () => void, delay = 4000) {
   }, [clear])
 
   useEffect(() => {
-    if (!value) return
+    if (!value || delay <= 0) return
     const id = setTimeout(() => clearRef.current(), delay)
     return () => clearTimeout(id)
   }, [value, delay])

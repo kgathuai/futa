@@ -37,7 +37,7 @@ export function FriendliesPage() {
   const [requestMessage, setRequestMessage] = useState('')
   const [showSignedIn, setShowSignedIn] = useState(true)
   useAutoHide(requestMessage, () => setRequestMessage(''))
-  useAutoHide(loggedInUser ?? '', () => setShowSignedIn(false), 5000)
+  useAutoHide(loggedInUser ?? '', () => setShowSignedIn(false))
   const [statusFilter, setStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'declined'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedFriendlyForDetails, setSelectedFriendlyForDetails] = useState<string | null>(null)

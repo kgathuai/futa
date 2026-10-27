@@ -603,7 +603,11 @@ export function TournamentsPage() {
         </Card>
       )}
 
-      {message && <Alert severity="info">{message}</Alert>}
+      {message && (
+        <Alert severity="info" onClose={() => setMessage('')}>
+          {message}
+        </Alert>
+      )}
 
       {canCreateHere && (
         <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>

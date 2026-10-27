@@ -74,7 +74,7 @@ export function TeamDashboardPage() {
   useAutoHide(globalMessage, () => setGlobalMessage(''))
   useAutoHide(globalError, () => setGlobalError(''))
   const [showSignedIn, setShowSignedIn] = useState(true)
-  useAutoHide(loggedInUser ?? '', () => setShowSignedIn(false), 5000)
+  useAutoHide(loggedInUser ?? '', () => setShowSignedIn(false))
   const [openCreateForm, setOpenCreateForm] = useState<CreateFormKey | null>(null)
 
   const [awayTeam, setAwayTeam] = useState('')
@@ -1045,8 +1045,16 @@ export function TeamDashboardPage() {
         </Alert>
       )}
 
-      {globalError && <Alert severity="error">{globalError}</Alert>}
-      {globalMessage && <Alert severity="success">{globalMessage}</Alert>}
+      {globalError && (
+        <Alert severity="error" onClose={() => setGlobalError('')}>
+          {globalError}
+        </Alert>
+      )}
+      {globalMessage && (
+        <Alert severity="success" onClose={() => setGlobalMessage('')}>
+          {globalMessage}
+        </Alert>
+      )}
 
       {openCreateForm === null ? (
         <Card

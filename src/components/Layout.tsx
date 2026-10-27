@@ -868,7 +868,11 @@ export function Layout() {
               </Stack>
 
               {avatarMessage && (
-                <Alert severity="info" sx={{ mb: 1.6, py: 0.3, fontSize: '0.78rem' }}>
+                <Alert
+                  severity="info"
+                  onClose={() => setAvatarMessage('')}
+                  sx={{ mb: 1.6, py: 0.3, fontSize: '0.78rem' }}
+                >
                   {avatarMessage}
                 </Alert>
               )}
@@ -1146,7 +1150,11 @@ export function Layout() {
                   {isSavingProfile ? 'Saving…' : 'Save team'}
                 </Button>
                 {profileMessage && (
-                  <Alert severity="info" sx={{ py: 0.3, fontSize: '0.78rem' }}>
+                  <Alert
+                    severity="info"
+                    onClose={() => setProfileMessage('')}
+                    sx={{ py: 0.3, fontSize: '0.78rem' }}
+                  >
                     {profileMessage}
                   </Alert>
                 )}
