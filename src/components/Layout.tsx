@@ -782,8 +782,9 @@ export function Layout() {
         elevation={0}
         sx={{
           bgcolor: 'background.paper',
-          borderTop: '1px solid rgba(76,227,163,0.25)',
-          borderBottom: '1px solid rgba(159,176,201,0.14)',
+          borderTop: '1px solid',
+          borderBottom: '1px solid',
+          borderColor: mode === 'light' ? 'rgba(11,18,32,0.12)' : 'rgba(159,176,201,0.14)',
           overflow: 'visible',
           display: { xs: 'none', sm: 'block' },
         }}
@@ -794,7 +795,16 @@ export function Layout() {
               component="img"
               src="/kabum.png"
               alt="Futa logo"
-              sx={{ height: { xs: 82, sm: 130, md: 170 }, maxWidth: { xs: 92, sm: 145, md: 'none' }, width: 'auto', display: 'block', flexShrink: 1, objectFit: 'contain' }}
+              sx={{
+                height: { xs: 82, sm: 130, md: 170 },
+                maxWidth: { xs: 92, sm: 145, md: 'none' },
+                width: 'auto',
+                display: 'block',
+                flexShrink: 1,
+                objectFit: 'contain',
+                // The logo art is white; darken it so it stays readable in light mode.
+                filter: mode === 'light' ? 'brightness(0.25)' : 'none',
+              }}
               style={{ pointerEvents: 'none' }}
             />
 
