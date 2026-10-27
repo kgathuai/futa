@@ -898,8 +898,9 @@ export function Layout() {
           pt: 0.75,
           pb: 'calc(0.75rem + env(safe-area-inset-bottom))',
           bgcolor: 'background.paper',
-          borderTop: '1px solid rgba(255,255,255,0.18)',
-          boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.35)',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.12)',
         }}
       >
         {navLinks.map((link) => {
@@ -916,12 +917,12 @@ export function Layout() {
                 gap: 0.2,
                 px: 0.25,
                 py: 0.35,
-                color: '#ffffff',
+                color: isActive ? 'primary.main' : 'text.secondary',
                 textTransform: 'none',
                 fontSize: '0.64rem',
                 fontWeight: isActive ? 700 : 500,
                 whiteSpace: 'nowrap',
-                '&:hover': { bgcolor: 'transparent' },
+                '&:hover': { bgcolor: 'transparent', color: 'text.primary' },
               }}
             >
               {link.to === '/team-dashboard' ? <DashboardOutlinedIcon sx={{ fontSize: 26 }} />
@@ -937,7 +938,20 @@ export function Layout() {
         <Button
           onClick={() => setIsAuthOpen((prev) => !prev)}
           aria-label="Account"
-          sx={{ minWidth: 0, flex: 1, flexDirection: 'column', gap: 0.2, px: 0.25, py: 0.35, color: '#ffffff', textTransform: 'none', fontSize: '0.64rem', fontWeight: 500, whiteSpace: 'nowrap', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
+          sx={{
+            minWidth: 0,
+            flex: 1,
+            flexDirection: 'column',
+            gap: 0.2,
+            px: 0.25,
+            py: 0.35,
+            color: 'text.secondary',
+            textTransform: 'none',
+            fontSize: '0.64rem',
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+          }}
         >
           {profileAvatar ? (
             <Box
