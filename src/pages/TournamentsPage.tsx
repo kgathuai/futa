@@ -121,6 +121,7 @@ export function TournamentsPage() {
         goalsAgainst: number
         goalDifference: number
         points: number
+        form: Array<'W' | 'D' | 'L'>
       }>
     }
 
@@ -137,22 +138,24 @@ export function TournamentsPage() {
           goalsAgainst: 0,
           goalDifference: 0,
           points: 0,
+          form: [] as Array<'W' | 'D' | 'L'>,
         },
       ]),
     )
+    const resultsByTeam = new Map<string, Array<{ kickoff: number; outcome: 'W' | 'D' | 'L' }>>()
 
     const teamSet = new Set(sortedSelectedTournamentTeams)
-    const relevantMatches = matches.filter((match) => {
-      if (!teamSet.has(match.homeTeam) || !teamSet.has(match.awayTeam)) {
-        return false
-      }
-
-      if (match.sport !== selectedTournament.sport) {
-        return false
-      }
-
-      return Number.isFinite(match.homeScore) && Number.isFinite(match.awayScore)
-    })
+    // Only fixtures that belong to this tournament count towards its table.
+    const tournamentMatches = matches.filter((match) =>
+      match.tournamentId
+        ? match.tournamentId === selectedTournament.id
+        : match.sport === selectedTournament.sport &&
+          teamSet.has(match.homeTeam) &&
+          teamSet.has(match.awayTeam),
+    )
+    const relevantMatches = tournamentMatches.filter((match) =>
+      Number.isFinite(match.homeScore) && Number.isFinite(match.awayScore),
+    )
 
     for (const match of relevantMatches) {
       const home = rows.get(match.homeTeam)
@@ -171,6 +174,8 @@ export function TournamentsPage() {
       away.goalsFor += awayScore
       away.goalsAgainst += homeScore
 
+      const kickoffMs = new Date(match.kickoff).getTime() || 0
+
       if (homeScore > awayScore) {
         home.won += 1
         home.points += 3
@@ -185,10 +190,22 @@ export function TournamentsPage() {
         home.points += 1
         away.points += 1
       }
+
+      const pushResult = (teamName: string, outcome: 'W' | 'D' | 'L') => {
+        const list = resultsByTeam.get(teamName) ?? []
+        list.push({ kickoff: kickoffMs, outcome })
+        resultsByTeam.set(teamName, list)
+      }
+      pushResult(match.homeTeam, homeScore > awayScore ? 'W' : homeScore === awayScore ? 'D' : 'L')
+      pushResult(match.awayTeam, awayScore > homeScore ? 'W' : homeScore === awayScore ? 'D' : 'L')
     }
 
     for (const row of rows.values()) {
       row.goalDifference = row.goalsFor - row.goalsAgainst
+      row.form = (resultsByTeam.get(row.team) ?? [])
+        .sort((a, b) => b.kickoff - a.kickoff)
+        .slice(0, 5)
+        .map((entry) => entry.outcome)
     }
 
     return Array.from(rows.values()).sort((a, b) => {
@@ -205,25 +222,83 @@ export function TournamentsPage() {
     })
   }, [matches, selectedTournament, sortedSelectedTournamentTeams])
 
+  // Share of this tournament's scheduled fixtures that have a recorded result.
   const selectedTournamentEfficiency = useMemo(() => {
-    if (selectedTournamentStandings.length === 0) {
+    if (!selectedTournament) {
       return 0
     }
 
-    const totalPoints = selectedTournamentStandings.reduce((sum, row) => sum + row.points, 0)
-    const maxPoints = selectedTournamentStandings.reduce((sum, row) => sum + row.played * 3, 0)
-    if (maxPoints === 0) {
+    const teamSet = new Set(sortedSelectedTournamentTeams)
+    const scheduled = matches.filter((match) =>
+      match.tournamentId
+        ? match.tournamentId === selectedTournament.id
+        : match.sport === selectedTournament.sport &&
+          teamSet.has(match.homeTeam) &&
+          teamSet.has(match.awayTeam),
+    )
+    if (scheduled.length === 0) {
       return 0
     }
 
-    return Math.round((totalPoints / maxPoints) * 1000) / 10
-  }, [selectedTournamentStandings])
+    const completed = scheduled.filter(
+      (match) => Number.isFinite(match.homeScore) && Number.isFinite(match.awayScore),
+    ).length
+
+    return Math.round((completed / scheduled.length) * 100)
+  }, [matches, selectedTournament, sortedSelectedTournamentTeams])
   const estimatedPrizePool = useMemo(() => {
     const base = 5000
     const perTeam = 750
     return base + selectedTournamentTeams.length * perTeam
   }, [selectedTournamentTeams.length])
-  const mvpPreview = selectedTournamentStandings[0] ?? null
+  // MVP = best goals + assists contribution across this tournament's fixtures.
+  const mvpPreview = useMemo(() => {
+    if (!selectedTournament) {
+      return null
+    }
+
+    const tournamentMatches = matches.filter((match) =>
+      match.tournamentId
+        ? match.tournamentId === selectedTournament.id
+        : match.sport === selectedTournament.sport &&
+          sortedSelectedTournamentTeams.includes(match.homeTeam) &&
+          sortedSelectedTournamentTeams.includes(match.awayTeam),
+    )
+
+    const tally = new Map<string, { team: string; goals: number; assists: number }>()
+    for (const match of tournamentMatches) {
+      for (const goal of match.goals ?? []) {
+        const scorer = goal.scorer?.trim()
+        const team = goal.team?.trim()
+        if (!scorer || !team) {
+          continue
+        }
+        const key = `${team}::${scorer}`
+        const entry = tally.get(key) ?? { team, goals: 0, assists: 0 }
+        entry.goals += 1
+        tally.set(key, entry)
+
+        const assist = goal.assist?.trim()
+        if (assist) {
+          const assistKey = `${team}::${assist}`
+          const assistEntry = tally.get(assistKey) ?? { team, goals: 0, assists: 0 }
+          assistEntry.assists += 1
+          tally.set(assistKey, assistEntry)
+        }
+      }
+    }
+
+    let best: { team: string; player: string; goals: number; assists: number; score: number } | null = null
+    for (const [key, entry] of tally) {
+      const player = key.split('::')[1] ?? key
+      const score = entry.goals * 3 + entry.assists * 2
+      if (!best || score > best.score || (score === best.score && entry.goals > best.goals)) {
+        best = { team: entry.team, player, goals: entry.goals, assists: entry.assists, score }
+      }
+    }
+
+    return best
+  }, [matches, selectedTournament, sortedSelectedTournamentTeams])
 
   const tournamentStats = useMemo(() => {
     const scorerMap = new Map<string, { player: string; team: string; goals: number }>()
@@ -879,9 +954,16 @@ export function TournamentsPage() {
                   <Avatar sx={{ width: 24, height: 24, fontSize: '0.74rem', bgcolor: 'rgba(173,255,15,0.15)', color: '#adff0f' }}>
                     {(mvpPreview?.team ?? 'N').charAt(0).toUpperCase()}
                   </Avatar>
-                  <Typography sx={{ fontWeight: 700, fontSize: '0.86rem' }}>
-                    {mvpPreview?.team ?? 'No data'}
-                  </Typography>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.86rem', lineHeight: 1.2 }} noWrap>
+                      {mvpPreview?.player ?? 'No data'}
+                    </Typography>
+                    {mvpPreview && (
+                      <Typography sx={{ color: '#8e98b0', fontSize: '0.64rem' }} noWrap>
+                        {mvpPreview.team} · {mvpPreview.goals}G {mvpPreview.assists}A
+                      </Typography>
+                    )}
+                  </Box>
                 </Stack>
               </CardContent>
             </Card>
@@ -978,13 +1060,7 @@ export function TournamentsPage() {
                     </Box>
 
                     {selectedTournamentStandings.slice(0, 8).map((standing, index) => {
-                      const formBadges = [
-                        standing.won > standing.lost ? 'W' : 'D',
-                        standing.won >= standing.drawn ? 'W' : 'D',
-                        standing.lost > 0 ? 'L' : 'W',
-                        standing.drawn > 0 ? 'D' : 'W',
-                        standing.won > 0 ? 'W' : 'D',
-                      ]
+                      const formBadges = standing.form
 
                       return (
                         <Box

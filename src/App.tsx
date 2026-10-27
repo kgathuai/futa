@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { AccountTokenPage } from './pages/AccountTokenPage'
 import { AdminPage } from './pages/AdminPage'
 import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -23,6 +24,8 @@ function App() {
         <Route path="/team" element={<TeamPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/reset-password" element={<AccountTokenPage mode="reset" />} />
+        <Route path="/verify-email" element={<AccountTokenPage mode="verify" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

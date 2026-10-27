@@ -21,6 +21,7 @@ export interface AccountRecord {
   email: string
   password: string
   avatar?: string
+  emailVerified?: boolean
 }
 
 export interface TeamPayload {
@@ -191,6 +192,8 @@ const accountSchema = new Schema(
     password: { type: String, required: true },
     // Data URL or remote URL for the account profile picture.
     avatar: { type: String, required: false, default: '' },
+    // Accounts created before verification existed are treated as verified.
+    emailVerified: { type: Boolean, required: false, default: false },
   },
   { versionKey: false, timestamps: true },
 )
@@ -230,6 +233,18 @@ const friendlyRequestSchema = new Schema(
   { versionKey: false, timestamps: true },
 )
 
+const authTokenSchema = new Schema(
+  {
+    token: { type: String, required: true, unique: true },
+    accountId: { type: Schema.Types.ObjectId, required: true, ref: 'Account' },
+    type: { type: String, required: true },
+    expiresAt: { type: Date, required: true },
+    usedAt: { type: Date, required: false },
+  },
+  { versionKey: false },
+)
+authTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+
 const notificationSchema = new Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -267,6 +282,7 @@ const AccountModel = mongoose.models.Account || mongoose.model('Account', accoun
 const SessionModel = mongoose.models.Session || mongoose.model('Session', sessionSchema)
 const FriendlyRequestModel = mongoose.models.FriendlyRequest || mongoose.model('FriendlyRequest', friendlyRequestSchema)
 const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema)
+const AuthTokenModel = mongoose.models.AuthToken || mongoose.model('AuthToken', authTokenSchema)
 
 type AccountDoc = InferSchemaType<typeof accountSchema> & { _id: mongoose.Types.ObjectId }
 
@@ -283,6 +299,8 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   email: account.email,
   password: account.password,
   avatar: account.avatar ?? '',
+  // Missing on legacy documents → treat as verified so nobody is locked out.
+  emailVerified: account.emailVerified !== false,
 })
 
 type AccountSummaryDoc = {
@@ -829,6 +847,7 @@ export const store = {
       sport: payload.sport,
       email: payload.email.toLowerCase(),
       password: hashPassword(payload.password),
+      emailVerified: false,
     })
 
     return toPublicAccount(account.toObject() as AccountDoc)
@@ -854,6 +873,62 @@ export const store = {
     const account = await AccountModel.findByIdAndUpdate(
       accountId,
       { $set: { avatar } },
+      { returnDocument: 'after' },
+    ).lean<AccountDoc | null>()
+
+    return account ? toPublicAccount(account) : null
+  },
+  createAuthToken: async (accountId: string, type: 'reset' | 'verify', ttlMinutes = 60) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60_000)
+    await AuthTokenModel.create({ token, accountId, type, expiresAt })
+    return { token, expiresAt }
+  },
+  consumeAuthToken: async (token: string, type: 'reset' | 'verify') => {
+    const record = await AuthTokenModel.findOne({ token, type, usedAt: { $exists: false } }).lean<{
+      _id: mongoose.Types.ObjectId
+      accountId: mongoose.Types.ObjectId
+      expiresAt: Date
+    } | null>()
+
+    if (!record || new Date(record.expiresAt).getTime() < Date.now()) {
+      return null
+    }
+
+    await AuthTokenModel.updateOne({ _id: record._id }, { usedAt: new Date() })
+    return record.accountId.toString()
+  },
+  setAccountPassword: async (accountId: string, password: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(
+      accountId,
+      { password: hashPassword(password) },
+      { returnDocument: 'after' },
+    ).lean<AccountDoc | null>()
+
+    if (!account) {
+      return null
+    }
+
+    // Changing the password signs every existing session out.
+    await SessionModel.deleteMany({ accountId: account._id })
+    return toPublicAccount(account)
+  },
+  markEmailVerified: async (accountId: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(
+      accountId,
+      { emailVerified: true },
       { returnDocument: 'after' },
     ).lean<AccountDoc | null>()
 

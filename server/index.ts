@@ -4,6 +4,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { connectDatabase, store, type AccountRecord, type TeamPayload } from './store.ts'
+import { buildLink, isEmailConfigured, sendEmail } from './email.ts'
 
 const app = express()
 const port = Number(process.env.PORT ?? 4000)
@@ -193,6 +194,7 @@ const sanitizeAccount = (account: AccountRecord) => ({
   sport: account.sport,
   email: account.email,
   avatar: account.avatar ?? '',
+  emailVerified: account.emailVerified !== false,
 })
 
 const sanitizeMatchForViewer = (match: MatchWithInteractions, viewerAccountId?: string) => {
@@ -247,6 +249,49 @@ const getRequestUser = async (authorizationHeader: string | undefined): Promise<
     team: account.team,
     email: account.email,
   }
+}
+
+// Very small in-memory limiter for the auth surface (per IP + bucket).
+const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+const rateLimit = (bucket: string, max: number, windowMs: number) => {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const key = `${bucket}:${req.ip ?? 'unknown'}`
+    const now = Date.now()
+    const entry = rateBuckets.get(key)
+
+    if (!entry || entry.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + windowMs })
+      next()
+      return
+    }
+
+    if (entry.count >= max) {
+      res.status(429).json({ error: 'Too many attempts. Please try again in a few minutes.' })
+      return
+    }
+
+    entry.count += 1
+    next()
+  }
+}
+
+const sendVerificationEmail = async (account: { id: string; name: string; email: string }) => {
+  const issued = await store.createAuthToken(account.id, 'verify', 60 * 24)
+  if (!issued) {
+    return { delivered: false }
+  }
+
+  const link = buildLink('/verify-email', issued.token)
+  return sendEmail({
+    to: account.email,
+    subject: 'Verify your Futa account',
+    text: `Hi ${account.name || 'there'},
+
+Confirm your email address to finish setting up your Futa account:
+${link}
+
+If you did not create this account you can ignore this message.`,
+  })
 }
 
 app.get('/api/health', (_req, res) => {
@@ -1239,6 +1284,9 @@ app.post('/api/auth/register', async (req, res) => {
   })
   const session = await store.createSession(account.id)
 
+  // Fire-and-forget: registration must succeed even if email delivery fails.
+  void sendVerificationEmail(account).catch(() => undefined)
+
   res.status(201).json({
     token: session.token,
     user: sanitizeAccount(account),
@@ -1271,6 +1319,120 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({
     token: session.token,
     user: sanitizeAccount(result.account),
+  })
+})
+
+app.post('/api/auth/forgot-password', rateLimit('forgot', 5, 15 * 60_000), async (req, res) => {
+  const email = (req.body as { email?: string }).email?.trim().toLowerCase() ?? ''
+
+  // Always answer the same way so the endpoint cannot be used to probe accounts.
+  const genericResponse = {
+    message: 'If that email is registered, a reset link is on its way.',
+    deliveryConfigured: isEmailConfigured(),
+  }
+
+  if (!email) {
+    res.status(400).json({ error: 'Enter the email address on your account.' })
+    return
+  }
+
+  const account = await store.findAccountByEmail(email)
+  if (!account) {
+    res.json(genericResponse)
+    return
+  }
+
+  const issued = await store.createAuthToken(account.id, 'reset', 60)
+  if (!issued) {
+    res.json(genericResponse)
+    return
+  }
+
+  const link = buildLink('/reset-password', issued.token)
+  const delivery = await sendEmail({
+    to: account.email,
+    subject: 'Reset your Futa password',
+    text: `Hi ${account.name || 'there'},
+
+Use this link within the next hour to choose a new password:
+${link}
+
+If you did not request this, you can safely ignore the email.`,
+  })
+
+  res.json({ ...genericResponse, deliveryConfigured: delivery.delivered || isEmailConfigured() })
+})
+
+app.post('/api/auth/reset-password', rateLimit('reset', 10, 15 * 60_000), async (req, res) => {
+  const body = req.body as { token?: string; password?: string }
+  const token = body.token?.trim() ?? ''
+  const password = body.password?.trim() ?? ''
+
+  if (!token || !password) {
+    res.status(400).json({ error: 'Missing reset token or new password.' })
+    return
+  }
+
+  if (password.length < 6) {
+    res.status(400).json({ error: 'Choose a password with at least 6 characters.' })
+    return
+  }
+
+  const accountId = await store.consumeAuthToken(token, 'reset')
+  if (!accountId) {
+    res.status(400).json({ error: 'That reset link is invalid or has expired. Request a new one.' })
+    return
+  }
+
+  const account = await store.setAccountPassword(accountId, password)
+  if (!account) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  res.json({ message: 'Password updated. You can log in with your new password.' })
+})
+
+app.post('/api/auth/verify-email', async (req, res) => {
+  const token = (req.body as { token?: string }).token?.trim() ?? ''
+  if (!token) {
+    res.status(400).json({ error: 'Missing verification token.' })
+    return
+  }
+
+  const accountId = await store.consumeAuthToken(token, 'verify')
+  if (!accountId) {
+    res.status(400).json({ error: 'That verification link is invalid or has expired.' })
+    return
+  }
+
+  await store.markEmailVerified(accountId)
+  res.json({ message: 'Email verified. Thank you!' })
+})
+
+app.post('/api/auth/resend-verification', rateLimit('resend-verify', 5, 15 * 60_000), async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const account = await store.findAccountById(user.id)
+  if (!account) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  if (account.emailVerified !== false) {
+    res.json({ message: 'Your email is already verified.' })
+    return
+  }
+
+  const delivery = await sendVerificationEmail(account)
+  res.json({
+    message: delivery.delivered
+      ? 'Verification link sent. Check your inbox.'
+      : 'Email delivery is not configured on this server yet.',
   })
 })
 

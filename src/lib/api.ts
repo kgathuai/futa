@@ -12,6 +12,7 @@ export interface AuthUser {
   sport: string
   email: string
   avatar?: string
+  emailVerified?: boolean
 }
 
 const AUTH_TOKEN_KEY = 'futa_auth_token'
@@ -168,6 +169,26 @@ export const api = {
     request<{ token: string; user: AuthUser }>('/api/auth/login', {
       method: 'POST',
       body: payload,
+    }),
+  forgotPassword: (email: string) =>
+    request<{ message: string; deliveryConfigured: boolean }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: { email },
+    }),
+  resetPassword: (token: string, password: string) =>
+    request<{ message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: { token, password },
+    }),
+  verifyEmail: (token: string) =>
+    request<{ message: string }>('/api/auth/verify-email', {
+      method: 'POST',
+      body: { token },
+    }),
+  resendVerification: (token: string) =>
+    request<{ message: string }>('/api/auth/resend-verification', {
+      method: 'POST',
+      token,
     }),
   me: (token: string) =>
     request<{ user: AuthUser }>('/api/auth/me', {

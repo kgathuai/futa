@@ -144,9 +144,13 @@ export function Layout() {
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [authView, setAuthView] = useState<'login' | 'register'>('login')
+  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login')
   const [authMessage, setAuthMessage] = useState('')
   const [toast, setToast] = useState<ToastMessage | null>(null)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [isSendingReset, setIsSendingReset] = useState(false)
+  const [emailVerified, setEmailVerified] = useState(true)
+  const [isResendingVerification, setIsResendingVerification] = useState(false)
   const refereeNoticeShown = useRef(false)
 
   // Auth messages surface at the top of the screen and clear themselves.
@@ -260,6 +264,7 @@ export function Layout() {
       setProfileMessage('')
       setProfileAvatar('')
       setAvatarMessage('')
+      setEmailVerified(true)
       setAuthView('login')
       setIsAuthOpen(true)
       setAuthMessage('Your session has expired. Please log in again.')
@@ -305,6 +310,7 @@ export function Layout() {
         setProfileCounty(response.user.county ?? '')
         setProfileHomeGround(response.user.homeGround ?? '')
         setProfileAvatar(response.user.avatar ?? '')
+        setEmailVerified(response.user.emailVerified !== false)
         void refreshTeam()
       } catch {
         api.clearToken()
@@ -336,6 +342,7 @@ export function Layout() {
       setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
       setProfileAvatar(response.user.avatar ?? '')
+      setEmailVerified(response.user.emailVerified !== false)
       void refreshTeam()
       setAuthMessage(`Signed in as ${response.user.name || response.user.email} (${response.user.role}).`)
       setLoginEmail('')
@@ -403,6 +410,50 @@ export function Layout() {
     }
   }
 
+  const handleForgotPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const email = forgotEmail.trim().toLowerCase()
+    if (!email) {
+      setAuthMessage('Enter the email address on your account.')
+      return
+    }
+
+    setIsSendingReset(true)
+    try {
+      const response = await api.forgotPassword(email)
+      setAuthMessage(
+        response.deliveryConfigured
+          ? response.message
+          : `${response.message} (This server has no email provider configured yet.)`,
+      )
+      setAuthView('login')
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : 'Could not start the reset.')
+    } finally {
+      setIsSendingReset(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    setIsResendingVerification(true)
+    try {
+      const response = await api.resendVerification(token)
+      setToast({ message: response.message, severity: 'info' })
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Could not resend the verification email.',
+        severity: 'error',
+      })
+    } finally {
+      setIsResendingVerification(false)
+    }
+  }
+
   const handleLogout = async () => {
     const token = api.getToken()
     if (token) {
@@ -427,6 +478,7 @@ export function Layout() {
     setProfileMessage('')
     setProfileAvatar('')
     setAvatarMessage('')
+    setEmailVerified(true)
     void refreshTeam()
     setAuthMessage('You have logged out.')
   }
@@ -788,7 +840,7 @@ export function Layout() {
         <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5 }} role="presentation">
           <Stack direction="row" sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              {loggedInUser ? 'Account' : authView === 'login' ? 'Login' : 'Register'}
+              {loggedInUser ? 'Account' : authView === 'login' ? 'Login' : authView === 'forgot' ? 'Reset password' : 'Register'}
             </Typography>
             <IconButton onClick={() => setIsAuthOpen(false)} aria-label="Close authentication drawer">
               <CloseRoundedIcon />
@@ -879,6 +931,26 @@ export function Layout() {
                   </Stack>
                 </Box>
               </Stack>
+
+              {!emailVerified && (
+                <Alert
+                  severity="warning"
+                  sx={{ mb: 1.4, py: 0.3, fontSize: '0.76rem' }}
+                  action={
+                    <Button
+                      size="small"
+                      color="inherit"
+                      onClick={() => void handleResendVerification()}
+                      disabled={isResendingVerification}
+                      sx={{ fontSize: '0.7rem' }}
+                    >
+                      {isResendingVerification ? 'Sending…' : 'Resend'}
+                    </Button>
+                  }
+                >
+                  Verify your email to secure your account.
+                </Alert>
+              )}
 
               <input
                 ref={avatarInputRef}
@@ -1295,9 +1367,44 @@ export function Layout() {
                 Login
               </Button>
               <Typography variant="body2" color="text.secondary">
+                <Button
+                  onClick={() => {
+                    setForgotEmail(loginEmail)
+                    setAuthView('forgot')
+                  }}
+                  variant="text"
+                  size="small"
+                  sx={{ p: 0, minWidth: 0 }}
+                >
+                  Forgot password?
+                </Button>
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 No account yet?{' '}
                 <Button onClick={() => setAuthView('register')} variant="text" size="small" sx={{ p: 0, minWidth: 0 }}>
                   Register
+                </Button>
+              </Typography>
+            </Box>
+          ) : authView === 'forgot' ? (
+            <Box component="form" onSubmit={handleForgotPassword} sx={{ display: 'grid', gap: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Enter the email on your account and we will send a link to choose a new password.
+              </Typography>
+              <TextField
+                type="email"
+                label="Email"
+                value={forgotEmail}
+                onChange={(event) => setForgotEmail(event.target.value)}
+                placeholder="name@email.com"
+                required
+              />
+              <Button type="submit" variant="contained" size="large" disabled={isSendingReset}>
+                {isSendingReset ? 'Sending…' : 'Send reset link'}
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                <Button onClick={() => setAuthView('login')} variant="text" size="small" sx={{ p: 0, minWidth: 0 }}>
+                  Back to login
                 </Button>
               </Typography>
             </Box>
