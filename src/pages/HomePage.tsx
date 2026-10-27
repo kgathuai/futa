@@ -9,6 +9,7 @@ import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
+import { ShareButtons } from '../components/ShareButtons'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -480,6 +481,13 @@ export function HomePage() {
                     {match.sport} · {match.category}
                   </Typography>
                   <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
+                    <ShareButtons
+                      payload={{
+                        title: `${match.homeTeam} vs ${match.awayTeam}`,
+                        text: `${match.homeTeam} vs ${match.awayTeam} · ${formatDateTime(match.kickoff)} · ${match.venue}`,
+                        url: `${window.location.origin}/`,
+                      }}
+                    />
                     {canModerateMatches && (
                       <IconButton
                         size="small"

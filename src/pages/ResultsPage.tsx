@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Box, Card, CardContent, Chip, Stack, TextField, Typography, Button } from '@mui/material'
 import { useAppData } from '../context/AppContext'
 import { useNavigate, useOutletContext } from 'react-router-dom'
+import { ShareButtons } from '../components/ShareButtons'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -138,9 +139,18 @@ export function ResultsPage() {
               {results.map((result) => (
                 <Card key={result.id} variant="outlined">
                   <CardContent>
-                    <Stack direction="row" sx={{ mb: 1.2, justifyContent: 'space-between' }}>
+                    <Stack direction="row" sx={{ mb: 1.2, justifyContent: 'space-between', alignItems: 'center' }}>
                       <Chip label={result.playedOn} size="small" />
-                      <Chip label="played" size="small" color="primary" sx={{ color: '#07111f' }} />
+                      <Stack direction="row" spacing={0.4} sx={{ alignItems: 'center' }}>
+                        <Chip label="played" size="small" color="primary" sx={{ color: '#07111f' }} />
+                        <ShareButtons
+                          payload={{
+                            title: `${result.homeTeam} ${result.homeScore} - ${result.awayScore} ${result.awayTeam}`,
+                            text: `${result.homeTeam} ${result.homeScore} - ${result.awayScore} ${result.awayTeam} · ${result.venue}`,
+                            url: `${window.location.origin}/results`,
+                          }}
+                        />
+                      </Stack>
                     </Stack>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {result.homeTeam} {result.homeScore} - {result.awayScore} {result.awayTeam}

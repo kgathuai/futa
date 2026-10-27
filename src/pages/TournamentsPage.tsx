@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { useLocation, useOutletContext } from 'react-router-dom'
+import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 import { FixturesTab } from '../components/FixturesTab'
 import { LoadingBar } from '../components/LoadingBar'
+import { ShareButtons } from '../components/ShareButtons'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 
@@ -19,6 +20,7 @@ const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball'
 export function TournamentsPage() {
   const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const navState = location.state as { openTournamentId?: string; showTournamentList?: boolean } | null
   const showTournamentList = Boolean(navState?.showTournamentList)
   const [selectedSport, setSelectedSport] = useState('All sports')
@@ -429,6 +431,20 @@ export function TournamentsPage() {
       setSelectedSport('All sports')
     }
   }, [showTournamentList])
+
+  // Deep links such as /tournaments?tournament=<id> open the detail view.
+  useEffect(() => {
+    const linkedId = searchParams.get('tournament')
+    if (!linkedId || tournaments.length === 0) {
+      return
+    }
+
+    const linked = tournaments.find((tournament) => tournament.id === linkedId)
+    if (linked) {
+      setSelectedTournamentId(linked.id)
+      setSelectedSport(linked.sport)
+    }
+  }, [searchParams, tournaments])
 
   useEffect(() => {
     if (filteredTournaments.length === 0) {
@@ -852,7 +868,7 @@ export function TournamentsPage() {
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
               <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' } }}>
                 <Stack spacing={1.2}>
-                  <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
+                  <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.8 }}>
                     <Chip label={selectedTournament.status.toUpperCase()} size="small" sx={{ bgcolor: selectedTournament.status === 'finished' ? '#444958' : '#adff0f', color: selectedTournament.status === 'finished' ? '#f4f7ff' : '#122000', fontWeight: 800, height: { xs: 22, md: 24 }, '& .MuiChip-label': { fontSize: { xs: '0.58rem', md: '0.66rem' }, px: { xs: 0.8, md: 1 } } }} />
                     <Chip
                       label={(selectedTournament.type ?? 'open').toUpperCase()}
@@ -868,9 +884,18 @@ export function TournamentsPage() {
                     />
                   </Stack>
 
-                  <Typography variant="h3" sx={{ fontSize: { xs: '0.92rem', md: '1.15rem' }, fontWeight: 800, lineHeight: 1.15 }}>
-                    {selectedTournament.name}
-                  </Typography>
+                  <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                    <Typography variant="h3" sx={{ fontSize: { xs: '0.92rem', md: '1.15rem' }, fontWeight: 800, lineHeight: 1.15 }}>
+                      {selectedTournament.name}
+                    </Typography>
+                    <ShareButtons
+                      payload={{
+                        title: `${selectedTournament.name} — ${selectedTournament.sport}`,
+                        text: `${selectedTournament.name} · ${selectedTournament.period} · ${selectedTournament.venue}`,
+                        url: `${window.location.origin}/tournaments?tournament=${selectedTournament.id}`,
+                      }}
+                    />
+                  </Stack>
 
                   <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', color: '#99a3bb' }}>
                     <Typography sx={{ fontSize: '0.7rem' }}>{selectedTournament.period}</Typography>
