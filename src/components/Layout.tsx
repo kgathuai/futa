@@ -44,17 +44,19 @@ import { LoadingBar } from './LoadingBar'
 import { TopToast } from './TopToast'
 import type { ToastMessage } from './TopToast'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
+import { useI18n } from '../lib/i18n'
+import type { TranslationKey } from '../lib/i18n'
 import { computeTeamStats } from '../lib/teamStats'
 import { fileToAvatarDataUrl } from '../lib/avatar'
 import { hasRecordedScore } from '../lib/matchStatus'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
-const links = [
-  { to: '/', label: 'Home' },
-  { to: '/friendlies', label: 'Friendlies' },
-  { to: '/team', label: 'Teams' },
-  { to: '/tournaments', label: 'Tournaments' },
+const links: Array<{ to: string; key: TranslationKey }> = [
+  { to: '/', key: 'home' },
+  { to: '/friendlies', key: 'friendlies' },
+  { to: '/team', key: 'teams' },
+  { to: '/tournaments', key: 'tournaments' },
 ]
 
 interface AuthOutletContext {
@@ -147,6 +149,7 @@ export function Layout() {
   const location = useLocation()
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
+  const { language, setLanguage, t } = useI18n()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login')
   const [authMessage, setAuthMessage] = useState('')
@@ -743,8 +746,8 @@ export function Layout() {
   const canAccessAdmin = Boolean(loggedInUser) && normalizedRole === 'superadmin'
 
   const navLinks = [
-    ...(canAccessDashboard ? [{ to: '/team-dashboard', label: 'Dashboard' }] : []),
-    ...(canAccessAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
+    ...(canAccessDashboard ? [{ to: '/team-dashboard', key: 'dashboard' as TranslationKey }] : []),
+    ...(canAccessAdmin ? [{ to: '/admin', key: 'admin' as TranslationKey }] : []),
     ...links,
   ]
 
@@ -820,7 +823,7 @@ export function Layout() {
                         },
                       }}
                     >
-                      {link.label}
+                      {t(link.key)}
                     </Button>
                   )
                 })}
@@ -925,7 +928,7 @@ export function Layout() {
                     : link.to === '/friendlies' ? <SportsSoccerOutlinedIcon sx={{ fontSize: 26 }} />
                       : link.to === '/team' ? <GroupsOutlinedIcon sx={{ fontSize: 26 }} />
                         : <EmojiEventsOutlinedIcon sx={{ fontSize: 26 }} />}
-              {link.label}
+              {t(link.key)}
             </Button>
           )
         })}
@@ -958,7 +961,7 @@ export function Layout() {
         <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5 }} role="presentation">
           <Stack direction="row" sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              {loggedInUser ? 'Account' : authView === 'login' ? 'Login' : authView === 'forgot' ? 'Reset password' : 'Register'}
+              {loggedInUser ? t('account') : authView === 'login' ? t('login') : authView === 'forgot' ? 'Reset password' : t('register')}
             </Typography>
             <IconButton onClick={() => setIsAuthOpen(false)} aria-label="Close authentication drawer">
               <CloseRoundedIcon />
@@ -1048,6 +1051,23 @@ export function Layout() {
                     )}
                   </Stack>
                 </Box>
+              </Stack>
+
+              <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center', mb: 1.2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
+                  {t('language').toUpperCase()}
+                </Typography>
+                {(['en', 'sw'] as const).map((code) => (
+                  <Button
+                    key={code}
+                    size="small"
+                    variant={language === code ? 'contained' : 'outlined'}
+                    onClick={() => setLanguage(code)}
+                    sx={{ minWidth: 0, px: 1, py: 0.1, fontSize: '0.64rem', fontWeight: 800 }}
+                  >
+                    {code === 'en' ? 'EN' : 'SW'}
+                  </Button>
+                ))}
               </Stack>
 
               {!emailVerified && (

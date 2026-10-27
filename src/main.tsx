@@ -5,6 +5,7 @@ import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App.tsx'
 import { AppProvider } from './context/AppContext'
+import { LanguageProvider } from './lib/i18n'
 
 registerSW({ immediate: true })
 
@@ -88,9 +89,11 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
       <BrowserRouter>
-        <AppProvider>
-          <App />
-        </AppProvider>
+        <LanguageProvider>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </LanguageProvider>
       </BrowserRouter>
     </ThemeProvider>
   </StrictMode>,
