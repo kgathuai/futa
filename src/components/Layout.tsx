@@ -42,7 +42,6 @@ import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { computeTeamStats } from '../lib/teamStats'
 import { fileToAvatarDataUrl } from '../lib/avatar'
 import { hasRecordedScore } from '../lib/matchStatus'
-import type { FormResult } from '../lib/teamStats'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
 
@@ -91,38 +90,6 @@ const roleLabel = (role: string | null | undefined) => {
     return 'Player'
   }
   return ROLE_LABELS[key] ?? key.toUpperCase()
-}
-
-const formPalette = (result: FormResult) => {
-  if (result === 'W') {
-    return { bg: 'rgba(76,227,163,0.16)', color: '#4ce3a3', border: 'rgba(76,227,163,0.5)' }
-  }
-  if (result === 'D') {
-    return { bg: 'rgba(250,204,21,0.14)', color: '#facc15', border: 'rgba(250,204,21,0.45)' }
-  }
-  return { bg: 'rgba(255,107,117,0.14)', color: '#ff8a94', border: 'rgba(255,107,117,0.45)' }
-}
-
-const FormDot = ({ result }: { result: FormResult }) => {
-  const palette = formPalette(result)
-  return (
-    <Box
-      sx={{
-        width: 22,
-        height: 22,
-        borderRadius: '50%',
-        display: 'grid',
-        placeItems: 'center',
-        fontSize: '0.66rem',
-        fontWeight: 800,
-        bgcolor: palette.bg,
-        color: palette.color,
-        border: `1px solid ${palette.border}`,
-      }}
-    >
-      {result}
-    </Box>
-  )
 }
 
 const StatBox = ({ label, value, accent }: { label: string; value: string | number; accent?: string }) => (
@@ -937,25 +904,7 @@ export function Layout() {
                         <StatBox label="Goals against" value={myTeamStats.goalsAgainst} />
                       </Box>
 
-                      <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.8 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
-                          FORM
-                        </Typography>
-                        {myTeamStats.form.length > 0 ? (
-                          myTeamStats.form.map((result, index) => <FormDot key={`form-${index}`} result={result} />)
-                        ) : (
-                          <Typography variant="caption" color="text.secondary">
-                            No results yet
-                          </Typography>
-                        )}
-                      </Stack>
-
                       <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary">
-                          Home {myTeamStats.homeRecord.wins}W · {myTeamStats.homeRecord.draws}D ·{' '}
-                          {myTeamStats.homeRecord.losses}L &nbsp;|&nbsp; Away {myTeamStats.awayRecord.wins}W ·{' '}
-                          {myTeamStats.awayRecord.draws}D · {myTeamStats.awayRecord.losses}L
-                        </Typography>
                         {myTeamStats.lastResult && (
                           <Typography variant="caption" color="text.secondary">
                             Last: {myTeamStats.lastResult.outcome} {myTeamStats.lastResult.score} vs{' '}
