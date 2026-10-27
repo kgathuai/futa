@@ -55,6 +55,14 @@ const appTheme = createTheme({
         },
       },
     },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          fontSize: '0.8rem',
+          minHeight: 34,
+        },
+      },
+    },
     MuiChip: {
       styleOverrides: {
         root: {

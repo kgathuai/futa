@@ -348,10 +348,10 @@ export function FriendliesPage() {
       <Stack spacing={2.2}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.2 }}>
           <Box>
-            <Typography variant="overline" sx={{ color: '#7f8799', letterSpacing: '0.08em', fontWeight: 700 }}>
+            <Typography variant="overline" sx={{ color: '#7f8799', letterSpacing: '0.06em', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.6 }}>
               Match Schedule
             </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.15rem', md: '1.075rem' } }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '0.95rem', md: '1rem' }, lineHeight: 1.2 }}>
               All Friendlies
             </Typography>
           </Box>
@@ -365,7 +365,10 @@ export function FriendliesPage() {
                 setStatusFilter(event.target.value as 'all' | 'accepted' | 'pending' | 'declined')
                 setCurrentPage(1)
               }}
-              sx={{ minWidth: 112, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(26,30,45,0.95)' } }}
+              sx={{
+                minWidth: 104,
+                '& .MuiOutlinedInput-root': { bgcolor: 'rgba(26,30,45,0.95)', fontSize: '0.78rem' },
+              }}
             >
               <MenuItem value="all">Filter</MenuItem>
               <MenuItem value="accepted">Accepted</MenuItem>

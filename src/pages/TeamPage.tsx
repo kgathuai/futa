@@ -415,12 +415,12 @@ export function TeamPage() {
         <Box>
           <Stack direction="row" spacing={0.7} sx={{ alignItems: 'center', mb: 0.3 }}>
             <GroupsOutlinedIcon sx={{ fontSize: '0.9rem', color: '#4ce3a3' }} />
-            <Typography sx={{ fontSize: '0.56rem', letterSpacing: '0.18em', fontWeight: 800, color: '#5f6a84' }}>
+            <Typography sx={{ fontSize: '0.54rem', letterSpacing: '0.14em', fontWeight: 800, color: '#5f6a84' }}>
               CLUB DIRECTORY
             </Typography>
           </Stack>
           <Typography
-            sx={{ fontSize: { xs: '1.2rem', md: '1.45rem' }, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}
+            sx={{ fontSize: { xs: '1rem', md: '1.15rem' }, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}
           >
             Teams
           </Typography>
