@@ -97,7 +97,12 @@ export interface FriendlyRequest {
 export interface NotificationItem {
   id: string
   accountId: string
-  type: 'friendly-request' | 'friendly-accepted' | 'friendly-declined' | 'match-score-reminder'
+  type:
+    | 'friendly-request'
+    | 'friendly-accepted'
+    | 'friendly-declined'
+    | 'match-score-reminder'
+    | 'comment-reply'
   title: string
   message: string
   relatedFriendlyRequestId?: string

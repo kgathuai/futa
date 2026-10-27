@@ -2,6 +2,18 @@ import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, R
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
+export interface AuthUser {
+  id: string
+  name: string
+  team: string
+  county?: string
+  homeGround?: string
+  role: string
+  sport: string
+  email: string
+  avatar?: string
+}
+
 const AUTH_TOKEN_KEY = 'futa_auth_token'
 const loadingListeners = new Set<(loading: boolean) => void>()
 const apiBaseUrl = (typeof import.meta !== 'undefined' && import.meta.env.VITE_API_BASE_URL) || ''
@@ -145,21 +157,24 @@ export const api = {
       token,
     }),
   register: (payload: { name: string; team: string; county: string; homeGround: string; role: string; sport: string; email: string; password: string }) =>
-    request<{ token: string; user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/register', {
+    request<{ token: string; user: AuthUser }>('/api/auth/register', {
       method: 'POST',
       body: payload,
     }),
   login: (payload: { email: string; password: string }) =>
-    request<{ token: string; user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/login', {
+    request<{ token: string; user: AuthUser }>('/api/auth/login', {
       method: 'POST',
       body: payload,
     }),
   me: (token: string) =>
-    request<{ user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+    request<{ user: AuthUser }>('/api/auth/me', {
       token,
     }),
-  updateProfile: (payload: { team: string; county: string; homeGround: string }, token: string) =>
-    request<{ user: { id: string; name: string; team: string; county?: string; homeGround?: string; role: string; sport: string; email: string } }>('/api/auth/me', {
+  updateProfile: (
+    payload: { team?: string; county?: string; homeGround?: string; avatar?: string },
+    token: string,
+  ) =>
+    request<{ user: AuthUser }>('/api/auth/me', {
       method: 'PATCH',
       body: payload,
       token,

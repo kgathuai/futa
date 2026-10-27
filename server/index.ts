@@ -192,6 +192,7 @@ const sanitizeAccount = (account: AccountRecord) => ({
   role: account.role,
   sport: account.sport,
   email: account.email,
+  avatar: account.avatar ?? '',
 })
 
 const sanitizeMatchForViewer = (match: MatchWithInteractions, viewerAccountId?: string) => {
@@ -1290,22 +1291,53 @@ app.patch('/api/auth/me', async (req, res) => {
     return
   }
 
-  const body = req.body as { team?: string; county?: string; homeGround?: string }
-  const team = body.team?.trim() ?? ''
-  const county = body.county?.trim() ?? ''
-  const homeGround = body.homeGround?.trim() ?? ''
+  const body = req.body as { team?: string; county?: string; homeGround?: string; avatar?: string }
+  const hasProfileFields = body.team !== undefined || body.county !== undefined || body.homeGround !== undefined
+  const hasAvatar = body.avatar !== undefined
 
-  if (team && (!county || !homeGround)) {
-    res.status(400).json({ error: 'County and home ground are required when a team is set.' })
+  if (!hasProfileFields && !hasAvatar) {
+    res.status(400).json({ error: 'Nothing to update.' })
     return
   }
 
-  const account = await store.updateAccountProfile(
-    user.id,
-    team,
-    team ? county : '',
-    team ? homeGround : '',
-  )
+  let account: Awaited<ReturnType<typeof store.updateAccountAvatar>> | null = null
+
+  if (hasProfileFields) {
+    const team = body.team?.trim() ?? ''
+    const county = body.county?.trim() ?? ''
+    const homeGround = body.homeGround?.trim() ?? ''
+
+    if (team && (!county || !homeGround)) {
+      res.status(400).json({ error: 'County and home ground are required when a team is set.' })
+      return
+    }
+
+    account = await store.updateAccountProfile(
+      user.id,
+      team,
+      team ? county : '',
+      team ? homeGround : '',
+    )
+  }
+
+  if (hasAvatar) {
+    const avatar = (body.avatar ?? '').trim()
+    const isRemoteUrl = /^https?:\/\//i.test(avatar)
+    const isDataUrl = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(avatar)
+
+    if (avatar && !isRemoteUrl && !isDataUrl) {
+      res.status(400).json({ error: 'Profile picture must be an image URL or an uploaded image.' })
+      return
+    }
+
+    if (avatar.length > 600_000) {
+      res.status(413).json({ error: 'That image is too large. Use one under 400 KB.' })
+      return
+    }
+
+    account = await store.updateAccountAvatar(user.id, avatar)
+  }
+
   if (!account) {
     res.status(404).json({ error: 'Account not found.' })
     return

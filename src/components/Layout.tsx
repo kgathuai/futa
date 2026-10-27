@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import {
   Alert,
   AppBar,
@@ -24,6 +24,7 @@ import {
 } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded'
+import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
@@ -38,6 +39,8 @@ import { useAutoHide } from '../lib/useAutoHide'
 import { useAppData } from '../context/AppContext'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { computeTeamStats } from '../lib/teamStats'
+import { fileToAvatarDataUrl } from '../lib/avatar'
+import { hasRecordedScore } from '../lib/matchStatus'
 import type { FormResult } from '../lib/teamStats'
 
 const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
@@ -54,6 +57,39 @@ interface AuthOutletContext {
   loggedInRole: string | null
   loggedInAccountId: string | null
   loggedInTeam: string | null
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  tm: 'Team Manager',
+  coach: 'Coach',
+  captain: 'Captain',
+  player: 'Player',
+  referee: 'Referee',
+  fan: 'Fan',
+  admin: 'Admin',
+  superadmin: 'Superadmin',
+}
+
+const formatKickoffLabel = (value: string) => {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) {
+    return 'Kickoff TBC'
+  }
+  return date.toLocaleString([], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const roleLabel = (role: string | null | undefined) => {
+  const key = (role ?? '').trim().toLowerCase()
+  if (!key) {
+    return 'Player'
+  }
+  return ROLE_LABELS[key] ?? key.toUpperCase()
 }
 
 const formPalette = (result: FormResult) => {
@@ -146,11 +182,17 @@ export function Layout() {
   const [loggedInRole, setLoggedInRole] = useState<string | null>(null)
   const [loggedInAccountId, setLoggedInAccountId] = useState<string | null>(null)
   const [loggedInTeam, setLoggedInTeam] = useState<string | null>(null)
+  const [loggedInEmail, setLoggedInEmail] = useState('')
+  const [loggedInSport, setLoggedInSport] = useState('')
   const [profileTeam, setProfileTeam] = useState('')
   const [profileCounty, setProfileCounty] = useState('')
   const [profileHomeGround, setProfileHomeGround] = useState('')
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
+  const [profileAvatar, setProfileAvatar] = useState('')
+  const [avatarMessage, setAvatarMessage] = useState('')
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isApiLoading, setIsApiLoading] = useState(false)
 
@@ -161,6 +203,31 @@ export function Layout() {
   const myTeamCounty = myTeamProfile?.county || profileCounty
   const myTeamGround = myTeamProfile?.homeGround || profileHomeGround
   const myTeamLogo = myTeamProfile?.logoUrl
+  const myRoleLabel = roleLabel(loggedInRole)
+
+  const upcomingMatches = useMemo(() => {
+    const now = Date.now()
+    const normalisedTeam = myTeamName.toLowerCase()
+    return matches
+      .filter((match) => {
+        const involvesMe =
+          !normalisedTeam ||
+          match.homeTeam.trim().toLowerCase() === normalisedTeam ||
+          match.awayTeam.trim().toLowerCase() === normalisedTeam
+        if (!involvesMe || hasRecordedScore(match.homeScore, match.awayScore)) {
+          return false
+        }
+        const kickoff = new Date(match.kickoff).getTime()
+        if (!Number.isFinite(kickoff)) {
+          return false
+        }
+        return kickoff + (match.durationMinutes ?? 90) * 60_000 > now
+      })
+      .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
+      .slice(0, 5)
+  }, [matches, myTeamName])
+
+  const recentActivity = notifications.slice(0, 4)
 
   useEffect(() => subscribeToApiLoading(setIsApiLoading), [])
 
@@ -172,11 +239,15 @@ export function Layout() {
       setLoggedInRole(null)
       setLoggedInAccountId(null)
       setLoggedInTeam(null)
+      setLoggedInEmail('')
+      setLoggedInSport('')
       setNotifications([])
       setProfileTeam('')
       setProfileCounty('')
       setProfileHomeGround('')
       setProfileMessage('')
+      setProfileAvatar('')
+      setAvatarMessage('')
       setAuthView('login')
       setIsAuthOpen(true)
       setAuthMessage('Your session has expired. Please log in again.')
@@ -216,9 +287,12 @@ export function Layout() {
         setLoggedInRole(response.user.role)
         setLoggedInAccountId(response.user.id)
         setLoggedInTeam(response.user.team)
+        setLoggedInEmail(response.user.email ?? '')
+        setLoggedInSport(response.user.sport ?? '')
         setProfileTeam(response.user.team ?? '')
         setProfileCounty(response.user.county ?? '')
         setProfileHomeGround(response.user.homeGround ?? '')
+        setProfileAvatar(response.user.avatar ?? '')
         void refreshTeam()
       } catch {
         api.clearToken()
@@ -244,9 +318,12 @@ export function Layout() {
       setLoggedInRole(response.user.role)
       setLoggedInAccountId(response.user.id)
       setLoggedInTeam(response.user.team)
+      setLoggedInEmail(response.user.email ?? '')
+      setLoggedInSport(response.user.sport ?? '')
       setProfileTeam(response.user.team ?? '')
       setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
+      setProfileAvatar(response.user.avatar ?? '')
       void refreshTeam()
       setAuthMessage(`Signed in as ${response.user.name || response.user.email} (${response.user.role}).`)
       setLoginEmail('')
@@ -329,11 +406,15 @@ export function Layout() {
     setLoggedInRole(null)
     setLoggedInAccountId(null)
     setLoggedInTeam(null)
+    setLoggedInEmail('')
+    setLoggedInSport('')
     setNotifications([])
     setProfileTeam('')
     setProfileCounty('')
     setProfileHomeGround('')
     setProfileMessage('')
+    setProfileAvatar('')
+    setAvatarMessage('')
     void refreshTeam()
     setAuthMessage('You have logged out.')
   }
@@ -361,6 +442,8 @@ export function Layout() {
         token,
       )
       setLoggedInTeam(response.user.team)
+      setLoggedInEmail(response.user.email ?? '')
+      setLoggedInSport(response.user.sport ?? '')
       setProfileTeam(response.user.team ?? '')
       setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
@@ -373,9 +456,67 @@ export function Layout() {
     }
   }
 
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      setAvatarMessage('Please log in again.')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarMessage('Choose an image file (JPG, PNG or WebP).')
+      return
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setAvatarMessage('That image is too large. Pick one under 8 MB.')
+      return
+    }
+
+    setIsSavingAvatar(true)
+    setAvatarMessage('')
+    try {
+      const dataUrl = await fileToAvatarDataUrl(file)
+      const response = await api.updateProfile({ avatar: dataUrl }, token)
+      setProfileAvatar(response.user.avatar ?? '')
+      setAvatarMessage('Profile picture updated.')
+    } catch (error) {
+      setAvatarMessage(error instanceof Error ? error.message : 'Could not update your picture.')
+    } finally {
+      setIsSavingAvatar(false)
+    }
+  }
+
+  const handleRemoveAvatar = async () => {
+    const token = api.getToken()
+    if (!token) {
+      setAvatarMessage('Please log in again.')
+      return
+    }
+
+    setIsSavingAvatar(true)
+    setAvatarMessage('')
+    try {
+      const response = await api.updateProfile({ avatar: '' }, token)
+      setProfileAvatar(response.user.avatar ?? '')
+      setAvatarMessage('Profile picture removed.')
+    } catch (error) {
+      setAvatarMessage(error instanceof Error ? error.message : 'Could not remove your picture.')
+    } finally {
+      setIsSavingAvatar(false)
+    }
+  }
+
+  // Re-fetch on sign-in and whenever a drawer opens so new replies show up.
   useEffect(() => {
     void loadNotifications(loggedInAccountId)
-  }, [loggedInAccountId])
+  }, [loggedInAccountId, isAuthOpen, isNotificationsOpen])
 
   const unreadNotificationCount = notifications.filter((notification) => !notification.read).length
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
@@ -528,7 +669,22 @@ export function Layout() {
                   py: 0.58,
                 }}
               >
-                <AccountCircleRoundedIcon />
+                {profileAvatar ? (
+                  <Box
+                    component="img"
+                    src={profileAvatar}
+                    alt="Account"
+                    sx={{
+                      width: 27,
+                      height: 27,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1.5px solid rgba(76,227,163,0.6)',
+                    }}
+                  />
+                ) : (
+                  <AccountCircleRoundedIcon />
+                )}
               </Button>
             </Box>
           </Toolbar>
@@ -592,7 +748,22 @@ export function Layout() {
           aria-label="Account"
           sx={{ minWidth: 0, flex: 1, flexDirection: 'column', gap: 0.2, px: 0.25, py: 0.35, color: '#ffffff', textTransform: 'none', fontSize: '0.64rem', fontWeight: 500, whiteSpace: 'nowrap', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
         >
-          <AccountCircleRoundedIcon sx={{ fontSize: 26 }} />
+          {profileAvatar ? (
+            <Box
+              component="img"
+              src={profileAvatar}
+              alt="Account"
+              sx={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '1.5px solid rgba(76,227,163,0.6)',
+              }}
+            />
+          ) : (
+            <AccountCircleRoundedIcon sx={{ fontSize: 26 }} />
+          )}
           Account
         </Button>
       </Box>
@@ -610,9 +781,124 @@ export function Layout() {
 
           {loggedInUser ? (
             <>
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Signed in: {loggedInUser}
-              </Alert>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1.2 }}>
+                <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                  <Box
+                    sx={{
+                      width: 66,
+                      height: 66,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      display: 'grid',
+                      placeItems: 'center',
+                      bgcolor: 'rgba(7,17,31,0.9)',
+                      border: '2px solid rgba(76,227,163,0.55)',
+                    }}
+                  >
+                    {profileAvatar ? (
+                      <Box
+                        component="img"
+                        src={profileAvatar}
+                        alt={`${loggedInUser} profile picture`}
+                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <AccountCircleRoundedIcon sx={{ fontSize: 44, color: 'rgba(159,176,201,0.55)' }} />
+                    )}
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => avatarInputRef.current?.click()}
+                    aria-label="Change profile picture"
+                    disabled={isSavingAvatar}
+                    sx={{
+                      position: 'absolute',
+                      right: -4,
+                      bottom: -4,
+                      width: 26,
+                      height: 26,
+                      bgcolor: 'primary.main',
+                      color: '#07111f',
+                      border: '2px solid #0d1524',
+                      '&:hover': { bgcolor: 'primary.dark' },
+                    }}
+                  >
+                    <PhotoCameraRoundedIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: '1.02rem', lineHeight: 1.15 }} noWrap>
+                    {loggedInUser}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                    {loggedInEmail}
+                  </Typography>
+                  <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center', mt: 0.5, flexWrap: 'wrap', rowGap: 0.4 }}>
+                    <Chip
+                      size="small"
+                      label={myRoleLabel.toUpperCase()}
+                      sx={{
+                        height: 19,
+                        fontSize: '0.6rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.05em',
+                        bgcolor: 'rgba(76,227,163,0.16)',
+                        color: 'primary.main',
+                        border: '1px solid rgba(76,227,163,0.4)',
+                      }}
+                    />
+                    {loggedInSport && (
+                      <Chip
+                        size="small"
+                        label={loggedInSport.toUpperCase()}
+                        sx={{
+                          height: 19,
+                          fontSize: '0.6rem',
+                          fontWeight: 700,
+                          bgcolor: 'rgba(159,176,201,0.1)',
+                          color: '#a7b3c9',
+                        }}
+                      />
+                    )}
+                  </Stack>
+                </Box>
+              </Stack>
+
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleAvatarChange}
+              />
+
+              <Stack direction="row" spacing={1} sx={{ mb: 1.6 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isSavingAvatar}
+                >
+                  {isSavingAvatar ? 'Saving…' : profileAvatar ? 'Change photo' : 'Add photo'}
+                </Button>
+                {profileAvatar && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="inherit"
+                    onClick={handleRemoveAvatar}
+                    disabled={isSavingAvatar}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </Stack>
+
+              {avatarMessage && (
+                <Alert severity="info" sx={{ mb: 1.6, py: 0.3, fontSize: '0.78rem' }}>
+                  {avatarMessage}
+                </Alert>
+              )}
 
               <Card
                 variant="outlined"
@@ -662,11 +948,6 @@ export function Layout() {
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
                             {[myTeamCounty, myTeamGround].filter(Boolean).join(' • ') || 'No county or ground set'}
                           </Typography>
-                          <Chip
-                            size="small"
-                            label={loggedInRole ? String(loggedInRole).toUpperCase() : 'PLAYER'}
-                            sx={{ mt: 0.5, height: 18, fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.06em' }}
-                          />
                         </Box>
                       </Stack>
 
@@ -736,6 +1017,131 @@ export function Layout() {
                     <Alert severity="info" sx={{ py: 0.4, fontSize: '0.8rem' }}>
                       No team on this account yet. Set one below to track wins, goals and top scorers.
                     </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card variant="outlined" sx={{ mb: 2 }}>
+                <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
+                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.1 }}>
+                    <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em' }}>
+                      Upcoming games
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={upcomingMatches.length}
+                      sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800 }}
+                    />
+                  </Stack>
+
+                  {upcomingMatches.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+                      {myTeamName
+                        ? 'No upcoming games for your team yet.'
+                        : 'No upcoming games yet.'}
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {upcomingMatches.map((match) => {
+                        const homeSide =
+                          match.homeTeam.trim().toLowerCase() === myTeamName.toLowerCase()
+                        const opponent = homeSide ? match.awayTeam : match.homeTeam
+                        const isLive = new Date(match.kickoff).getTime() <= Date.now()
+                        return (
+                          <Box
+                            key={match.id}
+                            sx={{
+                              border: '1px solid rgba(159,176,201,0.16)',
+                              borderRadius: 1.6,
+                              p: 1.1,
+                              bgcolor: isLive ? 'rgba(250,204,21,0.06)' : 'rgba(21,31,51,0.55)',
+                            }}
+                          >
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography sx={{ fontWeight: 700, fontSize: '0.85rem' }} noWrap>
+                                  {myTeamName ? (homeSide ? 'vs ' : 'at ') : ''}
+                                  {opponent}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ display: 'block' }}
+                                  noWrap
+                                >
+                                  {formatKickoffLabel(match.kickoff)} · {match.venue || 'Venue TBC'}
+                                </Typography>
+                              </Box>
+                              <Chip
+                                size="small"
+                                label={isLive ? 'LIVE' : homeSide ? 'HOME' : 'AWAY'}
+                                sx={{
+                                  height: 19,
+                                  fontSize: '0.58rem',
+                                  fontWeight: 800,
+                                  bgcolor: isLive ? 'rgba(250,204,21,0.16)' : 'rgba(159,176,201,0.1)',
+                                  color: isLive ? '#facc15' : '#a7b3c9',
+                                }}
+                              />
+                            </Stack>
+                          </Box>
+                        )
+                      })}
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card variant="outlined" sx={{ mb: 2 }}>
+                <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
+                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.1 }}>
+                    <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em' }}>
+                      Replies & activity
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => {
+                        setIsAuthOpen(false)
+                        setIsNotificationsOpen(true)
+                      }}
+                      sx={{ fontSize: '0.7rem', minWidth: 0 }}
+                    >
+                      View all
+                    </Button>
+                  </Stack>
+
+                  {recentActivity.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+                      Replies to your comments and match alerts will appear here.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {recentActivity.map((notification) => (
+                        <Box
+                          key={notification.id}
+                          onClick={() => void handleNotificationRead(notification.id, notification.read)}
+                          sx={{
+                            border: '1px solid rgba(159,176,201,0.16)',
+                            borderRadius: 1.6,
+                            p: 1.1,
+                            cursor: 'pointer',
+                            bgcolor: notification.read ? 'transparent' : 'rgba(76,227,163,0.07)',
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.82rem' }} noWrap>
+                            {notification.title}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
+                            {notification.message}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
                   )}
                 </CardContent>
               </Card>

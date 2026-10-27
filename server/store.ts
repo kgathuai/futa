@@ -20,6 +20,7 @@ export interface AccountRecord {
   sport: string
   email: string
   password: string
+  avatar?: string
 }
 
 export interface TeamPayload {
@@ -53,7 +54,12 @@ export interface FriendlyRequestRecord {
 export interface NotificationRecord {
   id: string
   accountId: string
-  type: 'friendly-request' | 'friendly-accepted' | 'friendly-declined' | 'match-score-reminder'
+  type:
+    | 'friendly-request'
+    | 'friendly-accepted'
+    | 'friendly-declined'
+    | 'match-score-reminder'
+    | 'comment-reply'
   title: string
   message: string
   relatedFriendlyRequestId?: string
@@ -181,6 +187,8 @@ const accountSchema = new Schema(
     sport: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    // Data URL or remote URL for the account profile picture.
+    avatar: { type: String, required: false, default: '' },
   },
   { versionKey: false, timestamps: true },
 )
@@ -271,6 +279,7 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   sport: account.sport,
   email: account.email,
   password: account.password,
+  avatar: account.avatar ?? '',
 })
 
 type AccountSummaryDoc = {
@@ -834,6 +843,19 @@ export const store = {
 
     return account ? toPublicAccount(account) : null
   },
+  updateAccountAvatar: async (accountId: string, avatar: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(
+      accountId,
+      { $set: { avatar } },
+      { returnDocument: 'after' },
+    ).lean<AccountDoc | null>()
+
+    return account ? toPublicAccount(account) : null
+  },
   authenticate: async (email: string, password: string) => {
     const account = await AccountModel.findOne({ email: email.toLowerCase() }).lean<AccountDoc | null>()
     if (!account) {
@@ -1317,6 +1339,7 @@ export const store = {
 
     const comments = normalizeStoredComments(existing.comments)
     let replied = false
+    const parentAuthorAccountId = comments.find((entry) => entry.id === commentId)?.authorAccountId ?? ''
 
     const nextComments = comments.map((entry) => {
       if (entry.id !== commentId) {
@@ -1356,6 +1379,22 @@ export const store = {
 
     if (!updated) {
       return { status: 'not-found' as const }
+    }
+
+    // Let the original commenter know someone replied to them.
+    if (
+      parentAuthorAccountId &&
+      parentAuthorAccountId !== authorAccountId &&
+      mongoose.isValidObjectId(parentAuthorAccountId)
+    ) {
+      const matchLabel = `${updated.homeTeam} vs ${updated.awayTeam}`
+      await createNotification({
+        accountId: parentAuthorAccountId,
+        type: 'comment-reply',
+        title: 'New reply to your comment',
+        message: `${safeAuthor || 'Someone'} replied on ${matchLabel}: “${safeComment.slice(0, 140)}”`,
+        relatedMatchId: matchId,
+      })
     }
 
     return { status: 'updated' as const, match: updated }
