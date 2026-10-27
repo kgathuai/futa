@@ -6,6 +6,7 @@ import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FriendliesPage } from './pages/FriendliesPage'
 import { ResultsPage } from './pages/ResultsPage'
+import { PlayerPage } from './pages/PlayerPage'
 import { TeamPage } from './pages/TeamPage'
 import { TeamDashboardPage } from './pages/TeamDashboardPage'
 import { TournamentsPage } from './pages/TournamentsPage'
@@ -22,6 +23,7 @@ function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/player" element={<PlayerPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/reset-password" element={<AccountTokenPage mode="reset" />} />

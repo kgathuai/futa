@@ -208,6 +208,7 @@ export function Layout() {
   const myRoleLabel = roleLabel(loggedInRole)
   const isRefereeAccount = (loggedInRole ?? '').trim().toLowerCase() === 'referee'
   const [refereeBookings, setRefereeBookings] = useState<FriendlyRequest[]>([])
+  const [followedTeams, setFollowedTeams] = useState<string[]>([])
   const [refereeActionId, setRefereeActionId] = useState('')
   const [reportBooking, setReportBooking] = useState<FriendlyRequest | null>(null)
   const [reportHomeScore, setReportHomeScore] = useState('')
@@ -652,6 +653,45 @@ export function Layout() {
       setAvatarMessage(error instanceof Error ? error.message : 'Could not remove your picture.')
     } finally {
       setIsSavingAvatar(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!loggedInAccountId) {
+      setFollowedTeams([])
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    let active = true
+    void api
+      .getFollowedTeams(token)
+      .then((response) => {
+        if (active) {
+          setFollowedTeams(response.teams)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      active = false
+    }
+  }, [loggedInAccountId, isAuthOpen])
+
+  const handleUnfollow = async (teamName: string) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+    try {
+      await api.unfollowTeam(teamName, token)
+      setFollowedTeams((prev) => prev.filter((name) => name.toLowerCase() !== teamName.toLowerCase()))
+    } catch {
+      // Keep the entry if the request failed.
     }
   }
 
@@ -1164,6 +1204,60 @@ export function Layout() {
                 </CardContent>
               </Card>
 
+              )}
+
+              {followedTeams.length > 0 && (
+                <Card variant="outlined" sx={{ mb: 2 }}>
+                  <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
+                    <Typography
+                      variant="overline"
+                      sx={{ color: 'text.secondary', letterSpacing: '0.12em', display: 'block', mb: 1 }}
+                    >
+                      Following
+                    </Typography>
+                    <Stack spacing={0.7}>
+                      {followedTeams.map((teamName) => {
+                        const nextMatch = matches
+                          .filter(
+                            (match) =>
+                              !hasRecordedScore(match.homeScore, match.awayScore) &&
+                              (match.homeTeam.toLowerCase() === teamName.toLowerCase() ||
+                                match.awayTeam.toLowerCase() === teamName.toLowerCase()) &&
+                              new Date(match.kickoff).getTime() > Date.now(),
+                          )
+                          .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())[0]
+
+                        return (
+                          <Stack
+                            key={teamName}
+                            direction="row"
+                            spacing={1}
+                            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                          >
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }} noWrap>
+                                {teamName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                                {nextMatch
+                                  ? `Next: vs ${nextMatch.homeTeam.toLowerCase() === teamName.toLowerCase() ? nextMatch.awayTeam : nextMatch.homeTeam} · ${formatKickoffLabel(nextMatch.kickoff)}`
+                                  : 'No upcoming match'}
+                              </Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              aria-label={`Unfollow ${teamName}`}
+                              onClick={() => void handleUnfollow(teamName)}
+                              sx={{ p: 0.3 }}
+                            >
+                              <CloseRoundedIcon sx={{ fontSize: '0.9rem' }} />
+                            </IconButton>
+                          </Stack>
+                        )
+                      })}
+                    </Stack>
+                  </CardContent>
+                </Card>
               )}
 
               {isRefereeAccount ? (

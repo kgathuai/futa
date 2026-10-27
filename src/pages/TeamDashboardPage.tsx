@@ -1639,7 +1639,18 @@ export function TeamDashboardPage() {
                               >
                                 {player.number ?? '–'}
                               </Box>
-                              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }} noWrap>
+                              <Typography
+                                component={Link}
+                                to={`/player?team=${encodeURIComponent(player.team)}&name=${encodeURIComponent(player.name)}`}
+                                sx={{
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  color: 'inherit',
+                                  textDecoration: 'none',
+                                  '&:hover': { color: 'primary.main' },
+                                }}
+                                noWrap
+                              >
                                 {player.name}
                               </Typography>
                               {player.position && (

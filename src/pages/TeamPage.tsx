@@ -7,10 +7,12 @@ import {
   Card,
   CardContent,
   Chip,
+  IconButton,
   InputAdornment,
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
@@ -19,6 +21,8 @@ import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import PersonAddAltRoundedIcon from '@mui/icons-material/PersonAddAltRounded'
 import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
+import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import { LoadingBar } from '../components/LoadingBar'
@@ -135,7 +139,19 @@ function Meta({ label, value, accent }: { label: string; value: string; accent?:
   )
 }
 
-function TeamRow({ team, highlighted }: { team: TeamSummary; highlighted: boolean }) {
+function TeamRow({
+  team,
+  highlighted,
+  isFollowing,
+  canFollow,
+  onToggleFollow,
+}: {
+  team: TeamSummary
+  highlighted: boolean
+  isFollowing: boolean
+  canFollow: boolean
+  onToggleFollow: (team: TeamSummary) => void
+}) {
   const status = team.status ?? 'inactive'
 
   return (
@@ -210,6 +226,22 @@ function TeamRow({ team, highlighted }: { team: TeamSummary; highlighted: boolea
                 '& .MuiChip-label': { px: 0.5 },
               }}
             />
+            {canFollow && (
+              <Tooltip title={isFollowing ? 'Unfollow' : 'Follow'}>
+                <IconButton
+                  size="small"
+                  aria-label={isFollowing ? `Unfollow ${team.name}` : `Follow ${team.name}`}
+                  onClick={() => onToggleFollow(team)}
+                  sx={{ p: 0.3, ml: 0.2 }}
+                >
+                  {isFollowing ? (
+                    <StarRoundedIcon sx={{ fontSize: '0.9rem', color: '#4ce3a3' }} />
+                  ) : (
+                    <StarBorderRoundedIcon sx={{ fontSize: '0.9rem', color: '#7f8aa3' }} />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
           <Typography
             sx={{
@@ -256,6 +288,7 @@ export function TeamPage() {
 
   const [teams, setTeams] = useState<TeamSummary[]>([])
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
+  const [followedTeams, setFollowedTeams] = useState<string[]>([])
   const [loadError, setLoadError] = useState('')
   const [selectedLevel, setSelectedLevel] = useState('All Levels')
   const [selectedCounty, setSelectedCounty] = useState('All Counties')
@@ -402,6 +435,51 @@ export function TeamPage() {
     }),
     [teams],
   )
+
+  useEffect(() => {
+    const token = api.getToken()
+    if (!loggedInUser || !token) {
+      setFollowedTeams([])
+      return
+    }
+
+    let active = true
+    void api
+      .getFollowedTeams(token)
+      .then((response) => {
+        if (active) {
+          setFollowedTeams(response.teams)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      active = false
+    }
+  }, [loggedInUser])
+
+  const handleToggleFollow = async (target: TeamSummary) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    const isFollowing = followedTeams.some(
+      (name) => name.toLowerCase() === target.name.toLowerCase(),
+    )
+
+    try {
+      if (isFollowing) {
+        await api.unfollowTeam(target.name, token)
+        setFollowedTeams((prev) => prev.filter((name) => name.toLowerCase() !== target.name.toLowerCase()))
+      } else {
+        await api.followTeam(target.name, token)
+        setFollowedTeams((prev) => [...prev, target.name])
+      }
+    } catch {
+      // Ignore follow failures; the list stays as it was.
+    }
+  }
 
   const resetPage = () => setCurrentPage(1)
 
@@ -610,7 +688,16 @@ export function TeamPage() {
 
             <Stack divider={<Box sx={{ height: '1px', bgcolor: 'rgba(159,176,201,0.07)' }} />}>
               {visibleTeams.map((team) => (
-                <TeamRow key={`team-${team.name}`} team={team} highlighted={loggedInTeam === team.name} />
+                <TeamRow
+                  key={`team-${team.name}`}
+                  team={team}
+                  highlighted={loggedInTeam === team.name}
+                  canFollow={Boolean(loggedInUser)}
+                  isFollowing={followedTeams.some(
+                    (name) => name.toLowerCase() === team.name.toLowerCase(),
+                  )}
+                  onToggleFollow={(target) => void handleToggleFollow(target)}
+                />
               ))}
             </Stack>
           </Card>

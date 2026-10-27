@@ -209,6 +209,17 @@ const playerSchema = new Schema(
 )
 playerSchema.index({ team: 1, name: 1 })
 
+const followSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    accountId: { type: Schema.Types.ObjectId, required: true, ref: 'Account' },
+    team: { type: String, required: true },
+    createdAt: { type: Date, required: true, default: Date.now },
+  },
+  { versionKey: false },
+)
+followSchema.index({ accountId: 1, team: 1 }, { unique: true })
+
 const accountSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -329,6 +340,7 @@ const FriendlyRequestModel = mongoose.models.FriendlyRequest || mongoose.model('
 const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema)
 const AuthTokenModel = mongoose.models.AuthToken || mongoose.model('AuthToken', authTokenSchema)
 const PlayerModel = mongoose.models.Player || mongoose.model('Player', playerSchema)
+const FollowModel = mongoose.models.Follow || mongoose.model('Follow', followSchema)
 
 type AccountDoc = InferSchemaType<typeof accountSchema> & { _id: mongoose.Types.ObjectId }
 
@@ -594,6 +606,36 @@ export const connectDatabase = async (mongoUri: string) => {
 }
 
 export const store = {
+  followTeam: async (accountId: string, team: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+    const name = team.trim()
+    if (!name) {
+      return null
+    }
+
+    await FollowModel.updateOne(
+      { accountId, team: name },
+      { $setOnInsert: { id: makeEntityId(), accountId, team: name, createdAt: new Date() } },
+      { upsert: true },
+    )
+    return name
+  },
+  unfollowTeam: async (accountId: string, team: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return false
+    }
+    const result = await FollowModel.deleteOne({ accountId, team: team.trim() })
+    return result.deletedCount > 0
+  },
+  getFollowedTeams: async (accountId: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return [] as string[]
+    }
+    const rows = await FollowModel.find({ accountId }).sort({ createdAt: -1 }).lean<Array<{ team: string }>>()
+    return rows.map((row) => row.team)
+  },
   getSquad: async (teamName: string) => {
     const team = teamName.trim()
     if (!team) {

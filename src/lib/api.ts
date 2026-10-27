@@ -152,6 +152,11 @@ export const api = {
     }),
   getFriendlies: () => request<FriendlyRequest[]>('/api/friendlies'),
   getReferees: () => request<{ referees: RefereeSummary[] }>('/api/referees'),
+  getFollowedTeams: (token: string) => request<{ teams: string[] }>('/api/follows', { token }),
+  followTeam: (team: string, token: string) =>
+    request<{ team: string }>('/api/follows', { method: 'POST', body: { team }, token }),
+  unfollowTeam: (team: string, token: string) =>
+    request<void>(`/api/follows/${encodeURIComponent(team)}`, { method: 'DELETE', token }),
   getSquad: (team: string) =>
     request<{ squad: Player[] }>(`/api/squad?team=${encodeURIComponent(team)}`),
   addPlayer: (payload: { team: string; name: string; number?: number; position?: string }, token: string) =>

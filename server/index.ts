@@ -1117,6 +1117,55 @@ app.get('/api/teams', async (_req, res) => {
   res.json({ teams })
 })
 
+app.get('/api/follows', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const teams = await store.getFollowedTeams(user.id)
+  res.json({ teams })
+})
+
+app.post('/api/follows', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const team = (req.body as { team?: string }).team?.trim() ?? ''
+  if (!team) {
+    res.status(400).json({ error: 'Pick a team to follow.' })
+    return
+  }
+
+  const followed = await store.followTeam(user.id, team)
+  if (!followed) {
+    res.status(400).json({ error: 'Could not follow that team.' })
+    return
+  }
+
+  res.status(201).json({ team: followed })
+})
+
+app.delete('/api/follows/:team', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const removed = await store.unfollowTeam(user.id, String(req.params.team ?? ''))
+  if (!removed) {
+    res.status(404).json({ error: 'You were not following that team.' })
+    return
+  }
+
+  res.status(204).send()
+})
+
 app.get('/api/squad', async (req, res) => {
   const team = String(req.query.team ?? '').trim()
   if (!team) {
