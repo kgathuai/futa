@@ -139,6 +139,8 @@ const matchSchema = new Schema(
     status: { type: String, required: true },
     comments: [{ type: Schema.Types.Mixed, required: true }],
     goals: { type: [goalSchema], required: true, default: [] },
+    // Live match timeline: goals, cards and substitutions with a minute.
+    events: { type: [Schema.Types.Mixed], required: false, default: [] },
     scoreReminderSentAt: { type: Date, required: false },
     engagement: { type: engagementSchema, required: true },
     tournamentId: { type: String, required: false },
@@ -1572,6 +1574,40 @@ export const store = {
         goals: normalizedGoals,
         status: 'finished',
       },
+      { returnDocument: 'after' },
+    ).lean()
+  },
+  addMatchEvent: async (
+    matchId: string,
+    teamName: string,
+    payload: { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; assist?: string; minute?: number; note?: string },
+  ) => {
+    const event = {
+      id: crypto.randomUUID(),
+      team: teamName,
+      type: payload.type,
+      player: payload.player.trim(),
+      assist: payload.assist?.trim() || undefined,
+      minute: Number.isFinite(payload.minute) ? Number(payload.minute) : undefined,
+      note: payload.note?.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    }
+
+    const updated = await MatchModel.findOneAndUpdate(
+      {
+        id: matchId,
+        $or: [{ homeTeam: teamName }, { awayTeam: teamName }],
+      },
+      { $push: { events: event } },
+      { returnDocument: 'after' },
+    ).lean()
+
+    return updated
+  },
+  deleteMatchEvent: async (matchId: string, teamName: string, eventId: string) => {
+    return MatchModel.findOneAndUpdate(
+      { id: matchId, $or: [{ homeTeam: teamName }, { awayTeam: teamName }] },
+      { $pull: { events: { id: eventId } } },
       { returnDocument: 'after' },
     ).lean()
   },

@@ -92,6 +92,7 @@ export function TeamDashboardPage() {
   const [friendlyReferee, setFriendlyReferee] = useState('')
   const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
   const [squad, setSquad] = useState<Player[]>([])
+  const [eventDrafts, setEventDrafts] = useState<Record<string, { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; minute: string }>>({})
   const [newPlayerName, setNewPlayerName] = useState('')
   const [newPlayerNumber, setNewPlayerNumber] = useState('')
   const [newPlayerPosition, setNewPlayerPosition] = useState('')
@@ -730,6 +731,49 @@ export function TeamDashboardPage() {
   const squadNamesFor = (teamName: string) =>
     squad.filter((player) => player.team.toLowerCase() === teamName.toLowerCase()).map((player) => player.name)
 
+  const handleAddEvent = async (match: MatchAnnouncement) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    const draft = eventDrafts[match.id] ?? { type: 'goal' as const, player: '', minute: '' }
+    if (!draft.player.trim()) {
+      setGlobalError('Enter the player for that event.')
+      return
+    }
+
+    try {
+      const updated = await api.addMatchEvent(
+        match.id,
+        {
+          type: draft.type,
+          player: draft.player.trim(),
+          minute: draft.minute ? Number(draft.minute) : undefined,
+        },
+        token,
+      )
+      setMyMatches((prev) => prev.map((entry) => (entry.id === match.id ? updated : entry)))
+      setEventDrafts((prev) => ({ ...prev, [match.id]: { ...draft, player: '', minute: '' } }))
+      setGlobalMessage('Match event added.')
+    } catch (error) {
+      setGlobalError(error instanceof Error ? error.message : 'Could not add that event.')
+    }
+  }
+
+  const handleDeleteEvent = async (matchId: string, eventId: string) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+    try {
+      const updated = await api.deleteMatchEvent(matchId, eventId, token)
+      setMyMatches((prev) => prev.map((entry) => (entry.id === matchId ? updated : entry)))
+    } catch {
+      // Leave the timeline unchanged if the delete fails.
+    }
+  }
+
   const addGoalRow = (matchId: string, team: string) => {
     setEditingGoalsByMatchId((prev) => ({
       ...prev,
@@ -1076,6 +1120,110 @@ export function TeamDashboardPage() {
                     <Typography variant="body2" sx={{ color: '#8f9ab4', fontSize: '0.75rem', fontStyle: 'italic' }}>
                       ℹ️ Scores can only be updated after match starts
                     </Typography>
+                  )}
+
+                  {canUpdateScore && (
+                    <Box sx={{ border: '1px solid rgba(159,176,201,0.14)', borderRadius: 1.4, p: 1.2 }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: '0.78rem', mb: 0.8 }}>Match events</Typography>
+
+                      {(match.events ?? []).length > 0 && (
+                        <Stack spacing={0.4} sx={{ mb: 1 }}>
+                          {(match.events ?? []).map((event) => (
+                            <Stack
+                              key={event.id}
+                              direction="row"
+                              spacing={0.8}
+                              sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                            >
+                              <Typography sx={{ fontSize: '0.72rem', color: '#c3cbdc' }} noWrap>
+                                {event.minute ? `${event.minute}'` : '—'}{' '}
+                                {event.type === 'goal' ? '⚽' : event.type === 'yellow' ? '🟨' : event.type === 'red' ? '🟥' : '🔁'}{' '}
+                                {event.player} <Typography component="span" sx={{ fontSize: '0.66rem', color: '#7f8aa3' }}>({event.team})</Typography>
+                              </Typography>
+                              <IconButton size="small" onClick={() => void handleDeleteEvent(match.id, event.id)} aria-label="Remove event">
+                                <DeleteOutlineRoundedIcon sx={{ fontSize: '0.85rem' }} />
+                              </IconButton>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      )}
+
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.8}>
+                        <TextField
+                          select
+                          size="small"
+                          label="Type"
+                          value={(eventDrafts[match.id]?.type ?? 'goal')}
+                          onChange={(event) =>
+                            setEventDrafts((prev) => ({
+                              ...prev,
+                              [match.id]: {
+                                type: event.target.value as 'goal' | 'yellow' | 'red' | 'sub',
+                                player: prev[match.id]?.player ?? '',
+                                minute: prev[match.id]?.minute ?? '',
+                              },
+                            }))
+                          }
+                          sx={{ minWidth: 104, '& .MuiInputBase-input': { fontSize: '0.74rem' } }}
+                        >
+                          <MenuItem value="goal">Goal</MenuItem>
+                          <MenuItem value="yellow">Yellow</MenuItem>
+                          <MenuItem value="red">Red</MenuItem>
+                          <MenuItem value="sub">Sub</MenuItem>
+                        </TextField>
+                        <Autocomplete
+                          freeSolo
+                          size="small"
+                          options={[...squadNamesFor(match.homeTeam), ...squadNamesFor(match.awayTeam)]}
+                          value={eventDrafts[match.id]?.player ?? ''}
+                          onChange={(_event, value) =>
+                            setEventDrafts((prev) => ({
+                              ...prev,
+                              [match.id]: {
+                                type: prev[match.id]?.type ?? 'goal',
+                                player: value ?? '',
+                                minute: prev[match.id]?.minute ?? '',
+                              },
+                            }))
+                          }
+                          onInputChange={(_event, value) =>
+                            setEventDrafts((prev) => ({
+                              ...prev,
+                              [match.id]: {
+                                type: prev[match.id]?.type ?? 'goal',
+                                player: value,
+                                minute: prev[match.id]?.minute ?? '',
+                              },
+                            }))
+                          }
+                          sx={{ flex: 1, minWidth: 130 }}
+                          renderInput={(params) => (
+                            <TextField {...params} label="Player" sx={{ '& .MuiInputBase-input': { fontSize: '0.74rem' } }} />
+                          )}
+                        />
+                        <TextField
+                          size="small"
+                          label="Min"
+                          type="number"
+                          value={eventDrafts[match.id]?.minute ?? ''}
+                          onChange={(event) =>
+                            setEventDrafts((prev) => ({
+                              ...prev,
+                              [match.id]: {
+                                type: prev[match.id]?.type ?? 'goal',
+                                player: prev[match.id]?.player ?? '',
+                                minute: event.target.value,
+                              },
+                            }))
+                          }
+                          sx={{ width: 76, '& .MuiInputBase-input': { fontSize: '0.74rem' } }}
+                          slotProps={{ htmlInput: { min: 1, max: 120 } }}
+                        />
+                        <Button size="small" variant="outlined" onClick={() => void handleAddEvent(match)}>
+                          Add
+                        </Button>
+                      </Stack>
+                    </Box>
                   )}
 
                   {canEditMatch && (

@@ -64,6 +64,17 @@ export interface MatchGoal {
 
 export type MatchGoalInput = Omit<MatchGoal, 'id'>
 
+export interface MatchEvent {
+  id: string
+  team: string
+  type: 'goal' | 'yellow' | 'red' | 'sub'
+  player: string
+  assist?: string
+  minute?: number
+  note?: string
+  createdAt: string
+}
+
 export interface MatchAnnouncement {
   id: string
   homeTeam: string
@@ -82,6 +93,7 @@ export interface MatchAnnouncement {
   status: 'scheduled' | 'playing' | 'finished' | 'postponed'
   comments: MatchComment[]
   goals?: MatchGoal[]
+  events?: MatchEvent[]
   tournamentId?: string
   round?: number
   engagement: {

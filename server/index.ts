@@ -420,6 +420,88 @@ app.patch('/api/matches/:matchId/kickoff', async (req, res) => {
   res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
 })
 
+app.post('/api/matches/:matchId/events', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can log match events.' })
+    return
+  }
+
+  const teamName = user.team?.trim()
+  const matchId = String(req.params.matchId ?? '')
+  if (!teamName) {
+    res.status(400).json({ error: 'Your account has no team set.' })
+    return
+  }
+
+  const body = req.body as {
+    type?: string
+    player?: string
+    assist?: string
+    minute?: number
+    note?: string
+  }
+  const type = body.type?.trim().toLowerCase()
+  const player = body.player?.trim() ?? ''
+
+  if (!['goal', 'yellow', 'red', 'sub'].includes(type ?? '') || !player) {
+    res.status(400).json({ error: 'Provide an event type (goal, yellow, red, sub) and a player.' })
+    return
+  }
+
+  const match = await store.getMatchForParticipant(matchId, teamName)
+  if (!match) {
+    res.status(404).json({ error: 'Match not found for your team.' })
+    return
+  }
+
+  const updated = await store.addMatchEvent(matchId, teamName, {
+    type: type as 'goal' | 'yellow' | 'red' | 'sub',
+    player,
+    assist: body.assist,
+    minute: Number.isFinite(body.minute) ? Number(body.minute) : undefined,
+    note: body.note,
+  })
+
+  if (!updated) {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  res.status(201).json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
+})
+
+app.delete('/api/matches/:matchId/events/:eventId', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const teamName = user.team?.trim() ?? ''
+  if (!teamName) {
+    res.status(400).json({ error: 'Your account has no team set.' })
+    return
+  }
+
+  const updated = await store.deleteMatchEvent(
+    String(req.params.matchId ?? ''),
+    teamName,
+    String(req.params.eventId ?? ''),
+  )
+  if (!updated) {
+    res.status(404).json({ error: 'Match or event not found.' })
+    return
+  }
+
+  res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
+})
+
 app.patch('/api/matches/:matchId/score', async (req, res) => {
   const user = await getRequestUser(req.header('authorization'))
   if (!user) {

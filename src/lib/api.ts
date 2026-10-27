@@ -371,6 +371,21 @@ export const api = {
       body: { kickoff },
       token,
     }),
+  addMatchEvent: (
+    matchId: string,
+    payload: { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; assist?: string; minute?: number; note?: string },
+    token: string,
+  ) =>
+    request<MatchAnnouncement>(`/api/matches/${encodeURIComponent(matchId)}/events`, {
+      method: 'POST',
+      body: payload,
+      token,
+    }),
+  deleteMatchEvent: (matchId: string, eventId: string, token: string) =>
+    request<MatchAnnouncement>(
+      `/api/matches/${encodeURIComponent(matchId)}/events/${encodeURIComponent(eventId)}`,
+      { method: 'DELETE', token },
+    ),
   updateMatchScore: (
     matchId: string,
     homeScore: number,
