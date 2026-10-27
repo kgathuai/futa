@@ -1186,15 +1186,27 @@ export function Layout() {
                         )}
                       </Stack>
 
-                      <Button
-                        component={NavLink}
-                        to="/team-dashboard"
-                        variant="outlined"
-                        size="small"
-                        onClick={() => setIsAuthOpen(false)}
-                      >
-                        Open team dashboard
-                      </Button>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          component={NavLink}
+                          to="/team-dashboard"
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setIsAuthOpen(false)}
+                          sx={{ flex: 1 }}
+                        >
+                          Team dashboard
+                        </Button>
+                        <Button
+                          component={NavLink}
+                          to="/archive"
+                          variant="text"
+                          size="small"
+                          onClick={() => setIsAuthOpen(false)}
+                        >
+                          Archive
+                        </Button>
+                      </Stack>
                     </Stack>
                   ) : (
                     <Alert severity="info" sx={{ py: 0.4, fontSize: '0.8rem' }}>
