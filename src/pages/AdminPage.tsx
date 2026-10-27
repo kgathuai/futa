@@ -137,6 +137,9 @@ export function AdminPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'superadmin' | 'admin' | 'members'>('all')
+  const [auditEntries, setAuditEntries] = useState<Array<{ id: string; actorName: string; action: string; targetType: string; targetId: string; detail: string; createdAt: string }>>([])
+  const [reports, setReports] = useState<Array<{ id: string; reporterName: string; matchId: string; commentId: string; reason: string; status: string; createdAt: string }>>([])
+  const [panel, setPanel] = useState<'accounts' | 'audit' | 'reports'>('accounts')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -149,6 +152,38 @@ export function AdminPage() {
   const [newSport, setNewSport] = useState('Football')
   const [createError, setCreateError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  const loadGovernance = useCallback(async () => {
+    const token = api.getToken()
+    if (!token || !canAccessAdmin) {
+      return
+    }
+    try {
+      const [audit, reportRows] = await Promise.all([api.getAuditLog(token), api.getContentReports(token)])
+      setAuditEntries(audit)
+      setReports(reportRows)
+    } catch {
+      // Governance panels stay empty if the request fails.
+    }
+  }, [canAccessAdmin])
+
+  const handleExport = async (kind: 'accounts' | 'matches' | 'results' | 'payments') => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+    try {
+      const blob = await api.exportCsv(kind, token)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `futa-${kind}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Could not export that file.')
+    }
+  }
 
   const load = useCallback(async () => {
     const token = api.getToken()
@@ -450,6 +485,124 @@ export function AdminPage() {
         <StatTile label="ADMINS" value={stats.admins} accent="#4ce3a3" />
         <StatTile label="MATCHES" value={stats.matches} accent="#adff0f" />
       </Box>
+
+      <Stack direction="row" spacing={0.6} sx={{ flexWrap: 'wrap', rowGap: 0.6, alignItems: 'center' }}>
+        {(['accounts', 'audit', 'reports'] as const).map((key) => (
+          <Button
+            key={key}
+            size="small"
+            variant={panel === key ? 'contained' : 'outlined'}
+            onClick={() => {
+              setPanel(key)
+              if (key !== 'accounts') {
+                void loadGovernance()
+              }
+            }}
+            sx={{ fontSize: '0.68rem', py: 0.25, px: 1 }}
+          >
+            {key === 'accounts' ? 'Accounts' : key === 'audit' ? `Audit log${auditEntries.length ? ` (${auditEntries.length})` : ''}` : `Reports${reports.filter((report) => report.status === 'open').length ? ` (${reports.filter((report) => report.status === 'open').length})` : ''}`}
+          </Button>
+        ))}
+        <Box sx={{ flex: 1 }} />
+        {(['accounts', 'matches', 'results', 'payments'] as const).map((kind) => (
+          <Button
+            key={kind}
+            size="small"
+            variant="text"
+            onClick={() => void handleExport(kind)}
+            sx={{ fontSize: '0.64rem', py: 0.2, px: 0.8 }}
+          >
+            ⬇ {kind}.csv
+          </Button>
+        ))}
+      </Stack>
+
+      {panel === 'audit' && (
+        <Card variant="outlined">
+          <CardContent sx={{ p: 1.4 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', mb: 1 }}>Audit log</Typography>
+            {auditEntries.length === 0 ? (
+              <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>
+                No admin actions recorded yet.
+              </Typography>
+            ) : (
+              <Stack spacing={0.6}>
+                {auditEntries.map((entry) => (
+                  <Stack
+                    key={entry.id}
+                    direction="row"
+                    sx={{ justifyContent: 'space-between', borderBottom: '1px solid rgba(159,176,201,0.1)', pb: 0.5, gap: 1 }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: '0.74rem', fontWeight: 700 }} noWrap>
+                        {entry.action} · {entry.targetType || 'system'}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.64rem', color: 'text.secondary' }} noWrap>
+                        {entry.actorName || 'system'} {entry.detail ? `· ${entry.detail}` : ''}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', flexShrink: 0 }}>
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {panel === 'reports' && (
+        <Card variant="outlined">
+          <CardContent sx={{ p: 1.4 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', mb: 1 }}>Content reports</Typography>
+            {reports.length === 0 ? (
+              <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>
+                Nothing has been reported.
+              </Typography>
+            ) : (
+              <Stack spacing={0.7}>
+                {reports.map((report) => (
+                  <Stack
+                    key={report.id}
+                    direction="row"
+                    sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1, borderBottom: '1px solid rgba(159,176,201,0.1)', pb: 0.6 }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: '0.74rem', fontWeight: 700 }} noWrap>
+                        {report.reason}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }} noWrap>
+                        {report.reporterName || 'Anonymous'} · {report.matchId ? `match ${report.matchId}` : 'comment'} ·{' '}
+                        {new Date(report.createdAt).toLocaleString()}
+                      </Typography>
+                    </Box>
+                    {report.status === 'open' ? (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={async () => {
+                          const token = api.getToken()
+                          if (!token) {
+                            return
+                          }
+                          await api.resolveContentReport(report.id, token)
+                          await loadGovernance()
+                        }}
+                        sx={{ fontSize: '0.64rem', py: 0.2, px: 0.9 }}
+                      >
+                        Resolve
+                      </Button>
+                    ) : (
+                      <Chip size="small" label="RESOLVED" sx={{ height: 18, fontSize: '0.54rem', fontWeight: 800 }} />
+                    )}
+                  </Stack>
+                ))}
+              </Stack>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Stack
         direction={{ xs: 'column', sm: 'row' }}

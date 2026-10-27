@@ -49,6 +49,7 @@ const corsOrigins = (process.env.CORS_ORIGIN ?? '')
 
 app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : {}))
 app.use(express.json({ limit: '10mb', inflate: false }))
+app.use((req, res, next) => globalLimiter(req, res, next))
 
 interface RequestUser {
   id: string
@@ -258,7 +259,7 @@ const getRequestUser = async (authorizationHeader: string | undefined): Promise<
   }
 }
 
-// Very small in-memory limiter for the auth surface (per IP + bucket).
+// Very small in-memory limiter for the API surface (per IP + bucket).
 const rateBuckets = new Map<string, { count: number; resetAt: number }>()
 const rateLimit = (bucket: string, max: number, windowMs: number) => {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -281,6 +282,8 @@ const rateLimit = (bucket: string, max: number, windowMs: number) => {
     next()
   }
 }
+
+const globalLimiter = rateLimit('api', 600, 60_000)
 
 const sendVerificationEmail = async (account: { id: string; name: string; email: string }) => {
   const issued = await store.createAuthToken(account.id, 'verify', 60 * 24)
@@ -2324,6 +2327,15 @@ app.post('/api/payments/:paymentId/confirm', async (req, res) => {
     await store.registerTeamForTournament(payment.tournamentId, payment.team).catch(() => undefined)
   }
 
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'payment.confirm',
+    targetType: 'payment',
+    targetId: String(req.params.paymentId ?? ''),
+    detail: `Ksh ${(paid as { amount?: number }).amount ?? ''} · ${(paid as { team?: string }).team ?? ''}`,
+  })
+
   res.json({ payment: paid })
 })
 
@@ -2345,6 +2357,112 @@ app.post('/api/payments/mpesa/callback', async (req, res) => {
   }
 
   res.json({ ResultCode: 0, ResultDesc: 'Accepted' })
+})
+
+// ─── Admin: audit log, content reports, CSV export ──────────────────────────
+const requireSuperAdmin = async (req: express.Request, res: express.Response) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return null
+  }
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
+    return null
+  }
+  return user
+}
+
+app.get('/api/admin/audit', async (req, res) => {
+  const user = await requireSuperAdmin(req, res)
+  if (!user) {
+    return
+  }
+  res.json(await store.getAuditLog(300))
+})
+
+app.get('/api/admin/reports', async (req, res) => {
+  const user = await requireSuperAdmin(req, res)
+  if (!user) {
+    return
+  }
+  res.json(await store.getContentReports())
+})
+
+app.post('/api/admin/reports/:reportId/resolve', async (req, res) => {
+  const user = await requireSuperAdmin(req, res)
+  if (!user) {
+    return
+  }
+
+  const resolved = await store.resolveContentReport(String(req.params.reportId ?? ''))
+  if (!resolved) {
+    res.status(404).json({ error: 'Report not found.' })
+    return
+  }
+
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'report.resolve',
+    targetType: 'report',
+    targetId: String(req.params.reportId ?? ''),
+  })
+
+  res.json(resolved)
+})
+
+// Any signed-in user can flag a match or comment for moderation.
+app.post('/api/reports', rateLimit('reports', 20, 60_000), async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const body = req.body as { matchId?: string; commentId?: string; reason?: string }
+  const reason = body.reason?.trim() ?? ''
+  if (!reason) {
+    res.status(400).json({ error: 'Tell us what is wrong with this content.' })
+    return
+  }
+
+  const report = await store.createContentReport({
+    reporterAccountId: user.id,
+    reporterName: user.name,
+    matchId: body.matchId?.trim(),
+    commentId: body.commentId?.trim(),
+    reason,
+  })
+
+  res.status(201).json(report)
+})
+
+const toCsv = (rows: Array<Record<string, unknown>>) => {
+  if (rows.length === 0) {
+    return ''
+  }
+  const headers = Object.keys(rows[0])
+  const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  return [headers.join(','), ...rows.map((row) => headers.map((header) => escape(row[header])).join(','))].join('\n')
+}
+
+app.get('/api/admin/export/:kind.csv', async (req, res) => {
+  const user = await requireSuperAdmin(req, res)
+  if (!user) {
+    return
+  }
+
+  const kind = String(req.params.kind ?? '')
+  if (!['accounts', 'matches', 'results', 'payments'].includes(kind)) {
+    res.status(400).json({ error: 'Unknown export.' })
+    return
+  }
+
+  const rows = await store.exportRows(kind)
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="futa-${kind}.csv"`)
+  res.send(toCsv(rows))
 })
 
 const distPath = path.resolve(process.cwd(), 'dist')

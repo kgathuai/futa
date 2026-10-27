@@ -135,6 +135,32 @@ export const api = {
     request<TeamProfile | null>('/api/team', { token }),
   getTeams: () => request<{ teams: TeamSummary[] }>('/api/teams'),
   getGrounds: () => request<{ grounds: string[] }>('/api/grounds'),
+  getAuditLog: (token: string) =>
+    request<Array<{ id: string; actorName: string; action: string; targetType: string; targetId: string; detail: string; createdAt: string }>>(
+      '/api/admin/audit',
+      { token },
+    ),
+  getContentReports: (token: string) =>
+    request<Array<{ id: string; reporterName: string; matchId: string; commentId: string; reason: string; status: string; createdAt: string }>>(
+      '/api/admin/reports',
+      { token },
+    ),
+  resolveContentReport: (reportId: string, token: string) =>
+    request<{ id: string; status: string }>(`/api/admin/reports/${encodeURIComponent(reportId)}/resolve`, {
+      method: 'POST',
+      token,
+    }),
+  submitReport: (payload: { matchId?: string; commentId?: string; reason: string }, token: string) =>
+    request<{ id: string }>('/api/reports', { method: 'POST', body: payload, token }),
+  exportCsv: async (kind: 'accounts' | 'matches' | 'results' | 'payments', token: string) => {
+    const response = await fetch(`/api/admin/export/${kind}.csv`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) {
+      throw new Error('Export failed.')
+    }
+    return response.blob()
+  },
   getAdminAccounts: (token: string) => request<AdminAccount[]>('/api/admin/accounts', { token }),
   createAccount: (
     payload: {

@@ -213,6 +213,37 @@ const playerSchema = new Schema(
 )
 playerSchema.index({ team: 1, name: 1 })
 
+const auditLogSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    actorId: { type: String, required: false, default: '' },
+    actorName: { type: String, required: false, default: '' },
+    action: { type: String, required: true },
+    targetType: { type: String, required: false, default: '' },
+    targetId: { type: String, required: false, default: '' },
+    detail: { type: String, required: false, default: '' },
+    createdAt: { type: Date, required: true, default: Date.now },
+  },
+  { versionKey: false },
+)
+auditLogSchema.index({ createdAt: -1 })
+
+const contentReportSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    reporterAccountId: { type: String, required: false, default: '' },
+    reporterName: { type: String, required: false, default: '' },
+    matchId: { type: String, required: false, default: '' },
+    commentId: { type: String, required: false, default: '' },
+    reason: { type: String, required: true },
+    status: { type: String, required: true, default: 'open' },
+    createdAt: { type: Date, required: true, default: Date.now },
+    resolvedAt: { type: Date, required: false },
+  },
+  { versionKey: false },
+)
+contentReportSchema.index({ status: 1, createdAt: -1 })
+
 const paymentSchema = new Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -383,6 +414,8 @@ const AuthTokenModel = mongoose.models.AuthToken || mongoose.model('AuthToken', 
 const PlayerModel = mongoose.models.Player || mongoose.model('Player', playerSchema)
 const FollowModel = mongoose.models.Follow || mongoose.model('Follow', followSchema)
 const RescheduleModel = mongoose.models.Reschedule || mongoose.model('Reschedule', rescheduleSchema)
+const AuditLogModel = mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)
+const ContentReportModel = mongoose.models.ContentReport || mongoose.model('ContentReport', contentReportSchema)
 const PaymentModel = mongoose.models.Payment || mongoose.model('Payment', paymentSchema)
 
 type AccountDoc = InferSchemaType<typeof accountSchema> & { _id: mongoose.Types.ObjectId }
@@ -1614,6 +1647,112 @@ export const store = {
       },
       { returnDocument: 'after' },
     ).lean()
+  },
+  logAudit: async (payload: {
+    actorId?: string
+    actorName?: string
+    action: string
+    targetType?: string
+    targetId?: string
+    detail?: string
+  }) => {
+    await AuditLogModel.create({
+      id: makeEntityId(),
+      actorId: payload.actorId ?? '',
+      actorName: payload.actorName ?? '',
+      action: payload.action,
+      targetType: payload.targetType ?? '',
+      targetId: payload.targetId ?? '',
+      detail: payload.detail ?? '',
+    })
+  },
+  getAuditLog: async (limit = 200) =>
+    AuditLogModel.find().sort({ createdAt: -1 }).limit(limit).lean(),
+  createContentReport: async (payload: {
+    reporterAccountId: string
+    reporterName: string
+    matchId?: string
+    commentId?: string
+    reason: string
+  }) => {
+    const report = await ContentReportModel.create({
+      id: makeEntityId(),
+      reporterAccountId: payload.reporterAccountId,
+      reporterName: payload.reporterName,
+      matchId: payload.matchId ?? '',
+      commentId: payload.commentId ?? '',
+      reason: payload.reason.trim(),
+    })
+    return report.toObject()
+  },
+  getContentReports: async () =>
+    ContentReportModel.find().sort({ status: 1, createdAt: -1 }).limit(200).lean(),
+  resolveContentReport: async (reportId: string) =>
+    ContentReportModel.findOneAndUpdate(
+      { id: reportId },
+      { $set: { status: 'resolved', resolvedAt: new Date() } },
+      { returnDocument: 'after' },
+    ).lean(),
+  exportRows: async (kind: string) => {
+    if (kind === 'accounts') {
+      const accounts = await AccountModel.find().sort({ createdAt: -1 }).lean<
+        Array<{ name: string; email: string; role: string; team: string; county: string; sport: string; createdAt?: Date }>
+      >()
+      return accounts.map((account) => ({
+        name: account.name,
+        email: account.email,
+        role: account.role,
+        team: account.team,
+        county: account.county,
+        sport: account.sport,
+        joined: account.createdAt ? new Date(account.createdAt).toISOString().slice(0, 10) : '',
+      }))
+    }
+
+    if (kind === 'matches') {
+      const matches = await MatchModel.find().sort({ kickoff: -1 }).lean<
+        Array<{ kickoff: string; homeTeam: string; awayTeam: string; venue: string; sport: string; category: string; homeScore?: number; awayScore?: number; status: string }>
+      >()
+      return matches.map((match) => ({
+        kickoff: match.kickoff,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        homeScore: match.homeScore ?? '',
+        awayScore: match.awayScore ?? '',
+        venue: match.venue,
+        sport: match.sport,
+        category: match.category,
+        status: match.status,
+      }))
+    }
+
+    if (kind === 'results') {
+      const results = await ResultModel.find().sort({ playedOn: -1 }).lean<
+        Array<{ playedOn: string; homeTeam: string; awayTeam: string; homeScore: number; awayScore: number; venue: string; reportedBy: string }>
+      >()
+      return results.map((result) => ({
+        playedOn: result.playedOn,
+        homeTeam: result.homeTeam,
+        awayTeam: result.awayTeam,
+        homeScore: result.homeScore,
+        awayScore: result.awayScore,
+        venue: result.venue,
+        reportedBy: result.reportedBy,
+      }))
+    }
+
+    const payments = await PaymentModel.find().sort({ createdAt: -1 }).lean<
+      Array<{ tournamentId: string; team: string; amount: number; status: string; phone?: string; receipt?: string; createdAt: Date }>
+    >()
+    return payments.map((payment) => ({
+      tournamentId: payment.tournamentId,
+      team: payment.team,
+      amount: payment.amount,
+      status: payment.status,
+      phone: payment.phone ?? '',
+      receipt: payment.receipt ?? '',
+      created: new Date(payment.createdAt).toISOString(),
+    }))
   },
   createRescheduleRequest: async (payload: {
     matchId: string

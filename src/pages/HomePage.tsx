@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import { useOutletContext } from 'react-router-dom'
@@ -44,6 +45,9 @@ export function HomePage() {
   const [groundOptions, setGroundOptions] = useState<string[]>([])
   const [announceMessage, setAnnounceMessage] = useState('')
   const [engagementMessage, setEngagementMessage] = useState('')
+  const [reportMatchId, setReportMatchId] = useState<string | null>(null)
+  const [reportReason, setReportReason] = useState('')
+  const [isReporting, setIsReporting] = useState(false)
   useAutoHide(announceMessage, () => setAnnounceMessage(''))
   useAutoHide(engagementMessage, () => setEngagementMessage(''))
 
@@ -182,6 +186,30 @@ export function HomePage() {
     } catch (error) {
       setEngagementMessage(error instanceof Error ? error.message : 'Failed to rate match.')
       return false
+    }
+  }
+
+  const handleSubmitReport = async () => {
+    if (!reportMatchId) {
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      setEngagementMessage('Log in to report content.')
+      return
+    }
+
+    setIsReporting(true)
+    try {
+      await api.submitReport({ matchId: reportMatchId, reason: reportReason }, token)
+      setEngagementMessage('Thanks — a moderator will review this.')
+      setReportMatchId(null)
+      setReportReason('')
+    } catch (error) {
+      setEngagementMessage(error instanceof Error ? error.message : 'Could not send that report.')
+    } finally {
+      setIsReporting(false)
     }
   }
 
@@ -466,6 +494,35 @@ export function HomePage() {
         ))}
       </Stack>
 
+      <Dialog open={Boolean(reportMatchId)} onClose={() => setReportMatchId(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontSize: '0.92rem', fontWeight: 800 }}>Report content</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            label="What is wrong?"
+            value={reportReason}
+            onChange={(event) => setReportReason(event.target.value)}
+            sx={{ mt: 0.5 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setReportMatchId(null)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            disabled={isReporting || !reportReason.trim()}
+            onClick={() => void handleSubmitReport()}
+          >
+            {isReporting ? 'Sending…' : 'Send report'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
         {filteredMatches.map((match) => {
           const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
@@ -481,6 +538,18 @@ export function HomePage() {
                     {match.sport} · {match.category}
                   </Typography>
                   <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
+                    {loggedInUser && (
+                      <IconButton
+                        size="small"
+                        aria-label={`Report ${match.homeTeam} vs ${match.awayTeam}`}
+                        onClick={() => {
+                          setReportMatchId(match.id)
+                          setReportReason('')
+                        }}
+                      >
+                        <FlagOutlinedIcon sx={{ fontSize: '0.95rem' }} />
+                      </IconButton>
+                    )}
                     <ShareButtons
                       payload={{
                         title: `${match.homeTeam} vs ${match.awayTeam}`,
