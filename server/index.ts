@@ -375,6 +375,15 @@ app.post('/api/matches', async (req, res) => {
     return
   }
 
+  const clash = await store.findVenueClash(body.venue, body.kickoff)
+  if (clash) {
+    res.status(409).json({
+      error: `${body.venue} already hosts ${clash.homeTeam} vs ${clash.awayTeam} around that time. Pick another slot or venue.`,
+      clash,
+    })
+    return
+  }
+
   const created = await store.addMatch({
     homeTeam: teamName,
     awayTeam,
@@ -418,6 +427,69 @@ app.patch('/api/matches/:matchId/kickoff', async (req, res) => {
   }
 
   res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
+})
+
+app.post('/api/matches/:matchId/reschedule', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const teamName = user.team?.trim() ?? ''
+  const matchId = String(req.params.matchId ?? '')
+  const body = req.body as { newKickoff?: string; reason?: string }
+  const newKickoff = body.newKickoff?.trim() ?? ''
+
+  if (!newKickoff || !Number.isFinite(new Date(newKickoff).getTime())) {
+    res.status(400).json({ error: 'Provide the new date and time.' })
+    return
+  }
+
+  const match = await store.getMatchForParticipant(matchId, teamName)
+  if (!match) {
+    res.status(404).json({ error: 'Match not found for your team.' })
+    return
+  }
+
+  const pending = await store.getPendingReschedule(matchId)
+  if (pending) {
+    res.status(409).json({ error: 'There is already a pending reschedule request for this match.' })
+    return
+  }
+
+  const request = await store.createRescheduleRequest({
+    matchId,
+    requestedBy: teamName,
+    requestedByAccountId: user.id,
+    currentKickoff: match.kickoff,
+    newKickoff,
+    reason: body.reason,
+  })
+
+  res.status(201).json(request)
+})
+
+app.get('/api/matches/:matchId/reschedule', async (req, res) => {
+  const pending = await store.getPendingReschedule(String(req.params.matchId ?? ''))
+  res.json({ request: pending ?? null })
+})
+
+app.post('/api/reschedules/:requestId/respond', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const accept = Boolean((req.body as { accept?: boolean }).accept)
+  const request = await store.respondToReschedule(String(req.params.requestId ?? ''), accept)
+  if (!request) {
+    res.status(404).json({ error: 'That reschedule request is no longer pending.' })
+    return
+  }
+
+  res.json({ request })
 })
 
 app.post('/api/matches/:matchId/events', async (req, res) => {

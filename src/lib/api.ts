@@ -1,4 +1,4 @@
-import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, Player, RefereeSummary, ResultReport, TeamProfile, TournamentItem, TournamentPayment, TournamentStatus } from '../types'
+import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, Player, RefereeSummary, RescheduleRequest, ResultReport, TeamProfile, TournamentItem, TournamentPayment, TournamentStatus } from '../types'
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
@@ -371,6 +371,21 @@ export const api = {
       body: { kickoff },
       token,
     }),
+  requestReschedule: (matchId: string, payload: { newKickoff: string; reason?: string }, token: string) =>
+    request<RescheduleRequest>(`/api/matches/${encodeURIComponent(matchId)}/reschedule`, {
+      method: 'POST',
+      body: payload,
+      token,
+    }),
+  getReschedule: (matchId: string) =>
+    request<{ request: RescheduleRequest | null }>(
+      `/api/matches/${encodeURIComponent(matchId)}/reschedule`,
+    ),
+  respondReschedule: (requestId: string, accept: boolean, token: string) =>
+    request<{ request: RescheduleRequest }>(
+      `/api/reschedules/${encodeURIComponent(requestId)}/respond`,
+      { method: 'POST', body: { accept }, token },
+    ),
   addMatchEvent: (
     matchId: string,
     payload: { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; assist?: string; minute?: number; note?: string },

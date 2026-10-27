@@ -16,7 +16,7 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
-import type { FriendlyRequest, MatchAnnouncement, Player, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { FriendlyRequest, MatchAnnouncement, Player, RescheduleRequest, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
@@ -93,6 +93,8 @@ export function TeamDashboardPage() {
   const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
   const [squad, setSquad] = useState<Player[]>([])
   const [eventDrafts, setEventDrafts] = useState<Record<string, { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; minute: string }>>({})
+  const [rescheduleDrafts, setRescheduleDrafts] = useState<Record<string, string>>({})
+  const [pendingReschedules, setPendingReschedules] = useState<Record<string, RescheduleRequest | null>>({})
   const [newPlayerName, setNewPlayerName] = useState('')
   const [newPlayerNumber, setNewPlayerNumber] = useState('')
   const [newPlayerPosition, setNewPlayerPosition] = useState('')
@@ -271,6 +273,17 @@ export function TeamDashboardPage() {
     try {
       const matches = await api.getMyMatches(token)
       setMyMatches(matches)
+
+      void Promise.all(
+        matches.map((match) =>
+          api
+            .getReschedule(match.id)
+            .then((response) => [match.id, response.request] as const)
+            .catch(() => [match.id, null] as const),
+        ),
+      ).then((entries) => {
+        setPendingReschedules(Object.fromEntries(entries.filter(([, request]) => request !== null)))
+      })
       setEditingKickoffByMatchId(
         Object.fromEntries(matches.map((match) => [match.id, match.kickoff.slice(0, 16)])),
       )
@@ -730,6 +743,44 @@ export function TeamDashboardPage() {
 
   const squadNamesFor = (teamName: string) =>
     squad.filter((player) => player.team.toLowerCase() === teamName.toLowerCase()).map((player) => player.name)
+
+  const handleRequestReschedule = async (match: MatchAnnouncement) => {
+    const token = api.getToken()
+    const newKickoff = rescheduleDrafts[match.id] ?? ''
+    if (!token || !newKickoff) {
+      setGlobalError('Choose the new date and time first.')
+      return
+    }
+
+    try {
+      const request = await api.requestReschedule(
+        match.id,
+        { newKickoff: new Date(newKickoff).toISOString() },
+        token,
+      )
+      setPendingReschedules((prev) => ({ ...prev, [match.id]: request }))
+      setGlobalMessage('Reschedule request sent to the other team.')
+    } catch (error) {
+      setGlobalError(error instanceof Error ? error.message : 'Could not send that request.')
+    }
+  }
+
+  const handleRespondReschedule = async (matchId: string, accept: boolean) => {
+    const token = api.getToken()
+    const request = pendingReschedules[matchId]
+    if (!token || !request) {
+      return
+    }
+
+    try {
+      await api.respondReschedule(request.id, accept, token)
+      setPendingReschedules((prev) => ({ ...prev, [matchId]: null }))
+      setGlobalMessage(accept ? 'Match rescheduled.' : 'Reschedule declined.')
+      await loadMyMatches()
+    } catch (error) {
+      setGlobalError(error instanceof Error ? error.message : 'Could not respond to that request.')
+    }
+  }
 
   const handleAddEvent = async (match: MatchAnnouncement) => {
     const token = api.getToken()
@@ -1224,6 +1275,44 @@ export function TeamDashboardPage() {
                         </Button>
                       </Stack>
                     </Box>
+                  )}
+
+                  {(canUpdateScore || canEditMatch) && (
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.8} sx={{ alignItems: { sm: 'center' } }}>
+                      <TextField
+                        size="small"
+                        type="datetime-local"
+                        label="New kickoff"
+                        value={rescheduleDrafts[match.id] ?? ''}
+                        onChange={(event) =>
+                          setRescheduleDrafts((prev) => ({ ...prev, [match.id]: event.target.value }))
+                        }
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        sx={{ '& .MuiInputBase-input': { fontSize: '0.74rem' } }}
+                      />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => void handleRequestReschedule(match)}
+                        disabled={!(rescheduleDrafts[match.id] ?? '')}
+                      >
+                        Request reschedule
+                      </Button>
+                      {pendingReschedules[match.id] && (
+                        <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: '0.68rem', color: '#facc15' }}>
+                            {pendingReschedules[match.id]?.requestedBy} asked for{' '}
+                            {new Date(pendingReschedules[match.id]!.newKickoff).toLocaleString()}
+                          </Typography>
+                          <Button size="small" variant="contained" onClick={() => void handleRespondReschedule(match.id, true)}>
+                            Accept
+                          </Button>
+                          <Button size="small" variant="outlined" color="inherit" onClick={() => void handleRespondReschedule(match.id, false)}>
+                            Decline
+                          </Button>
+                        </Stack>
+                      )}
+                    </Stack>
                   )}
 
                   {canEditMatch && (

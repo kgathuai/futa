@@ -234,6 +234,22 @@ const paymentSchema = new Schema(
 paymentSchema.index({ tournamentId: 1, team: 1 })
 paymentSchema.index({ status: 1, createdAt: -1 })
 
+const rescheduleSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    matchId: { type: String, required: true },
+    requestedBy: { type: String, required: true },
+    requestedByAccountId: { type: String, required: false },
+    currentKickoff: { type: String, required: true },
+    newKickoff: { type: String, required: true },
+    reason: { type: String, required: false, default: '' },
+    status: { type: String, required: true, default: 'pending' },
+    createdAt: { type: Date, required: true, default: Date.now },
+  },
+  { versionKey: false },
+)
+rescheduleSchema.index({ matchId: 1, status: 1 })
+
 const followSchema = new Schema(
   {
     id: { type: String, required: true, unique: true },
@@ -366,6 +382,7 @@ const NotificationModel = mongoose.models.Notification || mongoose.model('Notifi
 const AuthTokenModel = mongoose.models.AuthToken || mongoose.model('AuthToken', authTokenSchema)
 const PlayerModel = mongoose.models.Player || mongoose.model('Player', playerSchema)
 const FollowModel = mongoose.models.Follow || mongoose.model('Follow', followSchema)
+const RescheduleModel = mongoose.models.Reschedule || mongoose.model('Reschedule', rescheduleSchema)
 const PaymentModel = mongoose.models.Payment || mongoose.model('Payment', paymentSchema)
 
 type AccountDoc = InferSchemaType<typeof accountSchema> & { _id: mongoose.Types.ObjectId }
@@ -799,6 +816,27 @@ export const store = {
       team: new RegExp(`^${escapeRegExp(teamName.trim())}$`, 'i'),
     })
     return result.deletedCount > 0
+  },
+  findVenueClash: async (venue: string, kickoff: string, excludeMatchId?: string) => {
+    const target = new Date(kickoff).getTime()
+    if (!Number.isFinite(target) || !venue.trim()) {
+      return null
+    }
+
+    const windowMs = 2 * 60 * 60 * 1000
+    const candidates = await MatchModel.find({
+      venue: new RegExp(`^${escapeRegExp(venue.trim())}$`, 'i'),
+    }).lean<Array<{ id: string; kickoff: string; homeTeam: string; awayTeam: string }>>()
+
+    return (
+      candidates.find((match) => {
+        if (excludeMatchId && match.id === excludeMatchId) {
+          return false
+        }
+        const time = new Date(match.kickoff).getTime()
+        return Number.isFinite(time) && Math.abs(time - target) < windowMs
+      }) ?? null
+    )
   },
   getMatches: async () => MatchModel.find().sort({ kickoff: 1 }).lean(),
   getMatchesForTeam: async (teamName: string) =>
@@ -1576,6 +1614,47 @@ export const store = {
       },
       { returnDocument: 'after' },
     ).lean()
+  },
+  createRescheduleRequest: async (payload: {
+    matchId: string
+    requestedBy: string
+    requestedByAccountId?: string
+    currentKickoff: string
+    newKickoff: string
+    reason?: string
+  }) => {
+    const request = await RescheduleModel.create({
+      id: makeEntityId(),
+      matchId: payload.matchId,
+      requestedBy: payload.requestedBy,
+      requestedByAccountId: payload.requestedByAccountId,
+      currentKickoff: payload.currentKickoff,
+      newKickoff: payload.newKickoff,
+      reason: payload.reason?.trim() ?? '',
+      status: 'pending',
+    })
+
+    return request.toObject()
+  },
+  getPendingReschedule: async (matchId: string) => {
+    return RescheduleModel.findOne({ matchId, status: 'pending' }).lean()
+  },
+  respondToReschedule: async (requestId: string, accept: boolean) => {
+    const request = await RescheduleModel.findOneAndUpdate(
+      { id: requestId, status: 'pending' },
+      { status: accept ? 'accepted' : 'declined' },
+      { returnDocument: 'after' },
+    ).lean<{ matchId: string; newKickoff: string } | null>()
+
+    if (!request) {
+      return null
+    }
+
+    if (accept) {
+      await MatchModel.updateOne({ id: request.matchId }, { $set: { kickoff: request.newKickoff } })
+    }
+
+    return request
   },
   addMatchEvent: async (
     matchId: string,

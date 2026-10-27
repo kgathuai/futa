@@ -64,6 +64,17 @@ export interface MatchGoal {
 
 export type MatchGoalInput = Omit<MatchGoal, 'id'>
 
+export interface RescheduleRequest {
+  id: string
+  matchId: string
+  requestedBy: string
+  currentKickoff: string
+  newKickoff: string
+  reason?: string
+  status: 'pending' | 'accepted' | 'declined'
+  createdAt: string
+}
+
 export interface MatchEvent {
   id: string
   team: string
