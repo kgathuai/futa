@@ -907,9 +907,9 @@ export function Layout() {
           px: 0.5,
           pt: 0.75,
           pb: 'calc(0.75rem + env(safe-area-inset-bottom))',
-          bgcolor: 'background.paper',
+          bgcolor: mode === 'light' ? '#ffffff' : 'background.paper',
           borderTop: '1px solid',
-          borderColor: 'divider',
+          borderColor: mode === 'light' ? 'rgba(11,18,32,0.12)' : 'rgba(255,255,255,0.14)',
           boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.12)',
         }}
       >
@@ -927,7 +927,14 @@ export function Layout() {
                 gap: 0.2,
                 px: 0.25,
                 py: 0.35,
-                color: isActive ? 'primary.main' : 'text.secondary',
+                color:
+                  mode === 'light'
+                    ? isActive
+                      ? '#0b7a56'
+                      : '#0b1220'
+                    : isActive
+                      ? 'primary.main'
+                      : 'text.secondary',
                 textTransform: 'none',
                 fontSize: '0.64rem',
                 fontWeight: isActive ? 700 : 500,
@@ -955,12 +962,12 @@ export function Layout() {
             gap: 0.2,
             px: 0.25,
             py: 0.35,
-            color: 'text.secondary',
+            color: mode === 'light' ? '#0b1220' : 'text.secondary',
             textTransform: 'none',
             fontSize: '0.64rem',
             fontWeight: 500,
             whiteSpace: 'nowrap',
-            '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+            '&:hover': { bgcolor: 'action.hover', color: mode === 'light' ? '#0b7a56' : 'text.primary' },
           }}
         >
           {profileAvatar ? (
