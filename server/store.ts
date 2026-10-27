@@ -34,6 +34,15 @@ export interface TeamPayload {
   logoUrl?: string
 }
 
+export interface PlayerRecord {
+  id: string
+  team: string
+  name: string
+  number?: number
+  position?: string
+  createdAt?: string
+}
+
 export interface FriendlyRequestRecord {
   id: string
   requesterAccountId: string
@@ -179,6 +188,19 @@ const teamSchema = new Schema(
   { versionKey: false, timestamps: true },
 )
 
+const playerSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    team: { type: String, required: true },
+    name: { type: String, required: true },
+    number: { type: Number, required: false },
+    position: { type: String, required: false, default: '' },
+    createdAt: { type: Date, required: true, default: Date.now },
+  },
+  { versionKey: false },
+)
+playerSchema.index({ team: 1, name: 1 })
+
 const accountSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -283,6 +305,7 @@ const SessionModel = mongoose.models.Session || mongoose.model('Session', sessio
 const FriendlyRequestModel = mongoose.models.FriendlyRequest || mongoose.model('FriendlyRequest', friendlyRequestSchema)
 const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema)
 const AuthTokenModel = mongoose.models.AuthToken || mongoose.model('AuthToken', authTokenSchema)
+const PlayerModel = mongoose.models.Player || mongoose.model('Player', playerSchema)
 
 type AccountDoc = InferSchemaType<typeof accountSchema> & { _id: mongoose.Types.ObjectId }
 
@@ -456,6 +479,8 @@ const normalizeStoredComments = (input: unknown): StoredComment[] => {
     .filter((comment): comment is StoredComment => comment !== null)
 }
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 const makeEntityId = () => `${Date.now()}-${Math.floor(Math.random() * 10_000)}`
 
 const PASSWORD_HASH_PREFIX = 'scrypt'
@@ -546,6 +571,56 @@ export const connectDatabase = async (mongoUri: string) => {
 }
 
 export const store = {
+  getSquad: async (teamName: string) => {
+    const team = teamName.trim()
+    if (!team) {
+      return [] as PlayerRecord[]
+    }
+
+    return PlayerModel.find({ team: new RegExp(`^${escapeRegExp(team)}$`, 'i') })
+      .sort({ number: 1, name: 1 })
+      .lean<PlayerRecord[]>()
+  },
+  addPlayer: async (payload: { team: string; name: string; number?: number; position?: string }) => {
+    const created = await PlayerModel.create({
+      id: makeEntityId(),
+      team: payload.team.trim(),
+      name: payload.name.trim(),
+      number: payload.number,
+      position: payload.position?.trim() ?? '',
+    })
+
+    return created.toObject() as PlayerRecord
+  },
+  updatePlayer: async (
+    playerId: string,
+    teamName: string,
+    patch: { name?: string; number?: number; position?: string },
+  ) => {
+    const update: Record<string, unknown> = {}
+    if (patch.name !== undefined) {
+      update.name = patch.name.trim()
+    }
+    if (patch.number !== undefined) {
+      update.number = patch.number
+    }
+    if (patch.position !== undefined) {
+      update.position = patch.position.trim()
+    }
+
+    return PlayerModel.findOneAndUpdate(
+      { id: playerId, team: new RegExp(`^${escapeRegExp(teamName.trim())}$`, 'i') },
+      { $set: update },
+      { returnDocument: 'after' },
+    ).lean<PlayerRecord | null>()
+  },
+  deletePlayer: async (playerId: string, teamName: string) => {
+    const result = await PlayerModel.deleteOne({
+      id: playerId,
+      team: new RegExp(`^${escapeRegExp(teamName.trim())}$`, 'i'),
+    })
+    return result.deletedCount > 0
+  },
   getMatches: async () => MatchModel.find().sort({ kickoff: 1 }).lean(),
   getMatchesForTeam: async (teamName: string) =>
     MatchModel.find({ $or: [{ homeTeam: teamName }, { awayTeam: teamName }] }).sort({ kickoff: 1 }).lean(),

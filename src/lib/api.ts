@@ -1,4 +1,4 @@
-import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, RefereeSummary, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, Player, RefereeSummary, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
@@ -152,6 +152,15 @@ export const api = {
     }),
   getFriendlies: () => request<FriendlyRequest[]>('/api/friendlies'),
   getReferees: () => request<{ referees: RefereeSummary[] }>('/api/referees'),
+  getSquad: (team: string) =>
+    request<{ squad: Player[] }>(`/api/squad?team=${encodeURIComponent(team)}`),
+  addPlayer: (payload: { team: string; name: string; number?: number; position?: string }, token: string) =>
+    request<{ player: Player }>('/api/squad', { method: 'POST', body: payload, token }),
+  deletePlayer: (playerId: string, team: string, token: string) =>
+    request<void>(`/api/squad/${encodeURIComponent(playerId)}?team=${encodeURIComponent(team)}`, {
+      method: 'DELETE',
+      token,
+    }),
   getRefereeBookings: (token: string) =>
     request<FriendlyRequest[]>('/api/referee/bookings', { token }),
   getNotifications: (token: string) => request<NotificationItem[]>('/api/notifications', { token }),

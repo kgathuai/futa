@@ -16,7 +16,7 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
-import type { FriendlyRequest, MatchAnnouncement, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { FriendlyRequest, MatchAnnouncement, Player, TeamProfile, TournamentItem, TournamentStatus } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
@@ -91,6 +91,11 @@ export function TeamDashboardPage() {
   const [friendlyLocation, setFriendlyLocation] = useState('')
   const [friendlyReferee, setFriendlyReferee] = useState('')
   const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
+  const [squad, setSquad] = useState<Player[]>([])
+  const [newPlayerName, setNewPlayerName] = useState('')
+  const [newPlayerNumber, setNewPlayerNumber] = useState('')
+  const [newPlayerPosition, setNewPlayerPosition] = useState('')
+  const [squadMessage, setSquadMessage] = useState('')
   const [friendlyNote, setFriendlyNote] = useState('')
 
   const [teamName, setTeamName] = useState(team.name)
@@ -297,6 +302,31 @@ export function TeamDashboardPage() {
   useEffect(() => {
     void loadMyMatches()
   }, [])
+
+  useEffect(() => {
+    if (!loggedInTeam) {
+      setSquad([])
+      return
+    }
+
+    let active = true
+    void api
+      .getSquad(loggedInTeam)
+      .then((response) => {
+        if (active) {
+          setSquad(response.squad)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSquad([])
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [loggedInTeam])
 
   useEffect(() => {
     const loadReferees = async () => {
@@ -649,6 +679,57 @@ export function TeamDashboardPage() {
     }
   }
 
+  const handleAddPlayer = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const token = api.getToken()
+    if (!token || !loggedInTeam) {
+      setSquadMessage('Log in with a team account to manage the squad.')
+      return
+    }
+
+    const name = newPlayerName.trim()
+    if (!name) {
+      setSquadMessage('Enter the player name.')
+      return
+    }
+
+    try {
+      const response = await api.addPlayer(
+        {
+          team: loggedInTeam,
+          name,
+          number: newPlayerNumber.trim() ? Number(newPlayerNumber) : undefined,
+          position: newPlayerPosition.trim() || undefined,
+        },
+        token,
+      )
+      setSquad((prev) => [...prev, response.player].sort((a, b) => (a.number ?? 999) - (b.number ?? 999)))
+      setNewPlayerName('')
+      setNewPlayerNumber('')
+      setNewPlayerPosition('')
+      setSquadMessage(`${name} added to the squad.`)
+    } catch (error) {
+      setSquadMessage(error instanceof Error ? error.message : 'Could not add that player.')
+    }
+  }
+
+  const handleRemovePlayer = async (playerId: string) => {
+    const token = api.getToken()
+    if (!token || !loggedInTeam) {
+      return
+    }
+    try {
+      await api.deletePlayer(playerId, loggedInTeam, token)
+      setSquad((prev) => prev.filter((player) => player.id !== playerId))
+      setSquadMessage('Player removed.')
+    } catch (error) {
+      setSquadMessage(error instanceof Error ? error.message : 'Could not remove that player.')
+    }
+  }
+
+  const squadNamesFor = (teamName: string) =>
+    squad.filter((player) => player.team.toLowerCase() === teamName.toLowerCase()).map((player) => player.name)
+
   const addGoalRow = (matchId: string, team: string) => {
     setEditingGoalsByMatchId((prev) => ({
       ...prev,
@@ -944,19 +1025,37 @@ export function TeamDashboardPage() {
                                 <MenuItem value={match.homeTeam}>{match.homeTeam}</MenuItem>
                                 <MenuItem value={match.awayTeam}>{match.awayTeam}</MenuItem>
                               </TextField>
-                              <TextField
+                              <Autocomplete
+                                freeSolo
                                 size="small"
-                                label="Scorer"
+                                options={squadNamesFor(goal.team)}
                                 value={goal.scorer}
-                                onChange={(event) => updateGoalRow(match.id, goal.id, { scorer: event.target.value })}
-                                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                                onChange={(_event, value) => updateGoalRow(match.id, goal.id, { scorer: value ?? '' })}
+                                onInputChange={(_event, value) => updateGoalRow(match.id, goal.id, { scorer: value })}
+                                sx={{ flex: 1, minWidth: 140 }}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    label="Scorer"
+                                    sx={{ '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                                  />
+                                )}
                               />
-                              <TextField
+                              <Autocomplete
+                                freeSolo
                                 size="small"
-                                label="Assist (optional)"
+                                options={squadNamesFor(goal.team)}
                                 value={goal.assist}
-                                onChange={(event) => updateGoalRow(match.id, goal.id, { assist: event.target.value })}
-                                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                                onChange={(_event, value) => updateGoalRow(match.id, goal.id, { assist: value ?? '' })}
+                                onInputChange={(_event, value) => updateGoalRow(match.id, goal.id, { assist: value })}
+                                sx={{ flex: 1, minWidth: 140 }}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    label="Assist (optional)"
+                                    sx={{ '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                                  />
+                                )}
                               />
                               <IconButton
                                 size="small"
@@ -1497,6 +1596,105 @@ export function TeamDashboardPage() {
                     <Button type="submit" variant="contained" disabled={!canCreateTeam}>
                       Save team
                     </Button>
+                  </Box>
+
+                  <Box sx={{ mt: 2.6 }}>
+                    <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: '0.86rem' }}>Squad</Typography>
+                      <Chip size="small" label={`${squad.length} players`} sx={{ height: 20, fontSize: '0.62rem' }} />
+                    </Stack>
+                    <Typography sx={{ color: 'text.secondary', fontSize: '0.74rem', mb: 1.2 }}>
+                      Add your players once — they then appear as scorer and assist options when you report a score.
+                    </Typography>
+
+                    {squad.length > 0 && (
+                      <Stack spacing={0.7} sx={{ mb: 1.4 }}>
+                        {squad.map((player) => (
+                          <Stack
+                            key={player.id}
+                            direction="row"
+                            spacing={1}
+                            sx={{
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              border: '1px solid rgba(159,176,201,0.14)',
+                              borderRadius: 1.2,
+                              px: 1.1,
+                              py: 0.6,
+                            }}
+                          >
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                              <Box
+                                sx={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '50%',
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  bgcolor: 'rgba(76,227,163,0.14)',
+                                  color: 'primary.main',
+                                  fontSize: '0.66rem',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {player.number ?? '–'}
+                              </Box>
+                              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700 }} noWrap>
+                                {player.name}
+                              </Typography>
+                              {player.position && (
+                                <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }} noWrap>
+                                  {player.position}
+                                </Typography>
+                              )}
+                            </Stack>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              aria-label={`Remove ${player.name}`}
+                              onClick={() => void handleRemovePlayer(player.id)}
+                            >
+                              <DeleteOutlineRoundedIcon sx={{ fontSize: '0.95rem' }} />
+                            </IconButton>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )}
+
+                    <Box component="form" onSubmit={handleAddPlayer} sx={{ display: 'grid', gap: 1 }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <TextField
+                          size="small"
+                          label="Player name"
+                          value={newPlayerName}
+                          onChange={(event) => setNewPlayerName(event.target.value)}
+                          sx={{ flex: 2 }}
+                        />
+                        <TextField
+                          size="small"
+                          label="No."
+                          type="number"
+                          value={newPlayerNumber}
+                          onChange={(event) => setNewPlayerNumber(event.target.value)}
+                          sx={{ flex: 0.6 }}
+                          slotProps={{ htmlInput: { min: 1, max: 99 } }}
+                        />
+                        <TextField
+                          size="small"
+                          label="Position"
+                          value={newPlayerPosition}
+                          onChange={(event) => setNewPlayerPosition(event.target.value)}
+                          placeholder="GK, DF, MF, FW"
+                          sx={{ flex: 1 }}
+                        />
+                      </Stack>
+                      <Button type="submit" variant="outlined" size="small" disabled={!loggedInTeam}>
+                        Add player
+                      </Button>
+                      {squadMessage && (
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>{squadMessage}</Typography>
+                      )}
+                    </Box>
                   </Box>
                 </>
               )}

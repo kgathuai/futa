@@ -35,6 +35,12 @@ const isAdminRole = (role: string) => {
   return normalized === 'admin' || normalized === 'superadmin'
 }
 const isSuperAdminRole = (role: string) => normalizeRole(role) === 'superadmin'
+const canManageTeam = (user: RequestUser, teamName: string) => {
+  if (isAdminRole(user.role)) {
+    return true
+  }
+  return Boolean(user.team) && user.team.trim().toLowerCase() === teamName.trim().toLowerCase()
+}
 const corsOrigins = (process.env.CORS_ORIGIN ?? '')
   .split(',')
   .map((origin) => origin.trim())
@@ -1046,6 +1052,109 @@ app.post('/api/tournaments/:tournamentId/generate-fixtures', async (req, res) =>
 app.get('/api/teams', async (_req, res) => {
   const teams = await store.getTeams()
   res.json({ teams })
+})
+
+app.get('/api/squad', async (req, res) => {
+  const team = String(req.query.team ?? '').trim()
+  if (!team) {
+    res.status(400).json({ error: 'Missing team name.' })
+    return
+  }
+
+  const squad = await store.getSquad(team)
+  res.json({ squad })
+})
+
+// Squad editing is limited to the team's own management accounts.
+app.post('/api/squad', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+  if (!teamEditors.has(normalizeRole(user.role))) {
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can edit a squad.' })
+    return
+  }
+
+  const body = req.body as { team?: string; name?: string; number?: number; position?: string }
+  const team = body.team?.trim() || user.team
+  const name = body.name?.trim() ?? ''
+
+  if (!team || !name) {
+    res.status(400).json({ error: 'A player needs a name and a team.' })
+    return
+  }
+
+  if (!canManageTeam(user, team)) {
+    res.status(403).json({ error: 'You can only edit your own team’s squad.' })
+    return
+  }
+
+  const player = await store.addPlayer({
+    team,
+    name,
+    number: Number.isFinite(body.number) ? Number(body.number) : undefined,
+    position: body.position,
+  })
+  res.status(201).json({ player })
+})
+
+app.patch('/api/squad/:playerId', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+  if (!teamEditors.has(normalizeRole(user.role))) {
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can edit a squad.' })
+    return
+  }
+
+  const body = req.body as { team?: string; name?: string; number?: number; position?: string }
+  const team = body.team?.trim() || user.team
+  if (!team || !canManageTeam(user, team)) {
+    res.status(403).json({ error: 'You can only edit your own team’s squad.' })
+    return
+  }
+
+  const player = await store.updatePlayer(req.params.playerId ?? '', team, {
+    name: body.name,
+    number: Number.isFinite(body.number) ? Number(body.number) : undefined,
+    position: body.position,
+  })
+  if (!player) {
+    res.status(404).json({ error: 'Player not found.' })
+    return
+  }
+
+  res.json({ player })
+})
+
+app.delete('/api/squad/:playerId', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+  if (!teamEditors.has(normalizeRole(user.role))) {
+    res.status(403).json({ error: 'Only TM, Coach, captain, or an admin can edit a squad.' })
+    return
+  }
+
+  const team = String(req.query.team ?? '').trim() || user.team
+  if (!team || !canManageTeam(user, team)) {
+    res.status(403).json({ error: 'You can only edit your own team’s squad.' })
+    return
+  }
+
+  const removed = await store.deletePlayer(req.params.playerId ?? '', team)
+  if (!removed) {
+    res.status(404).json({ error: 'Player not found.' })
+    return
+  }
+
+  res.status(204).send()
 })
 
 app.get('/api/grounds', async (_req, res) => {

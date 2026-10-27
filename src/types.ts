@@ -95,6 +95,15 @@ export interface FriendlyRequest {
   respondedAt?: string | null
 }
 
+export interface Player {
+  id: string
+  team: string
+  name: string
+  number?: number
+  position?: string
+  createdAt?: string
+}
+
 export interface RefereeSummary {
   id: string
   name: string
