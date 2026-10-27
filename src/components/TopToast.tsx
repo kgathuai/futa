@@ -59,6 +59,7 @@ export function TopToast({
         onClose={onClose}
         variant="outlined"
         sx={{
+          position: 'relative',
           alignItems: 'center',
           justifyContent: 'center',
           width: '100%',
@@ -75,10 +76,28 @@ export function TopToast({
           border: 'none',
           borderTop: '1px solid rgba(76,227,163,0.45)',
           borderBottom: '1px solid rgba(76,227,163,0.45)',
-          px: { xs: 1, sm: 1.6 },
-          '& .MuiAlert-icon': { color: '#4ce3a3', mr: 0.6, fontSize: '0.8rem', py: 0 },
-          '& .MuiAlert-message': { py: 0, lineHeight: 1, textAlign: 'center' },
-          '& .MuiAlert-action': { mr: 0, py: 0, pl: 0.4, alignItems: 'center' },
+          px: { xs: 4, sm: 5 },
+          // Icon and close button sit at the edges so the message is truly centred.
+          '& .MuiAlert-icon': {
+            color: '#4ce3a3',
+            position: 'absolute',
+            left: { xs: 8, sm: 14 },
+            top: '50%',
+            transform: 'translateY(-50%)',
+            mr: 0,
+            py: 0,
+            fontSize: '0.8rem',
+          },
+          '& .MuiAlert-message': { py: 0, lineHeight: 1, textAlign: 'center', width: '100%' },
+          '& .MuiAlert-action': {
+            position: 'absolute',
+            right: { xs: 4, sm: 10 },
+            top: '50%',
+            transform: 'translateY(-50%)',
+            m: 0,
+            p: 0,
+            alignItems: 'center',
+          },
           '& .MuiAlert-action .MuiIconButton-root': { p: 0.1, fontSize: '0.8rem' },
         }}
       >
