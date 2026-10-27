@@ -57,8 +57,8 @@ import { hasRecordedScore } from '../lib/matchStatus'
 
 // Social profiles shown in the footer — replace with the club's own handles.
 const socialLinks = [
-  // Replace 254700000000 with the support line you want chats to reach.
-  { label: 'WhatsApp', href: 'https://wa.me/254700000000?text=Hi%20Futa%20support', icon: 'whatsapp' as const },
+  // Support line: 0711 263 120 (Kenya) → international format for wa.me.
+  { label: 'WhatsApp', href: 'https://wa.me/254711263120?text=Hi%20Futa%20support', icon: 'whatsapp' as const },
   { label: 'Facebook', href: 'https://facebook.com/kambumbu', icon: 'facebook' as const },
   { label: 'TikTok', href: 'https://tiktok.com/@kambumbu', icon: 'tiktok' as const },
   { label: 'X', href: 'https://x.com/kambumbu', icon: 'x' as const },
