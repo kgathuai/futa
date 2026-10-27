@@ -6,6 +6,7 @@ import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../typ
 import { FixturesTab } from '../components/FixturesTab'
 import { LoadingBar } from '../components/LoadingBar'
 import { ShareButtons } from '../components/ShareButtons'
+import type { TournamentPayment } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 
@@ -38,6 +39,11 @@ export function TournamentsPage() {
   const [venue, setVenue] = useState('')
   const [status, setStatus] = useState<TournamentStatus>('upcoming')
   const [maxTeams, setMaxTeams] = useState<number | ''>(8)
+  const [entryFee, setEntryFee] = useState<number | ''>(0)
+  const [payments, setPayments] = useState<TournamentPayment[]>([])
+  const [payPhone, setPayPhone] = useState('')
+  const [payMessage, setPayMessage] = useState('')
+  const [isPaying, setIsPaying] = useState(false)
   const [activeTab, setActiveTab] = useState<'standings' | 'fixtures' | 'stats'>('standings')
   const [fixtures, setFixtures] = useState<MatchAnnouncement[]>([])
   const [isLoadingFixtures, setIsLoadingFixtures] = useState(false)
@@ -434,6 +440,32 @@ export function TournamentsPage() {
 
   // Deep links such as /tournaments?tournament=<id> open the detail view.
   useEffect(() => {
+    if (!selectedTournament || !loggedInUser) {
+      setPayments([])
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    let active = true
+    void api
+      .getTournamentPayments(selectedTournament.id, token)
+      .then((response) => {
+        if (active) {
+          setPayments(response.payments)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      active = false
+    }
+  }, [selectedTournament, loggedInUser])
+
+  useEffect(() => {
     const linkedId = searchParams.get('tournament')
     if (!linkedId || tournaments.length === 0) {
       return
@@ -462,6 +494,49 @@ export function TournamentsPage() {
       setSelectedTournamentId(filteredTournaments[0].id)
     }
   }, [filteredTournaments, selectedTournamentId])
+
+  const handlePayEntry = async () => {
+    if (!selectedTournament) {
+      return
+    }
+
+    const token = api.getToken()
+    if (!token) {
+      setPayMessage('Log in with your team account to pay.')
+      return
+    }
+
+    setIsPaying(true)
+    setPayMessage('')
+    try {
+      const response = await api.payTournamentEntry(selectedTournament.id, payPhone.trim(), token)
+      setPayMessage(response.mpesa?.message ?? response.message ?? 'Payment recorded.')
+      if (response.payment) {
+        setPayments((prev) => [response.payment as TournamentPayment, ...prev])
+      }
+    } catch (error) {
+      setPayMessage(error instanceof Error ? error.message : 'Could not start that payment.')
+    } finally {
+      setIsPaying(false)
+    }
+  }
+
+  const handleConfirmPayment = async (paymentId: string) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    try {
+      const response = await api.confirmTournamentPayment(paymentId, token)
+      setPayments((prev) => prev.map((payment) => (payment.id === paymentId ? response.payment : payment)))
+      setPayMessage('Payment confirmed and the team registered.')
+      const refreshed = await api.getTournaments()
+      setTournaments(refreshed)
+    } catch (error) {
+      setPayMessage(error instanceof Error ? error.message : 'Could not confirm that payment.')
+    }
+  }
 
   const handleCreateTournament = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -495,6 +570,7 @@ export function TournamentsPage() {
           venue: safeVenue,
           status,
           maxTeams: parsedMaxTeams,
+          entryFee: entryFee === '' ? 0 : Math.max(0, Math.floor(Number(entryFee))),
         },
         token,
       )
@@ -679,6 +755,18 @@ export function TournamentsPage() {
                 slotProps={{ htmlInput: { min: 2, step: 1 } }}
                 required
                 helperText="Minimum 2. Open tournaments close registration at this limit."
+              />
+
+              <TextField
+                label="Entry fee (Ksh)"
+                type="number"
+                value={entryFee}
+                onChange={(event) => {
+                  const val = event.target.value
+                  setEntryFee(val === '' ? '' : Math.max(0, Math.floor(Number(val))))
+                }}
+                slotProps={{ htmlInput: { min: 0, step: 50 } }}
+                helperText="0 means free. Paid fees are tracked in the tournament ledger."
               />
 
               <Stack direction="row" spacing={1}>
@@ -999,6 +1087,85 @@ export function TournamentsPage() {
               </CardContent>
             </Card>
           </Box>
+
+          {(selectedTournament.entryFee ?? 0) > 0 && (
+            <Card variant="outlined">
+              <CardContent>
+                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.84rem' }}>Entry fee & payments</Typography>
+                  <Chip
+                    size="small"
+                    label={`Ksh ${selectedTournament.entryFee}`}
+                    sx={{ height: 20, fontSize: '0.62rem', fontWeight: 800, bgcolor: 'rgba(76,227,163,0.16)', color: 'primary.main' }}
+                  />
+                </Stack>
+
+                {loggedInTeam && !selectedTournamentTeams.includes(loggedInTeam) && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1.2 }}>
+                    <TextField
+                      size="small"
+                      label="M-Pesa phone"
+                      placeholder="2547XXXXXXXX"
+                      value={payPhone}
+                      onChange={(event) => setPayPhone(event.target.value)}
+                      sx={{ maxWidth: 240 }}
+                    />
+                    <Button variant="contained" size="small" onClick={() => void handlePayEntry()} disabled={isPaying}>
+                      {isPaying ? 'Starting…' : `Pay Ksh ${selectedTournament.entryFee}`}
+                    </Button>
+                  </Stack>
+                )}
+
+                {payMessage && (
+                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mb: 1 }}>{payMessage}</Typography>
+                )}
+
+                {payments.length === 0 ? (
+                  <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>
+                    No payments recorded yet.
+                  </Typography>
+                ) : (
+                  <Stack spacing={0.6}>
+                    {payments.map((payment) => (
+                      <Stack
+                        key={payment.id}
+                        direction="row"
+                        sx={{
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          border: '1px solid rgba(159,176,201,0.14)',
+                          borderRadius: 1.2,
+                          px: 1.1,
+                          py: 0.6,
+                          gap: 1,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }} noWrap>
+                            {payment.team} · Ksh {payment.amount}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }} noWrap>
+                            {new Date(payment.createdAt).toLocaleString()} · {payment.status.toUpperCase()}
+                            {payment.receipt ? ` · ${payment.receipt}` : ''}
+                          </Typography>
+                        </Box>
+                        {payment.status !== 'paid' && isOwner && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => void handleConfirmPayment(payment.id)}
+                            sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                          >
+                            Confirm paid
+                          </Button>
+                        )}
+                      </Stack>
+                    ))}
+                  </Stack>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tab switcher */}
           <Stack direction="row" spacing={0.8}>

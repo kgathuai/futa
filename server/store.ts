@@ -178,6 +178,8 @@ const tournamentSchema = new Schema(
     ownerTeam: { type: String, required: false },
     registeredTeams: { type: [String], required: true, default: [] },
     maxTeams: { type: Number, required: false },
+    // Entry fee per team in KES; 0 means free to enter.
+    entryFee: { type: Number, required: false, default: 0 },
   },
   { versionKey: false, timestamps: true },
 )
@@ -208,6 +210,27 @@ const playerSchema = new Schema(
   { versionKey: false },
 )
 playerSchema.index({ team: 1, name: 1 })
+
+const paymentSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    tournamentId: { type: String, required: true },
+    team: { type: String, required: true },
+    accountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
+    amount: { type: Number, required: true },
+    phone: { type: String, required: false, default: '' },
+    status: { type: String, required: true, default: 'pending' },
+    provider: { type: String, required: true, default: 'mpesa' },
+    reference: { type: String, required: false, default: '' },
+    receipt: { type: String, required: false, default: '' },
+    notes: { type: String, required: false, default: '' },
+    createdAt: { type: Date, required: true, default: Date.now },
+    paidAt: { type: Date, required: false },
+  },
+  { versionKey: false },
+)
+paymentSchema.index({ tournamentId: 1, team: 1 })
+paymentSchema.index({ status: 1, createdAt: -1 })
 
 const followSchema = new Schema(
   {
@@ -341,6 +364,7 @@ const NotificationModel = mongoose.models.Notification || mongoose.model('Notifi
 const AuthTokenModel = mongoose.models.AuthToken || mongoose.model('AuthToken', authTokenSchema)
 const PlayerModel = mongoose.models.Player || mongoose.model('Player', playerSchema)
 const FollowModel = mongoose.models.Follow || mongoose.model('Follow', followSchema)
+const PaymentModel = mongoose.models.Payment || mongoose.model('Payment', paymentSchema)
 
 type AccountDoc = InferSchemaType<typeof accountSchema> & { _id: mongoose.Types.ObjectId }
 
@@ -606,6 +630,94 @@ export const connectDatabase = async (mongoUri: string) => {
 }
 
 export const store = {
+  createPayment: async (payload: {
+    tournamentId: string
+    team: string
+    accountId?: string
+    amount: number
+    phone?: string
+    reference?: string
+  }) => {
+    const payment = await PaymentModel.create({
+      id: makeEntityId(),
+      tournamentId: payload.tournamentId,
+      team: payload.team.trim(),
+      accountId: mongoose.isValidObjectId(payload.accountId ?? '') ? payload.accountId : undefined,
+      amount: payload.amount,
+      phone: payload.phone?.trim() ?? '',
+      status: 'pending',
+      provider: 'mpesa',
+      reference: payload.reference ?? '',
+    })
+
+    return payment.toObject()
+  },
+  updatePaymentReference: async (paymentId: string, reference: string) => {
+    return PaymentModel.findOneAndUpdate(
+      { id: paymentId },
+      { $set: { reference } },
+      { returnDocument: 'after' },
+    ).lean()
+  },
+  markPaymentPaid: async (paymentId: string, receipt?: string, notes?: string) => {
+    const payment = await PaymentModel.findOneAndUpdate(
+      { id: paymentId },
+      {
+        $set: {
+          status: 'paid',
+          paidAt: new Date(),
+          receipt: receipt?.trim() ?? '',
+          notes: notes?.trim() ?? '',
+        },
+      },
+      { returnDocument: 'after' },
+    ).lean()
+
+    return payment
+  },
+  markPaymentPaidByReference: async (reference: string, receipt?: string) => {
+    return PaymentModel.findOneAndUpdate(
+      { reference },
+      { $set: { status: 'paid', paidAt: new Date(), receipt: receipt?.trim() ?? '' } },
+      { returnDocument: 'after' },
+    ).lean()
+  },
+  markPaymentFailedByReference: async (reference: string, notes?: string) => {
+    return PaymentModel.findOneAndUpdate(
+      { reference },
+      { $set: { status: 'failed', notes: notes?.trim() ?? '' } },
+      { returnDocument: 'after' },
+    ).lean()
+  },
+  getTournamentById: async (tournamentId: string) => {
+    if (!tournamentId) {
+      return null
+    }
+    return TournamentModel.findOne({ id: tournamentId }).lean()
+  },
+  markPaymentFailed: async (paymentId: string, notes?: string) => {
+    return PaymentModel.findOneAndUpdate(
+      { id: paymentId },
+      { $set: { status: 'failed', notes: notes?.trim() ?? '' } },
+      { returnDocument: 'after' },
+    ).lean()
+  },
+  getPaymentsForTournament: async (tournamentId: string) => {
+    return PaymentModel.find({ tournamentId }).sort({ createdAt: -1 }).lean()
+  },
+  getPaymentsForTeamAccount: async (accountId: string) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return []
+    }
+    return PaymentModel.find({ accountId }).sort({ createdAt: -1 }).lean()
+  },
+  getPaidRegistration: async (tournamentId: string, teamName: string) => {
+    return PaymentModel.findOne({
+      tournamentId,
+      team: new RegExp(`^${escapeRegExp(teamName.trim())}$`, 'i'),
+      status: 'paid',
+    }).lean()
+  },
   followTeam: async (accountId: string, team: string) => {
     if (!mongoose.isValidObjectId(accountId)) {
       return null
@@ -1247,6 +1359,7 @@ export const store = {
     ownerTeam?: string
     registeredTeams?: string[]
     maxTeams?: number
+    entryFee?: number
   }) => {
     const registeredTeams = (payload.registeredTeams?.length ? payload.registeredTeams : payload.ownerTeam ? [payload.ownerTeam] : [])
       .map((teamName) => teamName.trim())
@@ -1264,6 +1377,7 @@ export const store = {
       status: payload.status,
       type: payload.type === 'closed' ? 'closed' : 'open',
       ownerTeam: payload.ownerTeam?.trim() || undefined,
+      entryFee: payload.entryFee ?? 0,
       registeredTeams,
       maxTeams: payload.maxTeams ?? undefined,
     })

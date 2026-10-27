@@ -18,6 +18,22 @@ export interface TournamentItem {
   ownerTeam?: string
   registeredTeams: string[]
   maxTeams?: number
+  entryFee?: number
+}
+
+export interface TournamentPayment {
+  id: string
+  tournamentId: string
+  team: string
+  amount: number
+  phone?: string
+  status: 'pending' | 'paid' | 'failed'
+  provider: string
+  reference?: string
+  receipt?: string
+  notes?: string
+  createdAt: string
+  paidAt?: string | null
 }
 
 export interface MatchCommentReply {

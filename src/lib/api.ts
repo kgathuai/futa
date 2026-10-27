@@ -1,4 +1,4 @@
-import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, Player, RefereeSummary, ResultReport, TeamProfile, TournamentItem, TournamentStatus } from '../types'
+import type { AdminAccount, FriendlyRequest, MatchGoalInput, NotificationItem, Player, RefereeSummary, ResultReport, TeamProfile, TournamentItem, TournamentPayment, TournamentStatus } from '../types'
 import type { TeamSummary } from '../types'
 import type { MatchAnnouncement } from '../types'
 
@@ -115,6 +115,21 @@ export const api = {
       token,
     }),
   getResults: () => request<ResultReport[]>('/api/results'),
+  getTournamentPayments: (tournamentId: string, token: string) =>
+    request<{ payments: TournamentPayment[]; entryFee: number; mpesaConfigured: boolean }>(
+      `/api/tournaments/${encodeURIComponent(tournamentId)}/payments`,
+      { token },
+    ),
+  payTournamentEntry: (tournamentId: string, phone: string, token: string) =>
+    request<{ payment: TournamentPayment | null; mpesa: { initiated: boolean; message?: string }; message?: string }>(
+      `/api/tournaments/${encodeURIComponent(tournamentId)}/payments`,
+      { method: 'POST', body: { phone }, token },
+    ),
+  confirmTournamentPayment: (paymentId: string, token: string, receipt?: string) =>
+    request<{ payment: TournamentPayment }>(
+      `/api/payments/${encodeURIComponent(paymentId)}/confirm`,
+      { method: 'POST', body: { receipt }, token },
+    ),
   getTournaments: () => request<TournamentItem[]>('/api/tournaments'),
   getTeam: (token: string | null = localStorage.getItem(AUTH_TOKEN_KEY)) =>
     request<TeamProfile | null>('/api/team', { token }),
@@ -288,6 +303,7 @@ export const api = {
       type?: 'open' | 'closed'
       registeredTeams?: string[]
       maxTeams?: number
+      entryFee?: number
     },
     token: string,
   ) =>

@@ -5,6 +5,7 @@ import express from 'express'
 import cors from 'cors'
 import { connectDatabase, store, type AccountRecord, type TeamPayload } from './store.ts'
 import { buildLink, isEmailConfigured, sendEmail } from './email.ts'
+import { initiateStkPush, isMpesaConfigured } from './mpesa.ts'
 
 const app = express()
 const port = Number(process.env.PORT ?? 4000)
@@ -1857,6 +1858,7 @@ app.post('/api/tournaments', async (req, res) => {
     type?: 'open' | 'closed'
     registeredTeams?: string[]
     maxTeams?: number
+    entryFee?: number
   }
 
   if (!body.sport || !body.format || !body.name || !body.period || !body.venue || !body.status) {
@@ -1908,6 +1910,7 @@ app.post('/api/tournaments', async (req, res) => {
     ownerTeam: user.team,
     registeredTeams: requestedTeams,
     maxTeams,
+    entryFee: Number.isFinite(Number(body.entryFee)) ? Math.max(0, Number(body.entryFee)) : 0,
   })
 
   res.status(201).json(tournament)
@@ -2014,6 +2017,19 @@ app.post('/api/tournaments/:tournamentId/register', async (req, res) => {
     return
   }
 
+  const details = await store.getTournamentById(tournamentId)
+  const entryFee = details?.entryFee ?? 0
+  if (entryFee > 0) {
+    const paid = await store.getPaidRegistration(tournamentId, teamName)
+    if (!paid) {
+      res.status(402).json({
+        error: `This tournament costs Ksh ${entryFee}. Pay the entry fee to register.`,
+        entryFee,
+      })
+      return
+    }
+  }
+
   const tournament = await store.registerTeamForTournament(tournamentId, teamName)
   if (!tournament) {
     res.status(404).json({ error: 'Tournament not found.' })
@@ -2031,6 +2047,150 @@ app.post('/api/tournaments/:tournamentId/register', async (req, res) => {
   }
 
   res.json(tournament)
+})
+
+// ─── Tournament payments (M-Pesa ledger) ────────────────────────────────────
+app.get('/api/tournaments/:tournamentId/payments', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const tournamentId = String(req.params.tournamentId ?? '')
+  const tournament = await store.getTournamentById(tournamentId)
+  if (!tournament) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  const isOwner = Boolean(tournament.ownerTeam) && tournament.ownerTeam === user.team
+  const payments = await store.getPaymentsForTournament(tournamentId)
+  const visible = isAdminRole(user.role) || isOwner
+    ? payments
+    : payments.filter((payment) => (payment as { team?: string }).team === user.team)
+
+  res.json({ payments: visible, entryFee: tournament.entryFee ?? 0, mpesaConfigured: isMpesaConfigured() })
+})
+
+app.post('/api/tournaments/:tournamentId/payments', rateLimit('payments', 20, 60_000), async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (!teamEditors.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only team management can pay an entry fee.' })
+    return
+  }
+
+  const teamName = user.team?.trim()
+  const tournamentId = String(req.params.tournamentId ?? '')
+  const tournament = await store.getTournamentById(tournamentId)
+
+  if (!teamName) {
+    res.status(400).json({ error: 'Set your team before paying an entry fee.' })
+    return
+  }
+  if (!tournament) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  const entryFee = tournament.entryFee ?? 0
+  if (entryFee <= 0) {
+    res.json({ payment: null, message: 'This tournament is free to enter.' })
+    return
+  }
+
+  const existing = await store.getPaidRegistration(tournamentId, teamName)
+  if (existing) {
+    res.json({ payment: existing, message: 'Entry fee already paid.' })
+    return
+  }
+
+  const phone = String((req.body as { phone?: string }).phone ?? '').trim()
+  const payment = (await store.createPayment({
+    tournamentId,
+    team: teamName,
+    accountId: user.id,
+    amount: entryFee,
+    phone,
+  })) as { id: string }
+
+  if (isMpesaConfigured() && phone) {
+    const stk = await initiateStkPush({
+      phone,
+      amount: entryFee,
+      accountReference: `T${tournamentId.slice(-6)}`,
+      description: `${tournament.name} entry fee`,
+    })
+
+    if (stk.initiated && stk.reference) {
+      await store.updatePaymentReference(payment.id, stk.reference)
+    }
+
+    res.status(201).json({ payment, mpesa: stk })
+    return
+  }
+
+  res.status(201).json({
+    payment,
+    mpesa: {
+      initiated: false,
+      message: 'M-Pesa is not configured yet. An organiser can confirm the cash payment.',
+    },
+  })
+})
+
+app.post('/api/payments/:paymentId/confirm', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const body = req.body as { receipt?: string; notes?: string }
+  const paid = await store.markPaymentPaid(String(req.params.paymentId ?? ''), body.receipt, body.notes)
+  if (!paid) {
+    res.status(404).json({ error: 'Payment not found.' })
+    return
+  }
+
+  const payment = paid as { tournamentId: string; team: string; amount: number }
+  const tournament = await store.getTournamentById(payment.tournamentId)
+  if (tournament && !isAdminRole(user.role) && tournament.ownerTeam !== user.team) {
+    res.status(403).json({ error: 'Only the organiser can confirm payments.' })
+    return
+  }
+
+  // Paying the fee is what unlocks registration.
+  if (tournament) {
+    await store.registerTeamForTournament(payment.tournamentId, payment.team).catch(() => undefined)
+  }
+
+  res.json({ payment: paid })
+})
+
+// Safaricom calls this after the payer approves the STK prompt.
+app.post('/api/payments/mpesa/callback', async (req, res) => {
+  const callback = (req.body as {
+    Body?: { stkCallback?: { CheckoutRequestID?: string; ResultCode?: number; CallbackMetadata?: { Item?: Array<{ Name?: string; Value?: unknown }> } } }
+  })?.Body?.stkCallback
+
+  if (callback?.CheckoutRequestID) {
+    const items = callback.CallbackMetadata?.Item ?? []
+    const receipt = items.find((item) => item.Name === 'MpesaReceiptNumber')?.Value
+
+    if (callback.ResultCode === 0) {
+      await store.markPaymentPaidByReference(callback.CheckoutRequestID, String(receipt ?? ''))
+    } else {
+      await store.markPaymentFailedByReference(callback.CheckoutRequestID, `Result code ${callback.ResultCode}`)
+    }
+  }
+
+  res.json({ ResultCode: 0, ResultDesc: 'Accepted' })
 })
 
 const distPath = path.resolve(process.cwd(), 'dist')
