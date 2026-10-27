@@ -37,17 +37,18 @@ export function LoadingBar({
             bgcolor: LOADING_GREEN,
             boxShadow: GLOW,
             width: '100%',
-            transformOrigin: 'center',
-            animation: 'futa-bar-run 1.25s cubic-bezier(0.45, 0, 0.35, 1) infinite',
+            transformOrigin: 'left center',
+            animation: 'futa-bar-fill 1.35s cubic-bezier(0.35, 0, 0.35, 1) infinite',
           },
           '& .MuiLinearProgress-bar2': {
             display: 'none',
             animation: 'none',
           },
-          '@keyframes futa-bar-run': {
-            '0%': { transform: 'translateX(-100%) scaleX(0.3)' },
-            '50%': { transform: 'translateX(0%) scaleX(1)' },
-            '100%': { transform: 'translateX(100%) scaleX(0.3)' },
+          // The green fill grows from the left edge until it covers the full width.
+          '@keyframes futa-bar-fill': {
+            '0%': { transform: 'scaleX(0)' },
+            '70%': { transform: 'scaleX(1)' },
+            '100%': { transform: 'scaleX(1)' },
           },
         },
         ...(Array.isArray(sx) ? sx : [sx]),
