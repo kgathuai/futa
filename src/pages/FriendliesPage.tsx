@@ -7,9 +7,11 @@ import LocationOnIcon from '@mui/icons-material/LocationOn'
 import PersonIcon from '@mui/icons-material/Person'
 import PhoneIcon from '@mui/icons-material/Phone'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
-import { useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
 
 interface AuthOutletContext {
@@ -388,9 +390,90 @@ export function FriendliesPage() {
 
         <Stack spacing={2}>
           {pagedFriendlies.length === 0 && (
-            <Typography color="text.secondary">
-              {loggedInAccountId ? 'No friendlies yet for your team.' : 'No open friendly requests yet.'}
-            </Typography>
+            <Card
+              variant="outlined"
+              sx={{
+                borderRadius: 2.2,
+                borderStyle: 'dashed',
+                borderColor: 'rgba(76,227,163,0.35)',
+                bgcolor: 'rgba(76,227,163,0.04)',
+              }}
+            >
+              <CardContent sx={{ py: { xs: 3.5, md: 5 }, px: 2.5, textAlign: 'center' }}>
+                <Box
+                  sx={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: '50%',
+                    mx: 'auto',
+                    mb: 1.6,
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: 'rgba(76,227,163,0.12)',
+                    border: '1px solid rgba(76,227,163,0.35)',
+                    color: 'primary.main',
+                  }}
+                >
+                  <SportsSoccerOutlinedIcon sx={{ fontSize: '1.7rem' }} />
+                </Box>
+
+                <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.95rem', md: '1.1rem' }, mb: 0.6 }}>
+                  {loggedInAccountId ? 'No friendlies booked yet' : 'No open friendly requests'}
+                </Typography>
+
+                <Typography
+                  sx={{ color: 'text.secondary', fontSize: { xs: '0.78rem', md: '0.84rem' }, maxWidth: 420, mx: 'auto', mb: 2 }}
+                >
+                  {loggedInAccountId
+                    ? 'Pick an opponent, a ground and a kickoff time — the other team gets a request and you both confirm from here.'
+                    : 'Requests from other teams will appear here. Sign in with your team account to send your own.'}
+                </Typography>
+
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
+                  sx={{ justifyContent: 'center', alignItems: 'center' }}
+                >
+                  {loggedInAccountId ? (
+                    <Button
+                      variant="contained"
+                      disabled={!canCreateHere}
+                      onClick={() => setShowRequestForm(true)}
+                      startIcon={<SportsSoccerOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                      sx={{ fontSize: '0.78rem' }}
+                    >
+                      Schedule a friendly
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      onClick={() => {
+                        const trigger = document.querySelector<HTMLButtonElement>('[aria-label="Account"]')
+                        trigger?.click()
+                      }}
+                      sx={{ fontSize: '0.78rem' }}
+                    >
+                      Sign in to post a request
+                    </Button>
+                  )}
+                  <Button
+                    component={Link}
+                    to="/team"
+                    variant="text"
+                    startIcon={<GroupsOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    Browse teams
+                  </Button>
+                </Stack>
+
+                {loggedInAccountId && !canCreateHere && (
+                  <Typography sx={{ color: 'text.secondary', fontSize: '0.7rem', mt: 1.4 }}>
+                    Only TM, Coach, captain or an admin can schedule a friendly.
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {pagedFriendlies.map((request) => {
