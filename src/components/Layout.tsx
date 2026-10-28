@@ -1954,7 +1954,9 @@ export function Layout() {
         sx={{
           borderTop: '1px solid rgba(159,176,201,0.14)',
           bgcolor: 'background.paper',
-          py: 2.5,
+          pt: 2.5,
+          // Keep the footer clear of the fixed mobile bottom navigation.
+          pb: { xs: 'calc(96px + env(safe-area-inset-bottom))', sm: 2.5 },
           mt: 'auto',
         }}
       >
