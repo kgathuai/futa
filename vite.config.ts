@@ -5,7 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const backendTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:4000'
+  // Default to the API port from .env (PORT) so dev proxy and server always agree.
+  const backendTarget = env.VITE_API_PROXY_TARGET || `http://localhost:${env.PORT || '4000'}`
 
   return {
     plugins: [

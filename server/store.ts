@@ -677,7 +677,8 @@ export const connectDatabase = async (mongoUri: string) => {
     return
   }
 
-  await mongoose.connect(mongoUri)
+  // Fail fast so a bad IP allow-list surfaces in seconds, not after 30s.
+  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 })
   isConnected = true
 }
 

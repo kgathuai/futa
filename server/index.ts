@@ -3,6 +3,7 @@ import path from 'node:path'
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import mongoose from 'mongoose'
 import { connectDatabase, store, type AccountRecord, type TeamPayload } from './store.ts'
 import { buildLink, isEmailConfigured, sendEmail } from './email.ts'
 import { initiateStkPush, isMpesaConfigured } from './mpesa.ts'
@@ -305,7 +306,9 @@ If you did not create this account you can ignore this message.`,
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', mode: 'monolith', db: 'mongodb' })
+  const readyState = mongoose.connection.readyState
+  const db = readyState === 1 ? 'connected' : readyState === 2 ? 'connecting' : 'unavailable'
+  res.status(db === 'connected' ? 200 : 503).json({ status: db === 'connected' ? 'ok' : 'degraded', mode: 'monolith', db })
 })
 
 app.get('/api/matches', async (req, res) => {
@@ -2517,12 +2520,25 @@ const sendScoreReminders = async () => {
 }
 
 const startServer = async () => {
-  await connectDatabase(mongoUri)
+  let databaseError: string | null = null
+
+  try {
+    await connectDatabase(mongoUri)
+  } catch (error) {
+    // Keep listening so /api/health reports the problem instead of the dev proxy
+    // failing with ECONNREFUSED (usually an Atlas IP allow-list issue).
+    databaseError = error instanceof Error ? error.message : String(error)
+    console.error('MongoDB connection failed:', databaseError)
+  }
 
   const host = process.env.HOST?.trim() || undefined
   const onListening = () => {
     console.log(`Monolith backend running on http://${host ?? 'localhost'}:${port}`)
-    console.log(`MongoDB connected: ${mongoUri}`)
+    if (databaseError) {
+      console.warn('Database unavailable — API reads/writes will fail until it reconnects.')
+    } else {
+      console.log('MongoDB connected')
+    }
   }
 
   // Production sets HOST=127.0.0.1 so the API is only reachable through nginx.
