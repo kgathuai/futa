@@ -52,6 +52,19 @@ app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : {}))
 app.use(express.json({ limit: '10mb', inflate: false }))
 app.use((req, res, next) => globalLimiter(req, res, next))
 
+// Fail fast and clearly while the database is unreachable (e.g. Atlas IP allow-list).
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health' || mongoose.connection.readyState === 1) {
+    next()
+    return
+  }
+
+  res.status(503).json({
+    error: 'Database unavailable. Add this server’s IP to the MongoDB Atlas allow-list, then retry.',
+    db: mongoose.connection.readyState === 2 ? 'connecting' : 'unavailable',
+  })
+})
+
 interface RequestUser {
   id: string
   name: string
@@ -2491,6 +2504,11 @@ let scoreReminderRunning = false
  * account on both teams. `scoreReminderSentAt` dedupes across restarts.
  */
 const sendScoreReminders = async () => {
+  if (mongoose.connection.readyState !== 1) {
+    // Nothing to do until the database connection is back.
+    return
+  }
+
   if (scoreReminderRunning) {
     return
   }
