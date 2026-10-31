@@ -59,10 +59,10 @@ import { hasRecordedScore } from '../lib/matchStatus'
 const socialLinks = [
   // Support line: 0711 263 120 (Kenya) → international format for wa.me.
   { label: 'WhatsApp', href: 'https://wa.me/254711263120?text=Hi%20Futa%20support', icon: 'whatsapp' as const },
-  { label: 'Facebook', href: 'https://facebook.com/kambumbu', icon: 'facebook' as const },
-  { label: 'TikTok', href: 'https://tiktok.com/@kambumbu', icon: 'tiktok' as const },
-  { label: 'X', href: 'https://x.com/kambumbu', icon: 'x' as const },
-  { label: 'Instagram', href: 'https://instagram.com/kambumbu', icon: 'instagram' as const },
+  { label: 'Facebook', href: 'https://facebook.com/kambumbuke', icon: 'facebook' as const },
+  { label: 'TikTok', href: 'https://tiktok.com/@kambumbuke', icon: 'tiktok' as const },
+  { label: 'X', href: 'https://x.com/kambumbuke', icon: 'x' as const },
+  { label: 'Instagram', href: 'https://instagram.com/kambumbuke', icon: 'instagram' as const },
 ]
 
 const TikTokIcon = ({ fontSize = '1.15rem' }: { fontSize?: string }) => (
