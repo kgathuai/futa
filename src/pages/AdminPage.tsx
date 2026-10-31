@@ -26,6 +26,8 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchOffRoundedIcon from '@mui/icons-material/SearchOffRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
@@ -140,6 +142,20 @@ export function AdminPage() {
   const [auditEntries, setAuditEntries] = useState<Array<{ id: string; actorName: string; action: string; targetType: string; targetId: string; detail: string; createdAt: string }>>([])
   const [reports, setReports] = useState<Array<{ id: string; reporterName: string; matchId: string; commentId: string; reason: string; status: string; createdAt: string }>>([])
   const [panel, setPanel] = useState<'accounts' | 'audit' | 'reports'>('accounts')
+  const [teamDirectory, setTeamDirectory] = useState<Array<{ name: string; county: string; homeGround: string }>>([])
+  const [assignAccount, setAssignAccount] = useState<AdminAccount | null>(null)
+  const [assignTeam, setAssignTeam] = useState('')
+  const [assignRole, setAssignRole] = useState('tm')
+  const [assignError, setAssignError] = useState('')
+  const [teamOpen, setTeamOpen] = useState(false)
+  const [newTeamName, setNewTeamName] = useState('')
+  const [newTeamManager, setNewTeamManager] = useState('')
+  const [newTeamCounty, setNewTeamCounty] = useState('')
+  const [newTeamGround, setNewTeamGround] = useState('')
+  const [newTeamLevel, setNewTeamLevel] = useState('Amateur')
+  const [newTeamBio, setNewTeamBio] = useState('')
+  const [newTeamOwner, setNewTeamOwner] = useState('')
+  const [teamError, setTeamError] = useState('')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -270,6 +286,95 @@ export function AdminPage() {
       setError(changeError instanceof Error ? changeError.message : 'Failed to update role.')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const loadTeamDirectory = async () => {
+    try {
+      const response = await api.getTeams()
+      setTeamDirectory(
+        response.teams.map((team) => ({ name: team.name, county: team.county ?? '', homeGround: team.homeGround ?? '' })),
+      )
+    } catch {
+      setTeamDirectory([])
+    }
+  }
+
+  const openAssign = async (account: AdminAccount) => {
+    setAssignAccount(account)
+    setAssignTeam(account.team ?? '')
+    setAssignRole(account.role === 'tm' || account.role === 'coach' || account.role === 'captain' ? account.role : 'tm')
+    setAssignError('')
+    await loadTeamDirectory()
+  }
+
+  const handleAssignTeam = async () => {
+    const token = api.getToken()
+    if (!token || !assignAccount) {
+      return
+    }
+
+    if (!assignTeam && !['referee', 'fan', 'player'].includes(assignRole)) {
+      setAssignError('Pick the team this person will manage.')
+      return
+    }
+
+    const teamInfo = teamDirectory.find((team) => team.name === assignTeam)
+    try {
+      const updated = await api.adminAssignTeam(
+        assignAccount.id,
+        {
+          role: assignRole,
+          team: assignTeam,
+          county: teamInfo?.county,
+          homeGround: teamInfo?.homeGround,
+        },
+        token,
+      )
+      setAccounts((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)))
+      setMessage(`${updated.name} is now ${assignRole.toUpperCase()} of ${assignTeam || 'no team'}.`)
+      setAssignAccount(null)
+    } catch (error) {
+      setAssignError(error instanceof Error ? error.message : 'Could not assign that team.')
+    }
+  }
+
+  const handleAddTeam = async () => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    if (!newTeamName.trim() || !newTeamManager.trim() || !newTeamCounty.trim() || !newTeamGround.trim()) {
+      setTeamError('Team name, manager, county and ground are required.')
+      return
+    }
+
+    try {
+      await api.adminCreateTeam(
+        {
+          name: newTeamName.trim(),
+          manager: newTeamManager.trim(),
+          county: newTeamCounty.trim(),
+          homeGround: newTeamGround.trim(),
+          level: newTeamLevel,
+          bio: newTeamBio.trim() || `${newTeamName.trim()} — grassroots team`,
+          ownerEmail: newTeamOwner.trim() || undefined,
+        },
+        token,
+      )
+      setMessage(`Team ${newTeamName.trim()} created${newTeamOwner.trim() ? ` and assigned to ${newTeamOwner.trim()}` : ''}.`)
+      setTeamOpen(false)
+      setNewTeamName('')
+      setNewTeamManager('')
+      setNewTeamCounty('')
+      setNewTeamGround('')
+      setNewTeamBio('')
+      setNewTeamOwner('')
+      setTeamError('')
+      await load()
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : 'Could not create that team.')
     }
   }
 
@@ -448,6 +553,18 @@ export function AdminPage() {
             }}
           >
             New account
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<GroupsOutlinedIcon sx={{ fontSize: '0.9rem' }} />}
+            onClick={() => {
+              setTeamOpen(true)
+              void loadTeamDirectory()
+            }}
+            sx={{ fontSize: '0.7rem', py: 0.35, px: 1.1, borderColor: 'rgba(159,176,201,0.25)' }}
+          >
+            Add team
           </Button>
           <Button
             size="small"
@@ -843,6 +960,19 @@ export function AdminPage() {
                         </Typography>
                       )}
 
+                      {isSuperAdmin && !isSuperAdminRole(account.role) ? (
+                        <Tooltip title="Assign team & role">
+                          <IconButton
+                            size="small"
+                            onClick={() => void openAssign(account)}
+                            aria-label={`Assign ${account.name} to a team`}
+                            sx={{ p: 0.4 }}
+                          >
+                            <BadgeRoundedIcon sx={{ fontSize: '0.95rem' }} />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
+
                       {canDeleteAccount(account) ? (
                         <Tooltip title="Delete account">
                           <span>
@@ -1130,6 +1260,105 @@ export function AdminPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={Boolean(assignAccount)} onClose={() => setAssignAccount(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 800 }}>Assign team & role</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.4} sx={{ mt: 0.5 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              {assignAccount?.name} · {assignAccount?.email}
+            </Typography>
+            <TextField
+              select
+              size="small"
+              label="Team"
+              value={assignTeam}
+              onChange={(event) => setAssignTeam(event.target.value)}
+            >
+              <MenuItem value="">No team</MenuItem>
+              {teamDirectory.map((team) => (
+                <MenuItem key={team.name} value={team.name}>
+                  {team.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              size="small"
+              label="Role"
+              value={assignRole}
+              onChange={(event) => setAssignRole(event.target.value)}
+            >
+              <MenuItem value="tm">TM</MenuItem>
+              <MenuItem value="coach">Coach</MenuItem>
+              <MenuItem value="captain">captain</MenuItem>
+              <MenuItem value="player">player</MenuItem>
+              <MenuItem value="fan">Fan</MenuItem>
+              <MenuItem value="referee">Referee</MenuItem>
+            </TextField>
+            <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
+              County and home ground are copied from the team.
+            </Typography>
+            {assignError && (
+              <Alert severity="error" sx={{ fontSize: '0.74rem', py: 0.3 }}>
+                {assignError}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setAssignAccount(null)}>
+            Cancel
+          </Button>
+          <Button size="small" variant="contained" onClick={() => void handleAssignTeam()}>
+            Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={teamOpen} onClose={() => setTeamOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 800 }}>Add a team</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.2} sx={{ mt: 0.5 }}>
+            <TextField size="small" label="Team name" value={newTeamName} onChange={(event) => setNewTeamName(event.target.value)} />
+            <TextField size="small" label="Manager" value={newTeamManager} onChange={(event) => setNewTeamManager(event.target.value)} />
+            <TextField select size="small" label="County / Eneo" value={newTeamCounty} onChange={(event) => setNewTeamCounty(event.target.value)}>
+              {KENYA_COUNTIES.map((countyName) => (
+                <MenuItem key={countyName} value={countyName}>
+                  {countyName}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField size="small" label="Home ground" value={newTeamGround} onChange={(event) => setNewTeamGround(event.target.value)} />
+            <TextField select size="small" label="Level" value={newTeamLevel} onChange={(event) => setNewTeamLevel(event.target.value)}>
+              <MenuItem value="Junior">Junior</MenuItem>
+              <MenuItem value="Amateur">Amateur</MenuItem>
+              <MenuItem value="Semi-Pro">Semi-Pro</MenuItem>
+            </TextField>
+            <TextField size="small" label="Bio" value={newTeamBio} onChange={(event) => setNewTeamBio(event.target.value)} />
+            <TextField
+              size="small"
+              label="Assign to account (email, optional)"
+              value={newTeamOwner}
+              onChange={(event) => setNewTeamOwner(event.target.value)}
+              helperText="If set, that account is linked to this team with its current role."
+            />
+            {teamError && (
+              <Alert severity="error" sx={{ fontSize: '0.74rem', py: 0.3 }}>
+                {teamError}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setTeamOpen(false)}>
+            Cancel
+          </Button>
+          <Button size="small" variant="contained" onClick={() => void handleAddTeam()}>
+            Create team
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Stack>
   )
 }

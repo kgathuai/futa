@@ -2481,6 +2481,123 @@ app.get('/api/admin/export/:kind.csv', async (req, res) => {
   res.send(toCsv(rows))
 })
 
+// Superadmin: assign an existing account to a team with a team-management role.
+app.patch('/api/admin/accounts/:accountId/team', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
+    return
+  }
+
+  const accountId = String(req.params.accountId ?? '')
+  const body = req.body as { role?: string; team?: string; county?: string; homeGround?: string }
+  const role = normalizeRole(body.role ?? '')
+  const team = body.team?.trim() ?? ''
+
+  if (!['tm', 'coach', 'captain', 'player', 'fan', 'referee'].includes(role)) {
+    res.status(400).json({ error: 'Choose a role: TM, Coach, captain, player, fan or referee.' })
+    return
+  }
+
+  if (role !== 'referee' && role !== 'fan' && role !== 'player' && !team) {
+    res.status(400).json({ error: 'Pick the team this person will manage.' })
+    return
+  }
+
+  if (team) {
+    const registeredTeamNames = await store.getRegisteredTeamNames()
+    if (!registeredTeamNames.includes(team)) {
+      res.status(400).json({ error: `${team} is not a registered team yet. Add the team first.` })
+      return
+    }
+  }
+
+  const account = await store.assignAccountTeam(accountId, {
+    role,
+    team: role === 'referee' ? '' : team,
+    county: body.county,
+    homeGround: body.homeGround,
+  })
+
+  if (!account) {
+    res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'account.assign-team',
+    targetType: 'account',
+    targetId: accountId,
+    detail: `${role}${team ? ` · ${team}` : ''}`,
+  })
+
+  res.json(account)
+})
+
+// Superadmin: create a team (optionally owned by an existing account).
+app.post('/api/admin/teams', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+  if (!isSuperAdminRole(user.role)) {
+    res.status(403).json({ error: 'Superadmins only.' })
+    return
+  }
+
+  const body = req.body as Partial<TeamPayload> & { ownerAccountId?: string; ownerEmail?: string }
+  const payload: TeamPayload = {
+    name: body.name?.trim() ?? '',
+    manager: body.manager?.trim() ?? '',
+    county: body.county?.trim() ?? '',
+    homeGround: body.homeGround?.trim() ?? '',
+    level: (body.level as TeamPayload['level']) ?? 'Amateur',
+    bio: body.bio?.trim() ?? '',
+    logoUrl: body.logoUrl?.trim() || undefined,
+  }
+
+  if (!payload.name || !payload.manager || !payload.county || !payload.homeGround || !payload.bio) {
+    res.status(400).json({ error: 'Missing team fields (name, manager, county, ground, bio).' })
+    return
+  }
+
+  const ownerEmail = body.ownerEmail?.trim().toLowerCase()
+  const owner = ownerEmail ? await store.findAccountByEmail(ownerEmail) : null
+  if (ownerEmail && !owner) {
+    res.status(404).json({ error: 'No account found with that email.' })
+    return
+  }
+
+  const created = await store.setTeam(payload, owner?.id ?? user.id, owner?.team || undefined)
+
+  if (owner) {
+    await store.assignAccountTeam(owner.id, {
+      role: owner.role,
+      team: created.name,
+      county: created.county,
+      homeGround: created.homeGround,
+    })
+  }
+
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'team.create',
+    targetType: 'team',
+    targetId: created.name,
+    detail: owner ? `owner ${owner.email}` : 'no owner',
+  })
+
+  res.status(201).json({ team: created })
+})
+
 const distPath = path.resolve(process.cwd(), 'dist')
 const indexPath = path.join(distPath, 'index.html')
 

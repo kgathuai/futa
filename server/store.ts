@@ -1287,6 +1287,29 @@ export const store = {
 
     return accounts.map(toAdminAccount)
   },
+  assignAccountTeam: async (
+    accountId: string,
+    payload: { role: string; team: string; county?: string; homeGround?: string },
+  ) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(
+      accountId,
+      {
+        $set: {
+          role: payload.role,
+          team: payload.team,
+          county: payload.team ? payload.county ?? '' : '',
+          homeGround: payload.team ? payload.homeGround ?? '' : '',
+        },
+      },
+      { returnDocument: 'after' },
+    ).lean<AccountDoc | null>()
+
+    return account ? toPublicAccount(account) : null
+  },
   setAccountRole: async (accountId: string, role: string) => {
     if (!mongoose.isValidObjectId(accountId)) {
       return null

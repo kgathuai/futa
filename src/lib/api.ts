@@ -152,6 +152,29 @@ export const api = {
     }),
   submitReport: (payload: { matchId?: string; commentId?: string; reason: string }, token: string) =>
     request<{ id: string }>('/api/reports', { method: 'POST', body: payload, token }),
+  adminAssignTeam: (
+    accountId: string,
+    payload: { role: string; team: string; county?: string; homeGround?: string },
+    token: string,
+  ) =>
+    request<AdminAccount>(`/api/admin/accounts/${encodeURIComponent(accountId)}/team`, {
+      method: 'PATCH',
+      body: payload,
+      token,
+    }),
+  adminCreateTeam: (
+    payload: {
+      name: string
+      manager: string
+      county: string
+      homeGround: string
+      level: string
+      bio: string
+      ownerEmail?: string
+    },
+    token: string,
+  ) =>
+    request<{ team: TeamProfile }>('/api/admin/teams', { method: 'POST', body: payload, token }),
   exportCsv: async (kind: 'accounts' | 'matches' | 'results' | 'payments', token: string) => {
     const response = await fetch(`/api/admin/export/${kind}.csv`, {
       headers: { Authorization: `Bearer ${token}` },
