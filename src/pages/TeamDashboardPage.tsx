@@ -22,6 +22,7 @@ import { getTournamentStatus } from '../lib/tournamentStatus'
 import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
 import { LoadingBar } from '../components/LoadingBar'
+import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 
 interface AuthOutletContext {
@@ -441,11 +442,17 @@ export function TeamDashboardPage() {
       return
     }
 
+    const contactCheck = validateTeamContact(friendlyContact)
+    if (!contactCheck.ok) {
+      setGlobalError(contactCheck.error ?? 'Enter a valid contact.')
+      return
+    }
+
     try {
       await api.createFriendlyRequest(
         {
           teamName: friendlyTeamName,
-          contact: friendlyContact,
+          contact: contactCheck.value,
           preferredDate: friendlyPreferredDate,
           preferredTime: friendlyPreferredTime,
           location: friendlyLocation,
@@ -1704,7 +1711,8 @@ export function TeamDashboardPage() {
                     label="Contact"
                     value={friendlyContact}
                     onChange={(event) => setFriendlyContact(event.target.value)}
-                    placeholder="Phone / Email"
+                    placeholder="0712 345 678 or name@email.com"
+                    helperText={KENYAN_PHONE_HINT}
                     required
                   />
                   <TextField

@@ -13,6 +13,7 @@ import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import { Link, useOutletContext } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
+import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -202,10 +203,16 @@ export function FriendliesPage() {
                   return
                 }
 
+                const contactCheck = validateTeamContact(contact)
+                if (!contactCheck.ok) {
+                  setRequestMessage(contactCheck.error ?? 'Enter a valid contact.')
+                  return
+                }
+
                 try {
                   await api.createFriendlyRequest({
                     teamName,
-                    contact,
+                    contact: contactCheck.value,
                     preferredDate,
                     preferredTime,
                     location,
@@ -272,7 +279,9 @@ export function FriendliesPage() {
                 label="Contact details"
                 value={contact}
                 onChange={(event) => setContact(event.target.value)}
-                placeholder="Phone / Email"
+                placeholder="0712 345 678 or name@email.com"
+                helperText={KENYAN_PHONE_HINT}
+                error={Boolean(contact) && !validateTeamContact(contact).ok}
                 required
               />
               <TextField

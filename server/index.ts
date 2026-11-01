@@ -273,6 +273,13 @@ const getRequestUser = async (authorizationHeader: string | undefined): Promise<
   }
 }
 
+const KENYAN_MOBILE = /^(?:\+?254|0)?([17]\d{8})$/
+const normalizeKenyanPhone = (value: string): string | null => {
+  const match = value.replace(/[\s()-]/g, '').match(KENYAN_MOBILE)
+  return match ? `254${match[1]}` : null
+}
+const isEmailAddress = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+
 // Very small in-memory limiter for the API surface (per IP + bucket).
 const rateBuckets = new Map<string, { count: number; resetAt: number }>()
 const rateLimit = (bucket: string, max: number, windowMs: number) => {
@@ -1016,10 +1023,19 @@ app.post('/api/friendlies', async (req, res) => {
     return
   }
 
+  const rawContact = body.contact.trim()
+  const contact = isEmailAddress(rawContact) ? rawContact : normalizeKenyanPhone(rawContact)
+  if (!contact) {
+    res.status(400).json({
+      error: 'Use a Kenyan phone number (07XXXXXXXX / 01XXXXXXXX / +2547XXXXXXXX) or an email address.',
+    })
+    return
+  }
+
   try {
     const request = await store.addFriendlyRequest({
       teamName: body.teamName,
-      contact: body.contact,
+      contact,
       preferredDate: body.preferredDate,
       preferredTime: body.preferredTime,
       location: body.location,
@@ -2283,7 +2299,12 @@ app.post('/api/tournaments/:tournamentId/payments', rateLimit('payments', 20, 60
     return
   }
 
-  const phone = String((req.body as { phone?: string }).phone ?? '').trim()
+  const rawPhone = String((req.body as { phone?: string }).phone ?? '').trim()
+  const phone = rawPhone ? normalizeKenyanPhone(rawPhone) ?? '' : ''
+  if (rawPhone && !phone) {
+    res.status(400).json({ error: 'Enter a Kenyan M-Pesa number, e.g. 0712 345 678.' })
+    return
+  }
   const payment = (await store.createPayment({
     tournamentId,
     team: teamName,
