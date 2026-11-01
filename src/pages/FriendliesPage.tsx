@@ -387,14 +387,13 @@ export function FriendliesPage() {
                 label="Referee"
                 value={referee}
                 onChange={(event) => setReferee(event.target.value)}
-                required={intraSquad}
                 helperText={
                   refereeOptions.length > 0
-                    ? 'Only referees registered in Futa can be assigned.'
-                    : 'No referees registered yet — ask a referee to create an account first.'
+                    ? 'Only registered referees can be assigned — or leave it at “No preference”.'
+                    : 'No referees registered yet — leave “No preference” and an organiser can assign one later.'
                 }
               >
-                <MenuItem value="">Not assigned</MenuItem>
+                <MenuItem value="">No preference</MenuItem>
                 {refereeOptions.map((option) => (
                   <MenuItem key={option.id} value={option.name}>
                     {option.name}

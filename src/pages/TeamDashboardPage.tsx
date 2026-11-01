@@ -1565,7 +1565,7 @@ export function TeamDashboardPage() {
                           onChange={(event) => setMatchReferee(event.target.value)}
                           required={intraSquad}
                         >
-                          <MenuItem value="">Not assigned</MenuItem>
+                          <MenuItem value="">No preference</MenuItem>
                           {refereeOptions.map((referee) => (
                             <MenuItem key={referee.id} value={referee.name}>
                               {referee.name}
@@ -1787,14 +1787,16 @@ export function TeamDashboardPage() {
                   </TextField>
                   <TextField
                     select
-                    label={refereeOptions.length > 0 ? 'Referee' : 'Referee (optional)'}
+                    label="Referee"
                     value={friendlyReferee}
                     onChange={(event) => setFriendlyReferee(event.target.value)}
                     helperText={
-                      refereeOptions.length === 0 ? 'No referee accounts registered yet.' : undefined
+                      refereeOptions.length > 0
+                        ? 'Pick a registered referee or leave it at “No preference”.'
+                        : 'No referee accounts registered yet — leave it at “No preference”.'
                     }
-                    required={refereeOptions.length > 0}
                   >
+                    <MenuItem value="">No preference</MenuItem>
                     {refereeOptions.map((referee) => (
                       <MenuItem key={referee.id} value={referee.name}>
                         {referee.name}
