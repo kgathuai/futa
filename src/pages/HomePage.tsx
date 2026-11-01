@@ -42,6 +42,8 @@ export function HomePage() {
   const [showAnnounceForm, setShowAnnounceForm] = useState(false)
   const [teamLogos, setTeamLogos] = useState<Record<string, string | undefined>>({})
   const [teamOptions, setTeamOptions] = useState<string[]>([])
+  const [referee, setReferee] = useState('')
+  const [refereeOptions, setRefereeOptions] = useState<Array<{ id: string; name: string }>>([])
   const [groundOptions, setGroundOptions] = useState<string[]>([])
   const [announceMessage, setAnnounceMessage] = useState('')
   const [engagementMessage, setEngagementMessage] = useState('')
@@ -72,6 +74,19 @@ export function HomePage() {
       normalizedRole === 'captain' ||
       normalizedRole === 'admin' ||
       normalizedRole === 'superadmin')
+
+  useEffect(() => {
+    const loadReferees = async () => {
+      try {
+        const response = await api.getReferees()
+        setRefereeOptions(response.referees)
+      } catch {
+        setRefereeOptions([])
+      }
+    }
+
+    void loadReferees()
+  }, [])
 
   useEffect(() => {
     const loadTeams = async () => {
@@ -358,6 +373,7 @@ export function HomePage() {
                       category,
                       sport,
                       comment: comment.trim() || undefined,
+                      referee: referee || undefined,
                     },
                     token,
                   )
@@ -369,6 +385,7 @@ export function HomePage() {
                   setCategory('Friendly')
                   setSport('Football')
                   setComment('')
+                  setReferee('')
                   setAnnounceMessage('Match created successfully.')
                   window.location.reload()
                 } catch (error) {
@@ -377,7 +394,7 @@ export function HomePage() {
               }}
             >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Announce a new match
+                Create a match
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Home team: {loggedInTeam || 'Not set'}
@@ -431,6 +448,20 @@ export function HomePage() {
                 slotProps={{ htmlInput: { min: 1 } }}
               />
 
+              <TextField
+                select
+                label="Referee"
+                value={referee}
+                onChange={(event) => setReferee(event.target.value)}
+                helperText="Only registered referees, or leave at “No preference”."
+              >
+                <MenuItem value="">No preference</MenuItem>
+                {refereeOptions.map((option) => (
+                  <MenuItem key={option.id} value={option.name}>
+                    {option.name}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField select label="Category" value={category} onChange={(event) => setCategory(event.target.value as typeof category)} required>
                 <MenuItem value="League">League</MenuItem>
                 <MenuItem value="Friendly">Friendly</MenuItem>
@@ -481,7 +512,7 @@ export function HomePage() {
             onClick={() => setShowAnnounceForm((prev) => !prev)}
             sx={{ fontWeight: 800 }}
           >
-            {showAnnounceForm ? 'Close match form' : '+ Announce match'}
+            {showAnnounceForm ? 'Close match form' : '+ Create match'}
           </Button>
         </Stack>
       )}
