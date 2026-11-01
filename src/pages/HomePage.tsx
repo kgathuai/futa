@@ -334,7 +334,7 @@ export function HomePage() {
       {canCreateHere && showAnnounceForm && (
         <Card variant="outlined">
           <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Create a match
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -527,7 +527,7 @@ export function HomePage() {
                 <Stack direction="row" sx={{ mb: 1.5, justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography
                     variant="overline"
-                    sx={{ color: '#50607b', letterSpacing: '0.13em', fontWeight: 700 }}
+                    sx={{ color: 'text.secondary', letterSpacing: '0.12em', fontWeight: 800 }}
                   >
                     {match.sport} · {match.category}
                   </Typography>
@@ -595,11 +595,11 @@ export function HomePage() {
                       {match.homeTeam.charAt(0).toUpperCase()}
                     </Box>
                   )}
-                  <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.08rem' }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.82rem' }}>
                     {match.homeTeam}
                   </Typography>
                 </Stack>
-                <Typography sx={{ color: 'primary.main', fontWeight: 800, fontSize: '1.8rem', px: 1.2 }}>
+                <Typography sx={{ color: 'primary.main', fontWeight: 800, fontSize: '1.05rem', px: 1 }}>
                   {hasRecordedScore(match.homeScore, match.awayScore)
                     ? `${match.homeScore} - ${match.awayScore}`
                     : runtimeStatus === 'playing'
@@ -607,7 +607,7 @@ export function HomePage() {
                       : 'vs'}
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.08rem', textAlign: 'right' }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', textAlign: 'right' }}>
                     {match.awayTeam}
                   </Typography>
                   {getTeamLogo(match.awayTeam) ? (
