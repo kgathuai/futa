@@ -42,7 +42,7 @@ import XIcon from '@mui/icons-material/X'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
-import type { FriendlyRequest, NotificationItem } from '../types'
+import type { FriendlyRequest, MatchAnnouncement, NotificationItem } from '../types'
 import { useAppData } from '../context/AppContext'
 import { LoadingBar } from './LoadingBar'
 import { TopToast } from './TopToast'
@@ -234,6 +234,11 @@ export function Layout() {
   const myRoleLabel = roleLabel(loggedInRole)
   const isRefereeAccount = (loggedInRole ?? '').trim().toLowerCase() === 'referee'
   const [refereeBookings, setRefereeBookings] = useState<FriendlyRequest[]>([])
+  const [openRefereeGames, setOpenRefereeGames] = useState<{
+    friendlies: FriendlyRequest[]
+    matches: MatchAnnouncement[]
+  }>({ friendlies: [], matches: [] })
+  const [claimingId, setClaimingId] = useState('')
   const [followedTeams, setFollowedTeams] = useState<string[]>([])
   const [refereeActionId, setRefereeActionId] = useState('')
   const [reportBooking, setReportBooking] = useState<FriendlyRequest | null>(null)
@@ -491,6 +496,42 @@ export function Layout() {
     }
   }
 
+  const loadOpenRefereeGames = async () => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+    try {
+      const response = await api.getOpenRefereeGames(token)
+      setOpenRefereeGames({ friendlies: response.friendlies, matches: response.matches })
+    } catch {
+      setOpenRefereeGames({ friendlies: [], matches: [] })
+    }
+  }
+
+  const handleClaimGame = async (kind: 'friendly' | 'match', id: string) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+
+    setClaimingId(id)
+    try {
+      await api.claimRefereeGame(kind, id, token)
+      setToast({ message: 'Game claimed — the teams have been notified.', severity: 'success' })
+      await loadOpenRefereeGames()
+      const bookings = await api.getRefereeBookings(token)
+      setRefereeBookings(bookings)
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Could not claim that game.',
+        severity: 'error',
+      })
+    } finally {
+      setClaimingId('')
+    }
+  }
+
   const handleRefereeRespond = async (bookingId: string, status: 'accepted' | 'declined') => {
     const token = api.getToken()
     if (!token) {
@@ -720,6 +761,13 @@ export function Layout() {
       // Keep the entry if the request failed.
     }
   }
+
+  useEffect(() => {
+    if (isAuthOpen && isRefereeAccount) {
+      void loadOpenRefereeGames()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthOpen, isRefereeAccount])
 
   // Referees are not attached to a team — load the friendly fixtures they officiate.
   useEffect(() => {
@@ -1600,6 +1648,78 @@ export function Layout() {
                 </CardContent>
               </Card>
 
+              )}
+
+              {isRefereeAccount && (openRefereeGames.friendlies.length > 0 || openRefereeGames.matches.length > 0) && (
+                <Card variant="outlined" sx={{ mb: 2, borderColor: 'rgba(250,204,21,0.3)' }}>
+                  <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
+                    <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em' }}>
+                        Referee wanted
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={openRefereeGames.friendlies.length + openRefereeGames.matches.length}
+                        sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, bgcolor: 'rgba(250,204,21,0.16)', color: '#facc15' }}
+                      />
+                    </Stack>
+
+                    <Stack spacing={0.8}>
+                      {openRefereeGames.friendlies.slice(0, 4).map((game) => (
+                        <Stack
+                          key={`open-friendly-${game.id}`}
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }} noWrap>
+                              {game.requesterTeam} vs {game.recipientTeam}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                              {formatBookingWhen(game.preferredDate, game.preferredTime)} · {game.location}
+                            </Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            disabled={claimingId === game.id}
+                            onClick={() => void handleClaimGame('friendly', game.id)}
+                            sx={{ fontSize: '0.64rem', py: 0.2, px: 1 }}
+                          >
+                            {claimingId === game.id ? '…' : 'Claim'}
+                          </Button>
+                        </Stack>
+                      ))}
+                      {openRefereeGames.matches.slice(0, 4).map((game) => (
+                        <Stack
+                          key={`open-match-${game.id}`}
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }} noWrap>
+                              {game.homeTeam} vs {game.awayTeam}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                              {formatKickoffLabel(game.kickoff)} · {game.venue}
+                            </Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            disabled={claimingId === game.id}
+                            onClick={() => void handleClaimGame('match', game.id)}
+                            sx={{ fontSize: '0.64rem', py: 0.2, px: 1 }}
+                          >
+                            {claimingId === game.id ? '…' : 'Claim'}
+                          </Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
               )}
 
               <Card variant="outlined" sx={{ mb: 2 }}>

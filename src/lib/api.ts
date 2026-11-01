@@ -232,6 +232,14 @@ export const api = {
       method: 'DELETE',
       token,
     }),
+  getOpenRefereeGames: (token: string) =>
+    request<{ friendlies: FriendlyRequest[]; matches: MatchAnnouncement[] }>('/api/referee/open', { token }),
+  claimRefereeGame: (kind: 'friendly' | 'match', id: string, token: string) =>
+    request<{ claimed: unknown }>('/api/referee/claim', {
+      method: 'POST',
+      body: { kind, id },
+      token,
+    }),
   getRefereeBookings: (token: string) =>
     request<FriendlyRequest[]>('/api/referee/bookings', { token }),
   respondToRefereeBooking: (bookingId: string, status: 'accepted' | 'declined', token: string) =>

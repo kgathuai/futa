@@ -1631,6 +1631,87 @@ export const store = {
       recipientAccountId: request.recipientAccountId?.toString?.() ?? String(request.recipientAccountId),
     }))
   },
+  getUnclaimedFriendlies: async () => {
+    const rows = await FriendlyRequestModel.find({
+      status: { $ne: 'declined' },
+      $or: [{ referee: { $exists: false } }, { referee: '' }, { referee: null }],
+    })
+      .sort({ preferredDate: 1 })
+      .limit(50)
+      .lean<FriendlyRequestRecord[]>()
+    return rows
+  },
+  getUnclaimedMatches: async () => {
+    return MatchModel.find({
+      $or: [{ referee: { $exists: false } }, { referee: '' }],
+      status: { $ne: 'finished' },
+    })
+      .sort({ kickoff: 1 })
+      .limit(50)
+      .lean()
+  },
+  claimFriendlyAsReferee: async (requestId: string, accountId: string, refereeName: string) => {
+    const request = await FriendlyRequestModel.findOneAndUpdate(
+      {
+        id: requestId,
+        $or: [{ referee: { $exists: false } }, { referee: '' }, { referee: null }],
+      },
+      {
+        $set: {
+          referee: refereeName,
+          refereeAccountId: mongoose.isValidObjectId(accountId) ? accountId : undefined,
+          refereeStatus: 'accepted',
+          refereeRespondedAt: new Date().toISOString(),
+        },
+      },
+      { returnDocument: 'after' },
+    ).lean<FriendlyRequestRecord | null>()
+
+    if (!request) {
+      return null
+    }
+
+    for (const target of [request.requesterAccountId, request.recipientAccountId]) {
+      if (target && mongoose.isValidObjectId(target.toString())) {
+        await createNotification({
+          accountId: target.toString(),
+          type: 'friendly-accepted',
+          title: 'Referee assigned',
+          message: `${refereeName} will referee ${request.requesterTeam} vs ${request.recipientTeam} on ${request.preferredDate}.`,
+          relatedFriendlyRequestId: request.id,
+        })
+      }
+    }
+
+    return request
+  },
+  claimMatchAsReferee: async (matchId: string, refereeName: string) => {
+    const match = await MatchModel.findOneAndUpdate(
+      {
+        id: matchId,
+        $or: [{ referee: { $exists: false } }, { referee: '' }],
+      },
+      { $set: { referee: refereeName } },
+      { returnDocument: 'after' },
+    ).lean()
+
+    if (!match) {
+      return null
+    }
+
+    const ownerAccountId = await store.getAccountIdForTeam(match.homeTeam)
+    if (ownerAccountId) {
+      await createNotification({
+        accountId: ownerAccountId,
+        type: 'friendly-accepted',
+        title: 'Referee assigned',
+        message: `${refereeName} will referee ${match.homeTeam} vs ${match.awayTeam}.`,
+        relatedMatchId: match.id,
+      })
+    }
+
+    return match
+  },
   getReferees: async () => {
     const referees = await AccountModel.find({ role: 'referee' })
       .select({ name: 1 })
@@ -2184,6 +2265,19 @@ export const store = {
         message: `${senderAccount.name} booked you for ${senderAccount.team} vs ${recipientTeamName} on ${payload.preferredDate} at ${payload.preferredTime}.`,
         relatedFriendlyRequestId: request.id,
       })
+    }
+
+    if (!refereeAccount) {
+      const referees = await store.getReferees()
+      for (const referee of referees) {
+        await createNotification({
+          accountId: referee.id,
+          type: 'friendly-request',
+          title: 'Referee wanted',
+          message: `${senderAccount.team} vs ${recipientTeamName} on ${payload.preferredDate} at ${payload.preferredTime} needs a referee.`,
+          relatedFriendlyRequestId: request.id,
+        })
+      }
     }
 
     await createNotification({

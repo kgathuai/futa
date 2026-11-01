@@ -443,6 +443,18 @@ app.post('/api/matches', async (req, res) => {
     return
   }
 
+  if (!body.referee?.trim()) {
+    const referees = await store.getReferees()
+    for (const referee of referees) {
+      await store.createNotifications([referee.id], {
+        type: 'friendly-request',
+        title: 'Referee wanted',
+        message: `${homeTeam} vs ${awayTeam} on ${new Date(body.kickoff).toLocaleString()} at ${body.venue} needs a referee.`,
+        relatedMatchId: '',
+      })
+    }
+  }
+
   const created = await store.addMatch({
     homeTeam,
     awayTeam,
@@ -1054,6 +1066,63 @@ app.post('/api/referee/bookings/:requestId/report', rateLimit('referee-report', 
   }
 
   res.json({ booking: result.booking, result: result.result })
+})
+
+// Referee board: games that still need a referee, and claiming one.
+app.get('/api/referee/open', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const [friendlies, matches] = await Promise.all([
+    store.getUnclaimedFriendlies(),
+    store.getUnclaimedMatches(),
+  ])
+
+  res.json({ friendlies, matches })
+})
+
+app.post('/api/referee/claim', rateLimit('referee-claim', 20, 60_000), async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  if (normalizeRole(user.role) !== 'referee') {
+    res.status(403).json({ error: 'Only referee accounts can claim a game.' })
+    return
+  }
+
+  const body = req.body as { kind?: string; id?: string }
+  const kind = body.kind?.trim()
+  const id = body.id?.trim() ?? ''
+  if ((kind !== 'friendly' && kind !== 'match') || !id) {
+    res.status(400).json({ error: 'Provide the game type and id.' })
+    return
+  }
+
+  const claimed =
+    kind === 'friendly'
+      ? await store.claimFriendlyAsReferee(id, user.id, user.name)
+      : await store.claimMatchAsReferee(id, user.name)
+
+  if (!claimed) {
+    res.status(409).json({ error: 'Another referee already claimed this game.' })
+    return
+  }
+
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'referee.claim',
+    targetType: kind,
+    targetId: id,
+  })
+
+  res.json({ claimed })
 })
 
 // Friendly bookings where the signed-in account is the assigned referee.
