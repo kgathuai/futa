@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import EventIcon from '@mui/icons-material/Event'
@@ -323,33 +323,15 @@ export function FriendliesPage() {
                 🤝 Sisi kwa sisi (Team A vs Team B)
               </Button>
 
-              {intraSquad ? (
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2}>
-                  <TextField
-                    label="Match duration (min)"
-                    type="number"
-                    value={intraDuration}
-                    onChange={(event) => setIntraDuration(Number(event.target.value))}
-                    slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
-                    fullWidth
-                  />
-                  <TextField
-                    label="Referee"
-                    select
-                    value={referee}
-                    onChange={(event) => setReferee(event.target.value)}
-                    helperText={refereeOptions.length === 0 ? 'No referees registered yet.' : undefined}
-                    fullWidth
-                  >
-                    <MenuItem value="">Not assigned</MenuItem>
-                    {refereeOptions.map((option) => (
-                      <MenuItem key={option.id} value={option.name}>
-                        {option.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Stack>
-              ) : null}
+              {intraSquad && (
+                <TextField
+                  label="Match duration (min)"
+                  type="number"
+                  value={intraDuration}
+                  onChange={(event) => setIntraDuration(Number(event.target.value))}
+                  slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
+                />
+              )}
 
               {!intraSquad && (
               <TextField
@@ -400,25 +382,25 @@ export function FriendliesPage() {
                 rows={3}
                 required
               />
-              <Autocomplete
-                freeSolo
-                options={refereeOptions.map((option) => option.name)}
+              <TextField
+                select
+                label="Referee"
                 value={referee}
-                onChange={(_event, value) => setReferee(value ?? '')}
-                onInputChange={(_event, value) => setReferee(value)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Referee (optional)"
-                    placeholder="Pick a registered referee"
-                    helperText={
-                      refereeOptions.length > 0
-                        ? 'Pick a registered referee so it shows up in their account.'
-                        : 'No referees registered yet — type a name to assign one.'
-                    }
-                  />
-                )}
-              />
+                onChange={(event) => setReferee(event.target.value)}
+                required={intraSquad}
+                helperText={
+                  refereeOptions.length > 0
+                    ? 'Only referees registered in Futa can be assigned.'
+                    : 'No referees registered yet — ask a referee to create an account first.'
+                }
+              >
+                <MenuItem value="">Not assigned</MenuItem>
+                {refereeOptions.map((option) => (
+                  <MenuItem key={option.id} value={option.name}>
+                    {option.name}
+                  </MenuItem>
+                ))}
+              </TextField>
               {optionLoadError && <Typography color="error.main">{optionLoadError}</Typography>}
               {requestMessage && <Typography color="text.secondary">{requestMessage}</Typography>}
               <Stack direction="row" spacing={1}>

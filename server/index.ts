@@ -278,6 +278,15 @@ const normalizeKenyanPhone = (value: string): string | null => {
   const match = value.replace(/[\s()-]/g, '').match(KENYAN_MOBILE)
   return match ? `254${match[1]}` : null
 }
+const findRefereeByName = async (name: string) => {
+  const wanted = name.trim().toLowerCase()
+  if (!wanted) {
+    return null
+  }
+  const referees = await store.getReferees()
+  return referees.find((referee) => referee.name.trim().toLowerCase() === wanted) ?? null
+}
+
 const isEmailAddress = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 
 // Very small in-memory limiter for the API surface (per IP + bucket).
@@ -413,6 +422,14 @@ app.post('/api/matches', async (req, res) => {
       res.status(400).json({
         error: `"${awayTeam}" is not a registered team. Register the team before adding it to a match.`,
       })
+      return
+    }
+  }
+
+  if (body.referee?.trim()) {
+    const registered = await findRefereeByName(body.referee)
+    if (!registered) {
+      res.status(400).json({ error: 'That referee is not registered in Futa. Pick a registered referee.' })
       return
     }
   }
@@ -1116,6 +1133,16 @@ app.post('/api/friendlies', async (req, res) => {
   ) {
     res.status(400).json({ error: 'Missing friendly request fields.' })
     return
+  }
+
+  if (body.referee?.trim()) {
+    const registered = await findRefereeByName(body.referee)
+    if (!registered) {
+      res.status(400).json({
+        error: 'That referee is not registered in Futa. Pick a registered referee.',
+      })
+      return
+    }
   }
 
   const rawContact = body.contact.trim()
