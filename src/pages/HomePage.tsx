@@ -4,6 +4,7 @@ import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import { useAppData } from '../context/AppContext'
+import type { MatchAnnouncement } from '../types'
 import { api } from '../lib/api'
 import { useOutletContext } from 'react-router-dom'
 import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
@@ -47,6 +48,12 @@ export function HomePage() {
   const [reportMatchId, setReportMatchId] = useState<string | null>(null)
   const [reportReason, setReportReason] = useState('')
   const [isReporting, setIsReporting] = useState(false)
+  const [editingMatch, setEditingMatch] = useState<MatchAnnouncement | null>(null)
+  const [editKickoff, setEditKickoff] = useState('')
+  const [editVenue, setEditVenue] = useState('')
+  const [editDuration, setEditDuration] = useState(90)
+  const [editError, setEditError] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
   useAutoHide(announceMessage, () => setAnnounceMessage(''))
   useAutoHide(engagementMessage, () => setEngagementMessage(''))
 
@@ -185,6 +192,54 @@ export function HomePage() {
     } catch (error) {
       setEngagementMessage(error instanceof Error ? error.message : 'Failed to rate match.')
       return false
+    }
+  }
+
+  const canEditMatch = (match: MatchAnnouncement) => {
+    if (!loggedInUser) {
+      return false
+    }
+    const role = (loggedInRole ?? '').trim().toLowerCase()
+    const isCreator = Boolean(loggedInAccountId) && match.createdByAccountId === loggedInAccountId
+    const isManager = ['tm', 'coach', 'captain', 'admin', 'superadmin'].includes(role)
+    const isParticipant =
+      Boolean(loggedInTeam) && [match.homeTeam, match.awayTeam].includes(loggedInTeam as string)
+    return isCreator || (isManager && isParticipant) || role === 'superadmin' || role === 'admin'
+  }
+
+  const openMatchEditor = (match: MatchAnnouncement) => {
+    setEditingMatch(match)
+    setEditKickoff(new Date(match.kickoff).toISOString().slice(0, 16))
+    setEditVenue(match.venue)
+    setEditDuration(match.durationMinutes ?? 90)
+    setEditError('')
+  }
+
+  const handleSaveMatch = async () => {
+    if (!editingMatch) {
+      return
+    }
+    const token = api.getToken()
+    if (!token) {
+      setEditError('Please log in again.')
+      return
+    }
+
+    setIsSavingEdit(true)
+    setEditError('')
+    try {
+      const updated = await api.updateMatchDetails(
+        editingMatch.id,
+        { kickoff: new Date(editKickoff).toISOString(), venue: editVenue, durationMinutes: editDuration },
+        token,
+      )
+      updateMatch(updated)
+      setEngagementMessage('Match updated — the other team has been notified.')
+      setEditingMatch(null)
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'Could not update that match.')
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -493,6 +548,54 @@ export function HomePage() {
         ))}
       </Stack>
 
+      <Dialog open={Boolean(editingMatch)} onClose={() => setEditingMatch(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 800 }}>
+          Edit {editingMatch?.homeTeam} vs {editingMatch?.awayTeam}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.3} sx={{ mt: 0.5 }}>
+            <TextField
+              label="Kickoff"
+              type="datetime-local"
+              size="small"
+              value={editKickoff}
+              onChange={(event) => setEditKickoff(event.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Venue"
+              size="small"
+              value={editVenue}
+              onChange={(event) => setEditVenue(event.target.value)}
+            />
+            <TextField
+              label="Duration (min)"
+              type="number"
+              size="small"
+              value={editDuration}
+              onChange={(event) => setEditDuration(Number(event.target.value))}
+              slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
+            />
+            <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
+              Saving notifies the other team about the change.
+            </Typography>
+            {editError && (
+              <Alert severity="error" sx={{ fontSize: '0.74rem', py: 0.3 }}>
+                {editError}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setEditingMatch(null)}>
+            Cancel
+          </Button>
+          <Button size="small" variant="contained" onClick={() => void handleSaveMatch()} disabled={isSavingEdit}>
+            {isSavingEdit ? 'Saving…' : 'Save changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={Boolean(reportMatchId)} onClose={() => setReportMatchId(null)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontSize: '0.92rem', fontWeight: 800 }}>Report content</DialogTitle>
         <DialogContent>
@@ -527,7 +630,21 @@ export function HomePage() {
           const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
           const firstCommentText = match.comments.find((entry) => entry.text.trim().length > 0)?.text
           return (
-            <Card key={match.id} variant="outlined" sx={{ borderRadius: 2.3 }}>
+            <Card
+              key={match.id}
+              variant="outlined"
+              onClick={() => {
+                if (canEditMatch(match)) {
+                  openMatchEditor(match)
+                }
+              }}
+              sx={{
+                borderRadius: 2.3,
+                cursor: canEditMatch(match) ? 'pointer' : 'default',
+                transition: 'border-color 120ms ease',
+                '&:hover': canEditMatch(match) ? { borderColor: 'rgba(76,227,163,0.5)' } : undefined,
+              }}
+            >
               <CardContent sx={{ p: 2.3, '&:last-child': { pb: 2.3 } }}>
                 <Stack direction="row" sx={{ mb: 1.5, justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography

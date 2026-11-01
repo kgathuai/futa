@@ -106,6 +106,8 @@ export const api = {
       category: 'League' | 'Friendly' | 'Cup'
       sport: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
       comment?: string
+      referee?: string
+      intraSquad?: boolean
     },
     token: string,
   ) =>
@@ -450,6 +452,16 @@ export const api = {
       `/api/matches/${encodeURIComponent(matchId)}/events/${encodeURIComponent(eventId)}`,
       { method: 'DELETE', token },
     ),
+  updateMatchDetails: (
+    matchId: string,
+    payload: { kickoff?: string; venue?: string; durationMinutes?: number; referee?: string; status?: string },
+    token: string,
+  ) =>
+    request<MatchAnnouncement>(`/api/matches/${encodeURIComponent(matchId)}`, {
+      method: 'PATCH',
+      body: payload,
+      token,
+    }),
   updateMatchScore: (
     matchId: string,
     homeScore: number,

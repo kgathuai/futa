@@ -380,6 +380,9 @@ app.post('/api/matches', async (req, res) => {
     category?: 'League' | 'Friendly' | 'Cup'
     sport?: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
     comment?: string
+    referee?: string
+    intraSquad?: boolean
+    homeTeam?: string
   }
 
   if (!body.awayTeam || !body.venue || !body.kickoff || !body.durationMinutes || !body.category || !body.sport) {
@@ -387,18 +390,31 @@ app.post('/api/matches', async (req, res) => {
     return
   }
 
-  const awayTeam = body.awayTeam.trim()
-  if (awayTeam === teamName) {
-    res.status(400).json({ error: 'Home and away teams must be different.' })
-    return
-  }
+  const intraSquad = Boolean(body.intraSquad)
+  let awayTeam = body.awayTeam?.trim() ?? ''
+  let homeTeam = teamName
 
-  const registeredTeamNames = await store.getRegisteredTeamNames()
-  if (!registeredTeamNames.includes(awayTeam)) {
-    res.status(400).json({
-      error: `"${awayTeam}" is not a registered team. Register the team before adding it to a match.`,
-    })
-    return
+  if (intraSquad) {
+    // Sisi kwa sisi: the same club fields two sides (Team A vs Team B).
+    homeTeam = body.homeTeam?.trim() || `${teamName} A`
+    awayTeam = `${teamName} B`
+  } else {
+    if (!awayTeam) {
+      res.status(400).json({ error: 'Choose the opposing team.' })
+      return
+    }
+    if (awayTeam === teamName) {
+      res.status(400).json({ error: 'Home and away teams must be different.' })
+      return
+    }
+
+    const registeredTeamNames = await store.getRegisteredTeamNames()
+    if (!registeredTeamNames.includes(awayTeam)) {
+      res.status(400).json({
+        error: `"${awayTeam}" is not a registered team. Register the team before adding it to a match.`,
+      })
+      return
+    }
   }
 
   const clash = await store.findVenueClash(body.venue, body.kickoff)
@@ -411,7 +427,7 @@ app.post('/api/matches', async (req, res) => {
   }
 
   const created = await store.addMatch({
-    homeTeam: teamName,
+    homeTeam,
     awayTeam,
     venue: body.venue,
     kickoff: body.kickoff,
@@ -421,6 +437,8 @@ app.post('/api/matches', async (req, res) => {
     comment: body.comment,
     createdByTeam: teamName,
     createdByAccountId: user.id,
+    referee: body.referee,
+    intraSquad,
   })
 
   res.status(201).json(sanitizeMatchForViewer(created as MatchWithInteractions, user.id))
@@ -598,6 +616,83 @@ app.delete('/api/matches/:matchId/events/:eventId', async (req, res) => {
   }
 
   res.json(sanitizeMatchForViewer(updated as MatchWithInteractions, user.id))
+})
+
+// Edit a fixture (even after confirmation). The creator, either team's management
+// or an admin may edit; the other side is notified of the change.
+app.patch('/api/matches/:matchId', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const matchId = String(req.params.matchId ?? '')
+  const match = await store.getMatchById(matchId)
+  if (!match) {
+    res.status(404).json({ error: 'Match not found.' })
+    return
+  }
+
+  const role = normalizeRole(user.role)
+  const team = user.team?.trim() ?? ''
+  const isAdmin = isAdminRole(user.role)
+  const isCreator =
+    Boolean((match as { createdByAccountId?: string }).createdByAccountId) &&
+    (match as { createdByAccountId?: string }).createdByAccountId === user.id
+  const isParticipant = Boolean(team) && [match.homeTeam, match.awayTeam].includes(team)
+
+  if (!isAdmin && !isCreator && !(isParticipant && allowedRoles.has(role))) {
+    res.status(403).json({ error: 'Only the creator, the teams involved or an admin can edit this match.' })
+    return
+  }
+
+  const body = req.body as {
+    kickoff?: string
+    venue?: string
+    durationMinutes?: number
+    referee?: string
+    status?: string
+  }
+
+  const updated = await store.updateMatchDetails(matchId, body)
+  if (!updated) {
+    res.status(400).json({ error: 'Nothing to update.' })
+    return
+  }
+
+  // Let the other team know what changed.
+  const otherTeam =
+    match.homeTeam === team || match.intraSquad ? match.awayTeam : match.homeTeam
+  const otherAccountId = await store.getAccountIdForTeam(otherTeam)
+  if (otherAccountId && otherAccountId !== user.id) {
+    const changes = [
+      body.kickoff ? `kickoff ${new Date(body.kickoff).toLocaleString()}` : '',
+      body.venue ? `venue ${body.venue}` : '',
+      body.durationMinutes ? `duration ${body.durationMinutes} min` : '',
+      body.status ? `status ${body.status}` : '',
+    ]
+      .filter(Boolean)
+      .join(', ')
+
+    await store.createNotifications([otherAccountId], {
+      type: 'friendly-request',
+      title: 'Match details updated',
+      message: `${user.name || team} updated ${match.homeTeam} vs ${match.awayTeam}${changes ? `: ${changes}` : ''}.`,
+      relatedMatchId: matchId,
+    })
+  }
+
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'match.update',
+    targetType: 'match',
+    targetId: matchId,
+    detail: [match.homeTeam, match.awayTeam].join(' vs '),
+  })
+
+  res.json(updated)
 })
 
 app.patch('/api/matches/:matchId/score', async (req, res) => {

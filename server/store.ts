@@ -134,6 +134,9 @@ const matchSchema = new Schema(
     sport: { type: String, required: true },
     createdByTeam: { type: String, required: false },
     createdByAccountId: { type: String, required: false },
+    referee: { type: String, required: false, default: '' },
+    // Sisi kwa sisi: the same club fielding two sides (Team A vs Team B).
+    intraSquad: { type: Boolean, required: false, default: false },
     likedByAccountIds: { type: [String], required: true, default: [] },
     ratedByAccountIds: { type: [String], required: true, default: [] },
     status: { type: String, required: true },
@@ -1566,6 +1569,8 @@ export const store = {
     comment?: string
     createdByTeam: string
     createdByAccountId: string
+    referee?: string
+    intraSquad?: boolean
     tournamentId?: string
     round?: number
   }) => {
@@ -1580,6 +1585,8 @@ export const store = {
       sport: payload.sport,
       createdByTeam: payload.createdByTeam,
       createdByAccountId: payload.createdByAccountId,
+      referee: payload.referee?.trim() || '',
+      intraSquad: Boolean(payload.intraSquad),
       status: 'scheduled',
       comments: payload.comment?.trim() ? [payload.comment.trim()] : ['Match announced.'],
       engagement: {
@@ -1630,6 +1637,34 @@ export const store = {
       .sort({ name: 1 })
       .lean<Array<{ _id: mongoose.Types.ObjectId; name: string }>>()
     return referees.map((referee) => ({ id: referee._id.toString(), name: referee.name }))
+  },
+  getMatchById: async (matchId: string) => {
+    if (!matchId) {
+      return null
+    }
+    return MatchModel.findOne({ id: matchId }).lean()
+  },
+  updateMatchDetails: async (
+    matchId: string,
+    patch: { kickoff?: string; venue?: string; durationMinutes?: number; referee?: string; status?: string },
+  ) => {
+    const update: Record<string, unknown> = {}
+    if (patch.kickoff) update.kickoff = patch.kickoff
+    if (patch.venue) update.venue = patch.venue.trim()
+    if (Number.isFinite(patch.durationMinutes)) update.durationMinutes = Number(patch.durationMinutes)
+    if (patch.referee !== undefined) update.referee = patch.referee.trim()
+    if (patch.status) update.status = patch.status
+    if (Object.keys(update).length === 0) {
+      return null
+    }
+
+    return MatchModel.findOneAndUpdate({ id: matchId }, { $set: update }, { returnDocument: 'after' }).lean()
+  },
+  getAccountIdForTeam: async (teamName: string) => {
+    const account = await AccountModel.findOne({
+      team: new RegExp(`^${escapeRegExp(teamName.trim())}$`, 'i'),
+    }).lean<AccountDoc | null>()
+    return account ? account._id.toString() : null
   },
   updateMatchKickoff: async (matchId: string, teamName: string, kickoff: string) => {
     return MatchModel.findOneAndUpdate(

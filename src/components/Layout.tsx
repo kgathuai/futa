@@ -40,7 +40,7 @@ import FacebookIcon from '@mui/icons-material/Facebook'
 import InstagramIcon from '@mui/icons-material/Instagram'
 import XIcon from '@mui/icons-material/X'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { FriendlyRequest, NotificationItem } from '../types'
 import { useAppData } from '../context/AppContext'
@@ -168,6 +168,7 @@ const StatBox = ({ label, value, accent }: { label: string; value: string | numb
 
 export function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
   const { language, setLanguage, t } = useI18n()
@@ -774,6 +775,22 @@ export function Layout() {
   ]
 
   const handleNotificationRead = async (notificationId: string, alreadyRead: boolean) => {
+    const notification = notifications.find((item) => item.id === notificationId)
+    if (notification) {
+      // Jump straight to the action the notification is about.
+      setIsNotificationsOpen(false)
+      setIsAuthOpen(false)
+      navigate(
+        notification.type === 'friendly-request' || notification.type === 'friendly-accepted'
+          ? notification.type === 'friendly-request'
+            ? '/friendlies'
+            : '/team-dashboard?create=manage'
+          : notification.relatedMatchId
+            ? '/'
+            : '/',
+      )
+    }
+
     if (alreadyRead) {
       return
     }

@@ -78,6 +78,8 @@ export function TeamDashboardPage() {
   const [openCreateForm, setOpenCreateForm] = useState<CreateFormKey | null>(null)
 
   const [awayTeam, setAwayTeam] = useState('')
+  const [intraSquad, setIntraSquad] = useState(false)
+  const [matchReferee, setMatchReferee] = useState('')
   const [venue, setVenue] = useState('')
   const [kickoff, setKickoff] = useState('')
   const [durationMinutes, setDurationMinutes] = useState(90)
@@ -403,17 +405,21 @@ export function TeamDashboardPage() {
     try {
       await api.createMatch(
         {
-          awayTeam,
+          awayTeam: intraSquad ? `${loggedInTeam ?? ''} B` : awayTeam,
           venue,
           kickoff: new Date(kickoff).toISOString(),
           durationMinutes,
           category,
           sport,
           comment,
+          referee: matchReferee || undefined,
+          intraSquad,
         },
         token,
       )
       setAwayTeam('')
+      setIntraSquad(false)
+      setMatchReferee('')
       setVenue('')
       setKickoff('')
       setDurationMinutes(90)
@@ -1515,21 +1521,56 @@ export function TeamDashboardPage() {
                           gap: 1.2,
                         }}
                       >
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.6 }}>
+                          <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>
+                            Opponent
+                          </Typography>
+                          <Button
+                            size="small"
+                            variant={intraSquad ? 'contained' : 'outlined'}
+                            onClick={() => setIntraSquad((prev) => !prev)}
+                            sx={{ fontSize: '0.7rem', py: 0.25, px: 1 }}
+                          >
+                            🤝 Sisi kwa sisi (Team A vs Team B)
+                          </Button>
+                        </Stack>
+
+                        {intraSquad ? (
+                          <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>
+                            Playing your own squad: {loggedInTeam} A vs {loggedInTeam} B. Only venue, time and referee are needed.
+                          </Typography>
+                        ) : (
+                          <TextField
+                            select
+                            label="Away Team *"
+                            placeholder="Select team..."
+                            value={awayTeam}
+                            onChange={(event) => setAwayTeam(event.target.value)}
+                            required
+                          >
+                            {teamOptions
+                              .filter((option) => option.name !== loggedInTeam)
+                              .map((option) => (
+                                <MenuItem key={option.name} value={option.name}>
+                                  {option.name}
+                                </MenuItem>
+                              ))}
+                          </TextField>
+                        )}
+
                         <TextField
                           select
-                          label="Away Team *"
-                          placeholder="Select team..."
-                          value={awayTeam}
-                          onChange={(event) => setAwayTeam(event.target.value)}
-                          required
+                          label={intraSquad ? 'Referee *' : 'Referee (optional)'}
+                          value={matchReferee}
+                          onChange={(event) => setMatchReferee(event.target.value)}
+                          required={intraSquad}
                         >
-                          {teamOptions
-                            .filter((option) => option.name !== loggedInTeam)
-                            .map((option) => (
-                              <MenuItem key={option.name} value={option.name}>
-                                {option.name}
-                              </MenuItem>
-                            ))}
+                          <MenuItem value="">Not assigned</MenuItem>
+                          {refereeOptions.map((referee) => (
+                            <MenuItem key={referee.id} value={referee.name}>
+                              {referee.name}
+                            </MenuItem>
+                          ))}
                         </TextField>
 
                         <TextField
