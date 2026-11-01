@@ -43,6 +43,7 @@ export function HomePage() {
   const [teamLogos, setTeamLogos] = useState<Record<string, string | undefined>>({})
   const [teamOptions, setTeamOptions] = useState<string[]>([])
   const [referee, setReferee] = useState('')
+  const [intraSquad, setIntraSquad] = useState(false)
   const [refereeOptions, setRefereeOptions] = useState<Array<{ id: string; name: string }>>([])
   const [groundOptions, setGroundOptions] = useState<string[]>([])
   const [announceMessage, setAnnounceMessage] = useState('')
@@ -366,7 +367,7 @@ export function HomePage() {
                 try {
                   await api.createMatch(
                     {
-                      awayTeam,
+                      awayTeam: intraSquad ? `${loggedInTeam ?? ''} B` : awayTeam,
                       venue,
                       kickoff: new Date(kickoff).toISOString(),
                       durationMinutes: parsedDuration,
@@ -374,6 +375,7 @@ export function HomePage() {
                       sport,
                       comment: comment.trim() || undefined,
                       referee: referee || undefined,
+                      intraSquad,
                     },
                     token,
                   )
@@ -386,6 +388,7 @@ export function HomePage() {
                   setSport('Football')
                   setComment('')
                   setReferee('')
+                  setIntraSquad(false)
                   setAnnounceMessage('Match created successfully.')
                   window.location.reload()
                 } catch (error) {
@@ -400,12 +403,28 @@ export function HomePage() {
                 Home team: {loggedInTeam || 'Not set'}
               </Typography>
 
+              <Button
+                type="button"
+                variant={intraSquad ? 'contained' : 'outlined'}
+                onClick={() => setIntraSquad((prev) => !prev)}
+                sx={{ alignSelf: 'flex-start', fontSize: '0.74rem' }}
+              >
+                🤝 Sisi kwa sisi (Team A vs Team B)
+              </Button>
+
+              {intraSquad && (
+                <Typography variant="body2" color="text.secondary">
+                  Playing your own squad: {loggedInTeam || 'your team'} A vs {loggedInTeam || 'your team'} B — no opponent needed.
+                </Typography>
+              )}
+
               <TextField
                 select
                 label="Away team"
                 value={awayTeam}
                 onChange={(event) => setAwayTeam(event.target.value)}
-                required
+                required={!intraSquad}
+                sx={{ display: intraSquad ? 'none' : undefined }}
               >
                 {teamOptions
                   .filter((teamOption) => teamOption !== loggedInTeam)
