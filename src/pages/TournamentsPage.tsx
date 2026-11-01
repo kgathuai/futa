@@ -973,7 +973,7 @@ export function TournamentsPage() {
                   </Stack>
 
                   <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                    <Typography variant="h3" sx={{ fontSize: { xs: '0.92rem', md: '1.15rem' }, fontWeight: 800, lineHeight: 1.15 }}>
+                    <Typography variant="h3" sx={{ fontSize: { xs: '0.86rem', md: '1rem' }, fontWeight: 800, lineHeight: 1.2 }}>
                       {selectedTournament.name}
                     </Typography>
                     <ShareButtons
@@ -1057,7 +1057,7 @@ export function TournamentsPage() {
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'background.paper' }}>
               <CardContent>
                 <Typography sx={{ color: 'text.secondary', fontSize: '0.55rem', letterSpacing: '0.07em' }}>TOTAL PRIZE POOL</Typography>
-                <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.15rem' }, fontWeight: 800, mt: 0.2 }}>Ksh {estimatedPrizePool.toLocaleString()}</Typography>
+                <Typography sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, fontWeight: 800, mt: 0.2 }}>Ksh {estimatedPrizePool.toLocaleString()}</Typography>
               </CardContent>
             </Card>
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'background.paper' }}>
@@ -1068,7 +1068,7 @@ export function TournamentsPage() {
                     {(mvpPreview?.team ?? 'N').charAt(0).toUpperCase()}
                   </Avatar>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: '0.86rem', lineHeight: 1.2 }} noWrap>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.2 }} noWrap>
                       {mvpPreview?.player ?? 'No data'}
                     </Typography>
                     {mvpPreview && (
@@ -1083,7 +1083,7 @@ export function TournamentsPage() {
             <Card variant="outlined" sx={{ borderColor: 'rgba(170,186,212,0.2)', bgcolor: 'background.paper' }}>
               <CardContent>
                 <Typography sx={{ color: 'text.secondary', fontSize: '0.55rem', letterSpacing: '0.07em' }}>MATCH EFFICIENCY</Typography>
-                <Typography sx={{ fontSize: { xs: '0.95rem', md: '1.15rem' }, fontWeight: 800, mt: 0.2 }}>{selectedTournamentEfficiency}%</Typography>
+                <Typography sx={{ fontSize: { xs: '0.85rem', md: '1rem' }, fontWeight: 800, mt: 0.2 }}>{selectedTournamentEfficiency}%</Typography>
               </CardContent>
             </Card>
           </Box>
@@ -1276,16 +1276,16 @@ export function TournamentsPage() {
                                 {standing.team.charAt(0).toUpperCase()}
                               </Avatar>
                             )}
-                            <Typography sx={{ fontWeight: 700, fontSize: '0.76rem' }}>{standing.team}</Typography>
+                            <Typography sx={{ fontWeight: 700, fontSize: '0.72rem' }}>{standing.team}</Typography>
                           </Stack>
-                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.played}</Typography>
-                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.won}</Typography>
-                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.drawn}</Typography>
-                          <Typography sx={{ textAlign: 'center', fontSize: '0.76rem' }}>{standing.lost}</Typography>
-                          <Typography sx={{ textAlign: 'center', color: standing.goalDifference >= 0 ? '#adff0f' : '#f16f77', fontWeight: 700, fontSize: '0.76rem' }}>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.72rem' }}>{standing.played}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.72rem' }}>{standing.won}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.72rem' }}>{standing.drawn}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontSize: '0.72rem' }}>{standing.lost}</Typography>
+                          <Typography sx={{ textAlign: 'center', color: standing.goalDifference >= 0 ? '#adff0f' : '#f16f77', fontWeight: 700, fontSize: '0.72rem' }}>
                             {standing.goalDifference >= 0 ? `+${standing.goalDifference}` : standing.goalDifference}
                           </Typography>
-                          <Typography sx={{ textAlign: 'center', fontWeight: 800, fontSize: '0.76rem' }}>{standing.points}</Typography>
+                          <Typography sx={{ textAlign: 'center', fontWeight: 800, fontSize: '0.72rem' }}>{standing.points}</Typography>
                           <Stack direction="row" spacing={0.4} sx={{ justifyContent: 'center' }}>
                             {formBadges.map((badge, badgeIndex) => (
                               <Box
