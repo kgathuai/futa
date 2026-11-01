@@ -32,6 +32,8 @@ export function FriendliesPage() {
   const [preferredTime, setPreferredTime] = useState('')
   const [location, setLocation] = useState('')
   const [note, setNote] = useState('')
+  const [intraSquad, setIntraSquad] = useState(false)
+  const [intraDuration, setIntraDuration] = useState(90)
   const [referee, setReferee] = useState('')
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [teamOptions, setTeamOptions] = useState<{ name: string; logoUrl?: string }[]>([])
@@ -203,6 +205,42 @@ export function FriendliesPage() {
                   return
                 }
 
+                if (intraSquad) {
+                  if (!loggedInTeam) {
+                    setRequestMessage('Set your team before booking a sisi kwa sisi match.')
+                    return
+                  }
+                  if (!preferredDate || !preferredTime || !location) {
+                    setRequestMessage('Pick the date, time and venue.')
+                    return
+                  }
+                  try {
+                    await api.createMatch(
+                      {
+                        awayTeam: `${loggedInTeam} B`,
+                        venue: location,
+                        kickoff: new Date(`${preferredDate}T${preferredTime}`).toISOString(),
+                        durationMinutes: intraDuration,
+                        category: 'Friendly',
+                        sport: 'Football',
+                        comment: note.trim() || 'Sisi kwa sisi',
+                        referee: referee.trim() || undefined,
+                        intraSquad: true,
+                      },
+                      token,
+                    )
+                    setRequestMessage('Sisi kwa sisi match created and announced.')
+                    setShowRequestForm(false)
+                    setPreferredDate('')
+                    setPreferredTime('')
+                    setReferee('')
+                    setNote('')
+                  } catch (error) {
+                    setRequestMessage(error instanceof Error ? error.message : 'Could not create the match.')
+                  }
+                  return
+                }
+
                 const contactCheck = validateTeamContact(contact)
                 if (!contactCheck.ok) {
                   setRequestMessage(contactCheck.error ?? 'Enter a valid contact.')
@@ -242,7 +280,8 @@ export function FriendliesPage() {
                 value={teamName}
                 onChange={(event) => setTeamName(event.target.value)}
                 helperText={teamOptions.length === 0 ? 'No teams available yet. Create teams first.' : undefined}
-                required
+                required={!intraSquad}
+                sx={{ display: intraSquad ? 'none' : undefined }}
               >
                 {teamOptions.map((teamOption) => (
                   <MenuItem key={teamOption.name} value={teamOption.name} sx={{ gap: 1.2 }}>
@@ -275,6 +314,44 @@ export function FriendliesPage() {
                   </MenuItem>
                 ))}
               </TextField>
+              <Button
+                type="button"
+                variant={intraSquad ? 'contained' : 'outlined'}
+                onClick={() => setIntraSquad((prev) => !prev)}
+                sx={{ alignSelf: 'flex-start', fontSize: '0.74rem' }}
+              >
+                🤝 Sisi kwa sisi (Team A vs Team B)
+              </Button>
+
+              {intraSquad ? (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2}>
+                  <TextField
+                    label="Match duration (min)"
+                    type="number"
+                    value={intraDuration}
+                    onChange={(event) => setIntraDuration(Number(event.target.value))}
+                    slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Referee"
+                    select
+                    value={referee}
+                    onChange={(event) => setReferee(event.target.value)}
+                    helperText={refereeOptions.length === 0 ? 'No referees registered yet.' : undefined}
+                    fullWidth
+                  >
+                    <MenuItem value="">Not assigned</MenuItem>
+                    {refereeOptions.map((option) => (
+                      <MenuItem key={option.id} value={option.name}>
+                        {option.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
+              ) : null}
+
+              {!intraSquad && (
               <TextField
                 label="Contact details"
                 value={contact}
@@ -284,6 +361,7 @@ export function FriendliesPage() {
                 error={Boolean(contact) && !validateTeamContact(contact).ok}
                 required
               />
+              )}
               <TextField
                 label="Preferred date"
                 type="date"

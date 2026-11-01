@@ -774,6 +774,37 @@ export function Layout() {
     ...links,
   ]
 
+  const respondToFriendlyRequest = async (
+    notification: NotificationItem,
+    action: 'accept' | 'decline',
+  ) => {
+    const token = api.getToken()
+    const requestId = notification.relatedFriendlyRequestId
+    if (!token || !requestId) {
+      return
+    }
+
+    try {
+      if (action === 'accept') {
+        await api.acceptFriendlyRequest(requestId, token)
+      } else {
+        await api.declineFriendlyRequest(requestId, token)
+      }
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
+      )
+      setToast({
+        message: action === 'accept' ? 'Friendly confirmed.' : 'Friendly declined.',
+        severity: action === 'accept' ? 'success' : 'info',
+      })
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Could not respond to that request.',
+        severity: 'error',
+      })
+    }
+  }
+
   const handleNotificationRead = async (notificationId: string, alreadyRead: boolean) => {
     const notification = notifications.find((item) => item.id === notificationId)
     if (notification) {
@@ -1894,6 +1925,38 @@ export function Layout() {
                     </Box>
                     <Badge variant="dot" color="primary" invisible={notification.read} />
                   </Stack>
+                  {notification.type === 'friendly-request' && notification.relatedFriendlyRequestId && (
+                    <Stack direction="row" spacing={0.8} sx={{ mt: 0.9 }} onClick={(event) => event.stopPropagation()}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                        onClick={() => void respondToFriendlyRequest(notification, 'accept')}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                        onClick={() => void respondToFriendlyRequest(notification, 'decline')}
+                      >
+                        Decline
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="text"
+                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                        onClick={() => {
+                          setIsNotificationsOpen(false)
+                          navigate('/friendlies')
+                        }}
+                      >
+                        Change date
+                      </Button>
+                    </Stack>
+                  )}
                   <Divider sx={{ my: 1.2 }} />
                   <Typography variant="caption" color="text.secondary">
                     {new Date(notification.createdAt).toLocaleString()}
