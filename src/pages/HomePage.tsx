@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Typography } from '@mui/material'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
@@ -11,6 +11,7 @@ import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
+import { MatchForm } from '../components/MatchForm'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -42,8 +43,6 @@ export function HomePage() {
   const [showAnnounceForm, setShowAnnounceForm] = useState(false)
   const [teamLogos, setTeamLogos] = useState<Record<string, string | undefined>>({})
   const [teamOptions, setTeamOptions] = useState<string[]>([])
-  const [referee, setReferee] = useState('')
-  const [intraSquad, setIntraSquad] = useState(false)
   const [refereeOptions, setRefereeOptions] = useState<Array<{ id: string; name: string }>>([])
   const [groundOptions, setGroundOptions] = useState<string[]>([])
   const [announceMessage, setAnnounceMessage] = useState('')
@@ -60,13 +59,6 @@ export function HomePage() {
   useAutoHide(announceMessage, () => setAnnounceMessage(''))
   useAutoHide(engagementMessage, () => setEngagementMessage(''))
 
-  const [awayTeam, setAwayTeam] = useState('')
-  const [venue, setVenue] = useState('')
-  const [kickoff, setKickoff] = useState('')
-  const [durationMinutes, setDurationMinutes] = useState('90')
-  const [category, setCategory] = useState<'League' | 'Friendly' | 'Cup'>('Friendly')
-  const [sport, setSport] = useState<'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'>('Football')
-  const [comment, setComment] = useState('')
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
   const canCreateHere =
     Boolean(loggedInUser) &&
@@ -342,184 +334,20 @@ export function HomePage() {
       {canCreateHere && showAnnounceForm && (
         <Card variant="outlined">
           <CardContent>
-            <Box
-              component="form"
-              sx={{ display: 'grid', gap: 1.5 }}
-              onSubmit={async (event) => {
-                event.preventDefault()
-                const token = api.getToken()
-                if (!token) {
-                  setAnnounceMessage('Please log in first.')
-                  return
-                }
-
-                if (!loggedInTeam) {
-                  setAnnounceMessage('Your account has no team set.')
-                  return
-                }
-
-                const parsedDuration = Number(durationMinutes)
-                if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
-                  setAnnounceMessage('Enter a valid match duration in minutes.')
-                  return
-                }
-
-                try {
-                  await api.createMatch(
-                    {
-                      awayTeam: intraSquad ? `${loggedInTeam ?? ''} B` : awayTeam,
-                      venue,
-                      kickoff: new Date(kickoff).toISOString(),
-                      durationMinutes: parsedDuration,
-                      category,
-                      sport,
-                      comment: comment.trim() || undefined,
-                      referee: referee || undefined,
-                      intraSquad,
-                    },
-                    token,
-                  )
-
-                  setAwayTeam('')
-                  setVenue('')
-                  setKickoff('')
-                  setDurationMinutes('90')
-                  setCategory('Friendly')
-                  setSport('Football')
-                  setComment('')
-                  setReferee('')
-                  setIntraSquad(false)
-                  setAnnounceMessage('Match created successfully.')
-                  window.location.reload()
-                } catch (error) {
-                  setAnnounceMessage(error instanceof Error ? error.message : 'Failed to create match.')
-                }
-              }}
-            >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Create a match
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Home team: {loggedInTeam || 'Not set'}
               </Typography>
 
-              <Button
-                type="button"
-                variant={intraSquad ? 'contained' : 'outlined'}
-                onClick={() => setIntraSquad((prev) => !prev)}
-                sx={{ alignSelf: 'flex-start', fontSize: '0.74rem' }}
-              >
-                🤝 Sisi kwa sisi (Team A vs Team B)
-              </Button>
-
-              {intraSquad && (
-                <Typography variant="body2" color="text.secondary">
-                  Playing your own squad: {loggedInTeam || 'your team'} A vs {loggedInTeam || 'your team'} B — no opponent needed.
-                </Typography>
-              )}
-
-              <TextField
-                select
-                label="Away team"
-                value={awayTeam}
-                onChange={(event) => setAwayTeam(event.target.value)}
-                required={!intraSquad}
-                sx={{ display: intraSquad ? 'none' : undefined }}
-              >
-                {teamOptions
-                  .filter((teamOption) => teamOption !== loggedInTeam)
-                  .map((teamOption) => (
-                    <MenuItem key={teamOption} value={teamOption}>
-                      {teamOption}
-                    </MenuItem>
-                  ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Venue"
-                value={venue}
-                onChange={(event) => setVenue(event.target.value)}
-                required
-              >
-                {groundOptions.map((ground) => (
-                  <MenuItem key={ground} value={ground}>
-                    {ground}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                label="Kickoff"
-                type="datetime-local"
-                value={kickoff}
-                onChange={(event) => setKickoff(event.target.value)}
-                required
-                slotProps={{ inputLabel: { shrink: true } }}
+              <MatchForm
+                homeTeam={loggedInTeam}
+                teamOptions={teamOptions}
+                groundOptions={groundOptions}
+                refereeOptions={refereeOptions}
+                onCreated={(created) => updateMatch(created)}
               />
-
-              <TextField
-                label="Match duration (minutes)"
-                type="number"
-                value={durationMinutes}
-                onChange={(event) => setDurationMinutes(event.target.value)}
-                required
-                slotProps={{ htmlInput: { min: 1 } }}
-              />
-
-              <TextField
-                select
-                label="Referee"
-                value={referee}
-                onChange={(event) => setReferee(event.target.value)}
-                helperText="Only registered referees, or leave at “No preference”."
-              >
-                <MenuItem value="">No preference</MenuItem>
-                {refereeOptions.map((option) => (
-                  <MenuItem key={option.id} value={option.name}>
-                    {option.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField select label="Category" value={category} onChange={(event) => setCategory(event.target.value as typeof category)} required>
-                <MenuItem value="League">League</MenuItem>
-                <MenuItem value="Friendly">Friendly</MenuItem>
-                <MenuItem value="Cup">Cup</MenuItem>
-              </TextField>
-
-              <TextField select label="Sport" value={sport} onChange={(event) => setSport(event.target.value as typeof sport)} required>
-                <MenuItem value="Football">Football</MenuItem>
-                <MenuItem value="Handball">Handball</MenuItem>
-                <MenuItem value="Volleyball">Volleyball</MenuItem>
-                <MenuItem value="Basketball">Basketball</MenuItem>
-                <MenuItem value="Rugby">Rugby</MenuItem>
-                <MenuItem value="Tennis">Tennis</MenuItem>
-                <MenuItem value="Pool Table">Pool Table</MenuItem>
-              </TextField>
-
-              <TextField
-                label="Comment (optional)"
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-                multiline
-                rows={2}
-              />
-
-              {announceMessage && (
-                <Alert severity="info" onClose={() => setAnnounceMessage('')}>
-                  {announceMessage}
-                </Alert>
-              )}
-
-              <Stack direction="row" spacing={1}>
-                <Button type="submit" variant="contained">
-                  Create Match
-                </Button>
-                <Button variant="outlined" onClick={() => setShowAnnounceForm(false)}>
-                  Close
-                </Button>
-              </Stack>
-            </Box>
           </CardContent>
         </Card>
       )}
