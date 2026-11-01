@@ -225,9 +225,9 @@ export function MatchEngagementPanel({
                 color: '#aab1c4',
               }}
             >
-              <FavoriteBorderOutlinedIcon sx={{ fontSize: { xs: '0.95rem', sm: '1rem', md: '1.14rem' } }} />
+              <FavoriteBorderOutlinedIcon sx={{ fontSize: '0.9rem' }} />
             </Box>
-            <Typography sx={{ lineHeight: 1.1, fontWeight: 700, color: '#b7bfd3', fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' } }}>
+            <Typography sx={{ lineHeight: 1.1, fontWeight: 700, color: '#b7bfd3', fontSize: '0.76rem' }}>
               {match.engagement.likes}
             </Typography>
           </Stack>
@@ -250,9 +250,9 @@ export function MatchEngagementPanel({
                 color: '#aab1c4',
               }}
             >
-              <ChatBubbleOutlineOutlinedIcon sx={{ fontSize: { xs: '0.95rem', sm: '1rem', md: '1.14rem' } }} />
+              <ChatBubbleOutlineOutlinedIcon sx={{ fontSize: '0.9rem' }} />
             </Box>
-            <Typography sx={{ lineHeight: 1.1, fontWeight: 700, color: '#b7bfd3', fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' } }}>
+            <Typography sx={{ lineHeight: 1.1, fontWeight: 700, color: '#b7bfd3', fontSize: '0.76rem' }}>
               {match.engagement.comments}
             </Typography>
           </Stack>
@@ -276,13 +276,13 @@ export function MatchEngagementPanel({
                 color: '#aab1c4',
               }}
             >
-              <StarOutlineRoundedIcon sx={{ fontSize: { xs: '0.95rem', sm: '1rem', md: '1.14rem' } }} />
+              <StarOutlineRoundedIcon sx={{ fontSize: '0.9rem' }} />
             </Box>
             <Box sx={{ textAlign: 'left', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography sx={{ lineHeight: 1.1, fontWeight: 700, color: match.engagement.rating > 0 ? '#9dff20' : '#a7afc3', fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' } }}>
+              <Typography sx={{ lineHeight: 1.1, fontWeight: 700, color: match.engagement.rating > 0 ? '#9dff20' : '#a7afc3', fontSize: '0.76rem' }}>
                 {match.engagement.rating.toFixed(1)}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#8c94aa', letterSpacing: { xs: '0.01em', sm: '0.03em' }, fontSize: { xs: '0.72rem', sm: '0.78rem', md: '0.82rem' } }}>
+              <Typography variant="caption" sx={{ color: '#8c94aa', letterSpacing: { xs: '0.01em', sm: '0.03em' }, fontSize: '0.66rem' }}>
                 RATING ({match.engagement.ratingCount}){match.ratedByMe ? ' *' : ''}
               </Typography>
             </Box>
