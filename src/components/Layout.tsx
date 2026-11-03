@@ -1283,12 +1283,6 @@ export function Layout() {
                 }}
               >
                 <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'text.secondary', letterSpacing: '0.12em', display: 'block', mb: 1.2 }}
-                  >
-                    My team
-                  </Typography>
 
                   {myTeamName ? (
                     <Stack spacing={1.5}>
