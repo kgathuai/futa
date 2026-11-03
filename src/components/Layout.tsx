@@ -1025,8 +1025,14 @@ export function Layout() {
           <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
             <Stack
               direction="row"
-              spacing={0.6}
-              sx={{ py: 0.5, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}
+              spacing={1.6}
+              sx={{
+                py: 0.5,
+                justifyContent: 'flex-end',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                '&::-webkit-scrollbar': { display: 'none' },
+              }}
             >
               {[
                 { to: '/team-dashboard?create=match', label: 'Create match' },
@@ -1046,8 +1052,9 @@ export function Layout() {
                     whiteSpace: 'nowrap',
                     fontSize: '0.68rem',
                     fontWeight: 700,
-                    px: 0.9,
+                    px: 1.1,
                     py: 0.2,
+                    ml: 0,
                     borderRadius: 999,
                     color: 'text.secondary',
                     '&:hover': { bgcolor: 'action.hover', color: 'primary.main' },
