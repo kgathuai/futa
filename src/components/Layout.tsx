@@ -212,11 +212,8 @@ export function Layout() {
   const [loggedInTeam, setLoggedInTeam] = useState<string | null>(null)
   const [loggedInEmail, setLoggedInEmail] = useState('')
   const [loggedInSport, setLoggedInSport] = useState('')
-  const [profileTeam, setProfileTeam] = useState('')
   const [profileCounty, setProfileCounty] = useState('')
   const [profileHomeGround, setProfileHomeGround] = useState('')
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [profileMessage, setProfileMessage] = useState('')
   const [profileAvatar, setProfileAvatar] = useState('')
   const [avatarMessage, setAvatarMessage] = useState('')
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
@@ -300,10 +297,8 @@ export function Layout() {
       setLoggedInEmail('')
       setLoggedInSport('')
       setNotifications([])
-      setProfileTeam('')
       setProfileCounty('')
       setProfileHomeGround('')
-      setProfileMessage('')
       setProfileAvatar('')
       setAvatarMessage('')
       setEmailVerified(true)
@@ -348,8 +343,7 @@ export function Layout() {
         setLoggedInTeam(response.user.team)
         setLoggedInEmail(response.user.email ?? '')
         setLoggedInSport(response.user.sport ?? '')
-        setProfileTeam(response.user.team ?? '')
-        setProfileCounty(response.user.county ?? '')
+                setProfileCounty(response.user.county ?? '')
         setProfileHomeGround(response.user.homeGround ?? '')
         setProfileAvatar(response.user.avatar ?? '')
         setEmailVerified(response.user.emailVerified !== false)
@@ -380,8 +374,7 @@ export function Layout() {
       setLoggedInTeam(response.user.team)
       setLoggedInEmail(response.user.email ?? '')
       setLoggedInSport(response.user.sport ?? '')
-      setProfileTeam(response.user.team ?? '')
-      setProfileCounty(response.user.county ?? '')
+            setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
       setProfileAvatar(response.user.avatar ?? '')
       setEmailVerified(response.user.emailVerified !== false)
@@ -618,52 +611,13 @@ export function Layout() {
     setLoggedInEmail('')
     setLoggedInSport('')
     setNotifications([])
-    setProfileTeam('')
     setProfileCounty('')
     setProfileHomeGround('')
-    setProfileMessage('')
     setProfileAvatar('')
     setAvatarMessage('')
     setEmailVerified(true)
     void refreshTeam()
     setAuthMessage('You have logged out.')
-  }
-
-  const handleSaveProfile = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const token = api.getToken()
-    if (!token) {
-      setProfileMessage('Please log in again.')
-      return
-    }
-
-    const team = profileTeam.trim()
-    const county = profileCounty.trim()
-    const homeGround = profileHomeGround.trim()
-    if (team && (!county || !homeGround)) {
-      setProfileMessage('Add a county and home ground for your team, or leave the team blank.')
-      return
-    }
-
-    setIsSavingProfile(true)
-    try {
-      const response = await api.updateProfile(
-        { team, county: team ? county : '', homeGround: team ? homeGround : '' },
-        token,
-      )
-      setLoggedInTeam(response.user.team)
-      setLoggedInEmail(response.user.email ?? '')
-      setLoggedInSport(response.user.sport ?? '')
-      setProfileTeam(response.user.team ?? '')
-      setProfileCounty(response.user.county ?? '')
-      setProfileHomeGround(response.user.homeGround ?? '')
-      void refreshTeam()
-      setProfileMessage('Team updated.')
-    } catch (error) {
-      setProfileMessage(error instanceof Error ? error.message : 'Failed to update your team.')
-    } finally {
-      setIsSavingProfile(false)
-    }
   }
 
   const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1837,54 +1791,6 @@ export function Layout() {
                 </CardContent>
               </Card>
 
-              {!isRefereeAccount && (
-              <Box component="form" onSubmit={handleSaveProfile} sx={{ display: 'grid', gap: 1.3, mb: 2 }}>
-                <Typography variant="overline" color="text.secondary">
-                  Team profile
-                </Typography>
-                <TextField
-                  label="Team (optional)"
-                  value={profileTeam}
-                  onChange={(event) => setProfileTeam(event.target.value)}
-                  placeholder="Team name"
-                  size="small"
-                />
-                <TextField
-                  select
-                  label="County / Eneo"
-                  value={profileCounty}
-                  onChange={(event) => setProfileCounty(event.target.value)}
-                  size="small"
-                  helperText="Required if you set a team."
-                >
-                  {KENYA_COUNTIES.map((countyName) => (
-                    <MenuItem key={countyName} value={countyName}>
-                      {countyName}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  label="Home ground (optional)"
-                  value={profileHomeGround}
-                  onChange={(event) => setProfileHomeGround(event.target.value)}
-                  placeholder="e.g. Nairobi West Ground"
-                  size="small"
-                  helperText="Required if you set a team."
-                />
-                <Button type="submit" variant="contained" disabled={isSavingProfile}>
-                  {isSavingProfile ? 'Saving…' : 'Save team'}
-                </Button>
-                {profileMessage && (
-                  <Alert
-                    severity="info"
-                    onClose={() => setProfileMessage('')}
-                    sx={{ py: 0.3, fontSize: '0.78rem' }}
-                  >
-                    {profileMessage}
-                  </Alert>
-                )}
-              </Box>
-              )}
 
               <Button onClick={handleLogout} variant="outlined" fullWidth>
                 Logout
