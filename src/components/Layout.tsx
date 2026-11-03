@@ -1307,7 +1307,7 @@ export function Layout() {
               {!isRefereeAccount && (
               <Card
                 variant="outlined"
-                sx={{ mb: 2, borderColor: 'rgba(76,227,163,0.26)', bgcolor: 'rgba(76,227,163,0.03)' }}
+                sx={{ display: 'none', mb: 2, borderColor: 'rgba(76,227,163,0.26)', bgcolor: 'rgba(76,227,163,0.03)' }}
               >
                 <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
                   <Typography
