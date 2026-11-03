@@ -1291,9 +1291,11 @@ export function Layout() {
                           <Typography sx={{ fontWeight: 800, fontSize: '1.02rem', lineHeight: 1.15 }} noWrap>
                             {myTeamName}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
-                            {[myTeamCounty, myTeamGround].filter(Boolean).join(' • ') || 'No county or ground set'}
-                          </Typography>
+                          {(myTeamCounty || myTeamGround) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                              {[myTeamCounty, myTeamGround].filter(Boolean).join(' • ')}
+                            </Typography>
+                          )}
                         </Box>
                       </Stack>
 
