@@ -1580,9 +1580,7 @@ export function Layout() {
 
                   {upcomingMatches.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
-                      {myTeamName
-                        ? 'No upcoming games for your team yet.'
-                        : 'No upcoming games yet.'}
+                      {myTeamName ? 'No upcoming games.' : 'Nothing scheduled.'}
                     </Typography>
                   ) : (
                     <Stack spacing={1}>
