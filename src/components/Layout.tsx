@@ -194,7 +194,6 @@ export function Layout() {
   const myTeamStats = useMemo(() => computeTeamStats(matches, myTeamName), [matches, myTeamName])
   const myTeamCounty = myTeamProfile?.county || profileCounty
   const myTeamGround = myTeamProfile?.homeGround || profileHomeGround
-  const myTeamLogo = myTeamProfile?.logoUrl
   const myRoleLabel = roleLabel(loggedInRole)
   const isRefereeAccount = (loggedInRole ?? '').trim().toLowerCase() === 'referee'
   const [refereeBookings, setRefereeBookings] = useState<FriendlyRequest[]>([])
@@ -1294,32 +1293,6 @@ export function Layout() {
                   {myTeamName ? (
                     <Stack spacing={1.5}>
                       <Stack direction="row" spacing={1.3} sx={{ alignItems: 'center' }}>
-                        <Box
-                          sx={{
-                            width: 46,
-                            height: 46,
-                            borderRadius: '50%',
-                            flexShrink: 0,
-                            display: 'grid',
-                            placeItems: 'center',
-                            overflow: 'hidden',
-                            bgcolor: 'rgba(7,17,31,0.9)',
-                            border: '2px solid rgba(76,227,163,0.55)',
-                          }}
-                        >
-                          {myTeamLogo ? (
-                            <Box
-                              component="img"
-                              src={myTeamLogo}
-                              alt={`${myTeamName} logo`}
-                              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                          ) : (
-                            <Typography sx={{ fontWeight: 900, color: 'primary.main', fontSize: '0.95rem' }}>
-                              {myTeamName.slice(0, 2).toUpperCase()}
-                            </Typography>
-                          )}
-                        </Box>
                         <Box sx={{ minWidth: 0 }}>
                           <Typography sx={{ fontWeight: 800, fontSize: '1.02rem', lineHeight: 1.15 }} noWrap>
                             {myTeamName}
