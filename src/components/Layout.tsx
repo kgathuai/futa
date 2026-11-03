@@ -1100,7 +1100,7 @@ export function Layout() {
       </Box>
 
       <Drawer anchor="right" open={isAuthOpen} onClose={() => setIsAuthOpen(false)}>
-        <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5 }} role="presentation">
+        <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5, pb: '96px' }} role="presentation">
           <Stack direction="row" sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
               {loggedInUser ? t('account') : authView === 'login' ? t('login') : authView === 'forgot' ? 'Reset password' : t('register')}
@@ -1712,14 +1712,17 @@ export function Layout() {
 
               <Box
                 sx={{
-                  position: 'sticky',
+                  position: 'fixed',
                   bottom: 0,
-                  mt: 1,
+                  right: 0,
+                  width: { xs: '90vw', sm: 390 },
+                  px: 2.5,
                   pt: 1.2,
-                  pb: 0.5,
+                  pb: 'calc(0.75rem + env(safe-area-inset-bottom))',
                   bgcolor: 'background.paper',
                   borderTop: '1px solid',
                   borderColor: 'divider',
+                  zIndex: 1300,
                 }}
               >
                 <Button onClick={handleLogout} variant="outlined" fullWidth>
@@ -1906,7 +1909,7 @@ export function Layout() {
       </Drawer>
 
       <Drawer anchor="right" open={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)}>
-        <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5 }} role="presentation">
+        <Box sx={{ width: { xs: '90vw', sm: 390 }, p: 2.5, pb: '96px' }} role="presentation">
           <Stack direction="row" sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
               Notifications
