@@ -1710,9 +1710,22 @@ export function Layout() {
 
 
 
-              <Button onClick={handleLogout} variant="outlined" fullWidth>
-                Logout
-              </Button>
+              <Box
+                sx={{
+                  position: 'sticky',
+                  bottom: 0,
+                  mt: 1,
+                  pt: 1.2,
+                  pb: 0.5,
+                  bgcolor: 'background.paper',
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Button onClick={handleLogout} variant="outlined" fullWidth>
+                  Logout
+                </Button>
+              </Box>
             </>
           ) : authView === 'login' ? (
             <Box component="form" onSubmit={handleLogin} sx={{ display: 'grid', gap: 1.5 }}>
