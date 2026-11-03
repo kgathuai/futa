@@ -215,7 +215,6 @@ export function Layout() {
   const [profileCounty, setProfileCounty] = useState('')
   const [profileHomeGround, setProfileHomeGround] = useState('')
   const [profileAvatar, setProfileAvatar] = useState('')
-  const [avatarMessage, setAvatarMessage] = useState('')
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -299,7 +298,6 @@ export function Layout() {
       setProfileCounty('')
       setProfileHomeGround('')
       setProfileAvatar('')
-      setAvatarMessage('')
       setEmailVerified(true)
       setAuthView('login')
       setIsAuthOpen(true)
@@ -613,7 +611,6 @@ export function Layout() {
     setProfileCounty('')
     setProfileHomeGround('')
     setProfileAvatar('')
-    setAvatarMessage('')
     setEmailVerified(true)
     void refreshTeam()
     setAuthMessage('You have logged out.')
@@ -628,29 +625,28 @@ export function Layout() {
 
     const token = api.getToken()
     if (!token) {
-      setAvatarMessage('Please log in again.')
+      setToast({ message: 'Please log in again.', severity: 'error' })
       return
     }
 
     if (!file.type.startsWith('image/')) {
-      setAvatarMessage('Choose an image file (JPG, PNG or WebP).')
+      setToast({ message: 'Choose an image file (JPG, PNG or WebP).', severity: 'error' })
       return
     }
 
     if (file.size > 8 * 1024 * 1024) {
-      setAvatarMessage('That image is too large. Pick one under 8 MB.')
+      setToast({ message: 'That image is too large. Pick one under 8 MB.', severity: 'error' })
       return
     }
 
     setIsSavingAvatar(true)
-    setAvatarMessage('')
     try {
       const dataUrl = await fileToAvatarDataUrl(file)
       const response = await api.updateProfile({ avatar: dataUrl }, token)
       setProfileAvatar(response.user.avatar ?? '')
-      setAvatarMessage('Profile picture updated.')
+      setToast({ message: 'Profile picture updated.', severity: 'success' })
     } catch (error) {
-      setAvatarMessage(error instanceof Error ? error.message : 'Could not update your picture.')
+      setToast({ message: error instanceof Error ? error.message : 'Could not update your picture.', severity: 'error' })
     } finally {
       setIsSavingAvatar(false)
     }
@@ -659,18 +655,17 @@ export function Layout() {
   const handleRemoveAvatar = async () => {
     const token = api.getToken()
     if (!token) {
-      setAvatarMessage('Please log in again.')
+      setToast({ message: 'Please log in again.', severity: 'error' })
       return
     }
 
     setIsSavingAvatar(true)
-    setAvatarMessage('')
     try {
       const response = await api.updateProfile({ avatar: '' }, token)
       setProfileAvatar(response.user.avatar ?? '')
-      setAvatarMessage('Profile picture removed.')
+      setToast({ message: 'Profile picture removed.', severity: 'success' })
     } catch (error) {
-      setAvatarMessage(error instanceof Error ? error.message : 'Could not remove your picture.')
+      setToast({ message: error instanceof Error ? error.message : 'Could not remove your picture.', severity: 'error' })
     } finally {
       setIsSavingAvatar(false)
     }
@@ -1308,15 +1303,6 @@ export function Layout() {
                 )}
               </Stack>
 
-              {avatarMessage && (
-                <Alert
-                  severity="info"
-                  onClose={() => setAvatarMessage('')}
-                  sx={{ mb: 1.6, py: 0.3, fontSize: '0.78rem' }}
-                >
-                  {avatarMessage}
-                </Alert>
-              )}
 
               {!isRefereeAccount && (
               <Card
