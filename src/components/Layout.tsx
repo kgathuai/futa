@@ -134,38 +134,6 @@ const roleLabel = (role: string | null | undefined) => {
   return ROLE_LABELS[key] ?? key.toUpperCase()
 }
 
-const StatBox = ({ label, value, accent }: { label: string; value: string | number; accent?: string }) => (
-  <Box
-    sx={{
-      borderRadius: 1.4,
-      border: '1px solid rgba(159,176,201,0.16)',
-      bgcolor: 'background.paper',
-      px: 0.8,
-      py: 0.85,
-      textAlign: 'center',
-      minWidth: 0,
-    }}
-  >
-    <Typography sx={{ fontWeight: 800, fontSize: '0.98rem', lineHeight: 1.1, color: accent ?? '#edf2f7' }}>
-      {value}
-    </Typography>
-    <Typography
-      sx={{
-        fontSize: '0.56rem',
-        letterSpacing: '0.08em',
-        color: 'text.secondary',
-        textTransform: 'uppercase',
-        mt: 0.3,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}
-    >
-      {label}
-    </Typography>
-  </Box>
-)
-
 export function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -1307,7 +1275,13 @@ export function Layout() {
               {!isRefereeAccount && (
               <Card
                 variant="outlined"
-                sx={{ display: 'none', mb: 2, borderColor: 'rgba(76,227,163,0.26)', bgcolor: 'rgba(76,227,163,0.03)' }}
+                sx={{
+                  mb: 2,
+                  borderColor: 'rgba(76,227,163,0.3)',
+                  background:
+                    'linear-gradient(135deg, rgba(76,227,163,0.10) 0%, rgba(76,227,163,0.02) 45%, transparent 100%)',
+                  overflow: 'hidden',
+                }}
               >
                 <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
                   <Typography
@@ -1356,13 +1330,42 @@ export function Layout() {
                         </Box>
                       </Stack>
 
-                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0.8 }}>
-                        <StatBox label="Played" value={myTeamStats.played} />
-                        <StatBox label="Wins" value={myTeamStats.wins} accent="#4ce3a3" />
-                        <StatBox label="Draws" value={myTeamStats.draws} accent="#facc15" />
-                        <StatBox label="Losses" value={myTeamStats.losses} accent="#ff8a94" />
-                        <StatBox label="Goals for" value={myTeamStats.goalsFor} />
-                        <StatBox label="Goals against" value={myTeamStats.goalsAgainst} />
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1.6,
+                          overflow: 'hidden',
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        {[
+                          { label: 'P', value: myTeamStats.played, accent: undefined },
+                          { label: 'W', value: myTeamStats.wins, accent: '#4ce3a3' },
+                          { label: 'D', value: myTeamStats.draws, accent: '#facc15' },
+                          { label: 'L', value: myTeamStats.losses, accent: '#ff8a94' },
+                          { label: 'GF', value: myTeamStats.goalsFor, accent: undefined },
+                          { label: 'GA', value: myTeamStats.goalsAgainst, accent: undefined },
+                        ].map((stat, index) => (
+                          <Box
+                            key={stat.label}
+                            sx={{
+                              py: 0.7,
+                              textAlign: 'center',
+                              borderLeft: index === 0 ? 'none' : '1px solid',
+                              borderColor: 'divider',
+                            }}
+                          >
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', lineHeight: 1.1, color: stat.accent ?? 'text.primary' }}>
+                              {stat.value}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.5rem', letterSpacing: '0.1em', color: 'text.secondary', fontWeight: 800 }}>
+                              {stat.label}
+                            </Typography>
+                          </Box>
+                        ))}
                       </Box>
 
                       <Stack spacing={0.5}>
