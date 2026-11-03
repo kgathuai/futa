@@ -171,7 +171,7 @@ export function Layout() {
   const navigate = useNavigate()
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
-  const { t } = useI18n()
+  const { language, setLanguage, t } = useI18n()
   const { mode, toggleMode } = useColorMode()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login')
@@ -909,6 +909,23 @@ export function Layout() {
                   )
                 })}
               </Stack>
+
+              <Button
+                color="inherit"
+                onClick={() => setLanguage(language === 'en' ? 'sw' : 'en')}
+                aria-label="Switch language"
+                sx={{
+                  color: 'text.secondary',
+                  borderRadius: 999,
+                  minWidth: 0,
+                  px: { xs: 0.6, sm: 1 },
+                  py: 0.58,
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                }}
+              >
+                {language === 'en' ? 'EN' : 'SW'}
+              </Button>
 
               <Button
                 color="inherit"
