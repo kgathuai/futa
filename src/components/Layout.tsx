@@ -171,7 +171,7 @@ export function Layout() {
   const navigate = useNavigate()
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
-  const { language, setLanguage, t } = useI18n()
+  const { t } = useI18n()
   const { mode, toggleMode } = useColorMode()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login')
@@ -1230,9 +1230,6 @@ export function Layout() {
               </Stack>
 
               <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center', mb: 1.2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
-                  {t('language').toUpperCase()}
-                </Typography>
                 <Button
                   size="small"
                   variant="outlined"
@@ -1242,17 +1239,6 @@ export function Layout() {
                 >
                   {mode === 'dark' ? '☀ Light' : '☾ Dark'}
                 </Button>
-                {(['en', 'sw'] as const).map((code) => (
-                  <Button
-                    key={code}
-                    size="small"
-                    variant={language === code ? 'contained' : 'outlined'}
-                    onClick={() => setLanguage(code)}
-                    sx={{ minWidth: 0, px: 1, py: 0.1, fontSize: '0.64rem', fontWeight: 800 }}
-                  >
-                    {code === 'en' ? 'EN' : 'SW'}
-                  </Button>
-                ))}
               </Stack>
 
               {!emailVerified && (
