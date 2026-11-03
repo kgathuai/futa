@@ -1422,6 +1422,7 @@ export function TeamDashboardPage() {
         <Card
           variant="outlined"
           sx={{
+            display: 'none',
             position: 'sticky',
             top: 12,
             zIndex: 5,

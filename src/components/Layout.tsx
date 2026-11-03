@@ -1008,6 +1008,60 @@ export function Layout() {
         </Container>
       </AppBar>
 
+      {location.pathname.startsWith('/team-dashboard') && canAccessDashboard && (
+        <Box
+          component="nav"
+          aria-label="Dashboard actions"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            position: 'sticky',
+            top: { sm: 52 },
+            zIndex: 1100,
+            bgcolor: 'background.paper',
+            borderBottom: '1px solid',
+            borderColor: mode === 'light' ? 'rgba(11,18,32,0.12)' : 'rgba(159,176,201,0.14)',
+          }}
+        >
+          <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
+            <Stack
+              direction="row"
+              spacing={0.6}
+              sx={{ py: 0.5, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}
+            >
+              {[
+                { to: '/team-dashboard?create=match', label: 'Create match' },
+                { to: '/team-dashboard?create=friendly', label: 'Request friendly' },
+                { to: '/team-dashboard?create=team', label: 'Team profile' },
+                { to: '/team-dashboard?create=result', label: 'Submit result' },
+                { to: '/team-dashboard?create=tournament', label: 'Create tournament' },
+                { to: '/team-dashboard?create=manage', label: 'Manage matches' },
+              ].map((action) => (
+                <Button
+                  key={action.to}
+                  component={NavLink}
+                  to={action.to}
+                  size="small"
+                  variant="text"
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    px: 0.9,
+                    py: 0.2,
+                    borderRadius: 999,
+                    color: 'text.secondary',
+                    '&:hover': { bgcolor: 'action.hover', color: 'primary.main' },
+                    '&.active': { bgcolor: 'rgba(76,227,163,0.14)', color: 'primary.main' },
+                  }}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </Stack>
+          </Container>
+        </Box>
+      )}
+
       <Box
         component="nav"
         aria-label="Mobile navigation"
