@@ -282,7 +282,6 @@ export function Layout() {
       .slice(0, 5)
   }, [matches, myTeamName])
 
-  const recentActivity = notifications.slice(0, 4)
 
   useEffect(() => subscribeToApiLoading(setIsApiLoading), [])
 
@@ -1127,9 +1126,22 @@ export function Layout() {
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
               {loggedInUser ? t('account') : authView === 'login' ? t('login') : authView === 'forgot' ? 'Reset password' : t('register')}
             </Typography>
-            <IconButton onClick={() => setIsAuthOpen(false)} aria-label="Close authentication drawer">
-              <CloseRoundedIcon />
-            </IconButton>
+            <Stack direction="row" spacing={0.4} sx={{ alignItems: 'center' }}>
+              <IconButton
+                onClick={() => {
+                  setIsAuthOpen(false)
+                  setIsNotificationsOpen(true)
+                }}
+                aria-label="Notifications"
+              >
+                <Badge badgeContent={unreadNotificationCount} color="primary" overlap="circular" max={99}>
+                  <NotificationsNoneOutlinedIcon />
+                </Badge>
+              </IconButton>
+              <IconButton onClick={() => setIsAuthOpen(false)} aria-label="Close authentication drawer">
+                <CloseRoundedIcon />
+              </IconButton>
+            </Stack>
           </Stack>
 
           {loggedInUser ? (
@@ -1737,59 +1749,6 @@ export function Layout() {
                 </Card>
               )}
 
-              <Card variant="outlined" sx={{ mb: 2 }}>
-                <CardContent sx={{ p: 1.8, '&:last-child': { pb: 1.8 } }}>
-                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.1 }}>
-                    <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em' }}>
-                      Replies & activity
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() => {
-                        setIsAuthOpen(false)
-                        setIsNotificationsOpen(true)
-                      }}
-                      sx={{ fontSize: '0.7rem', minWidth: 0 }}
-                    >
-                      View all
-                    </Button>
-                  </Stack>
-
-                  {recentActivity.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
-                      Replies to your comments and match alerts will appear here.
-                    </Typography>
-                  ) : (
-                    <Stack spacing={1}>
-                      {recentActivity.map((notification) => (
-                        <Box
-                          key={notification.id}
-                          onClick={() => void handleNotificationRead(notification.id, notification.read)}
-                          sx={{
-                            border: '1px solid rgba(159,176,201,0.16)',
-                            borderRadius: 1.6,
-                            p: 1.1,
-                            cursor: 'pointer',
-                            bgcolor: notification.read ? 'transparent' : 'rgba(76,227,163,0.07)',
-                          }}
-                        >
-                          <Typography sx={{ fontWeight: 700, fontSize: '0.82rem' }} noWrap>
-                            {notification.title}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {notification.message}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
-                  )}
-                </CardContent>
-              </Card>
 
 
               <Button onClick={handleLogout} variant="outlined" fullWidth>
