@@ -2321,6 +2321,62 @@ app.post('/api/tournaments', async (req, res) => {
   res.status(201).json(tournament)
 })
 
+// The organiser (or an admin) can edit a tournament at any time.
+app.patch('/api/tournaments/:tournamentId', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const tournamentId = String(req.params.tournamentId ?? '')
+  const tournament = await store.getTournamentById(tournamentId)
+  if (!tournament) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  const isOwner = Boolean(tournament.ownerTeam) && tournament.ownerTeam === user.team
+  if (!isOwner && !isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Only the organiser or an admin can edit this tournament.' })
+    return
+  }
+
+  const body = req.body as {
+    name?: string
+    venue?: string
+    period?: string
+    startDate?: string
+    endDate?: string
+    status?: string
+    maxTeams?: number
+    entryFee?: number
+    type?: string
+  }
+
+  if (body.maxTeams !== undefined && (!Number.isInteger(Number(body.maxTeams)) || Number(body.maxTeams) < 2)) {
+    res.status(400).json({ error: 'Team limit must be a whole number of 2 or more.' })
+    return
+  }
+
+  const updated = await store.updateTournament(tournamentId, body)
+  if (!updated) {
+    res.status(400).json({ error: 'Nothing to update.' })
+    return
+  }
+
+  await store.logAudit({
+    actorId: user.id,
+    actorName: user.name,
+    action: 'tournament.update',
+    targetType: 'tournament',
+    targetId: tournamentId,
+    detail: (updated as { name?: string }).name ?? '',
+  })
+
+  res.json(updated)
+})
+
 // A participating team confirms or declines availability.
 app.post('/api/tournaments/:tournamentId/confirm', async (req, res) => {
   const user = await getRequestUser(req.header('authorization'))

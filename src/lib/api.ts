@@ -117,6 +117,26 @@ export const api = {
       token,
     }),
   getResults: () => request<ResultReport[]>('/api/results'),
+  updateTournament: (
+    tournamentId: string,
+    payload: {
+      name?: string
+      venue?: string
+      period?: string
+      startDate?: string
+      endDate?: string
+      status?: TournamentStatus
+      maxTeams?: number
+      entryFee?: number
+      type?: 'open' | 'closed'
+    },
+    token: string,
+  ) =>
+    request<TournamentItem>(`/api/tournaments/${encodeURIComponent(tournamentId)}`, {
+      method: 'PATCH',
+      body: payload,
+      token,
+    }),
   confirmTournamentAvailability: (tournamentId: string, status: 'accepted' | 'declined', token: string) =>
     request<{ teamConfirmations: Record<string, string> }>(
       `/api/tournaments/${encodeURIComponent(tournamentId)}/confirm`,

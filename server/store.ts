@@ -757,6 +757,41 @@ export const store = {
       { returnDocument: 'after' },
     ).lean()
   },
+  updateTournament: async (
+    tournamentId: string,
+    patch: {
+      name?: string
+      venue?: string
+      period?: string
+      startDate?: string
+      endDate?: string
+      status?: string
+      maxTeams?: number
+      entryFee?: number
+      type?: string
+    },
+  ) => {
+    const update: Record<string, unknown> = {}
+    if (patch.name?.trim()) update.name = patch.name.trim()
+    if (patch.venue?.trim()) update.venue = patch.venue.trim()
+    if (patch.period?.trim()) update.period = patch.period.trim()
+    if (patch.startDate) update.startDate = patch.startDate
+    if (patch.endDate) update.endDate = patch.endDate
+    if (patch.status?.trim()) update.status = patch.status.trim()
+    if (Number.isFinite(patch.maxTeams)) update.maxTeams = Number(patch.maxTeams)
+    if (Number.isFinite(patch.entryFee)) update.entryFee = Math.max(0, Number(patch.entryFee))
+    if (patch.type === 'open' || patch.type === 'closed') update.type = patch.type
+
+    if (Object.keys(update).length === 0) {
+      return null
+    }
+
+    return TournamentModel.findOneAndUpdate(
+      { id: tournamentId },
+      { $set: update },
+      { returnDocument: 'after' },
+    ).lean()
+  },
   setTeamConfirmation: async (tournamentId: string, teamName: string, status: 'accepted' | 'declined') => {
     const tournament = await TournamentModel.findOne({ id: tournamentId }).lean<{
       registeredTeams?: string[]

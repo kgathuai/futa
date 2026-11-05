@@ -42,6 +42,12 @@ export function TournamentsPage() {
   const [entryFee, setEntryFee] = useState<number | ''>(0)
   const [createTeams, setCreateTeams] = useState<string[]>([])
   const [confirming, setConfirming] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editVenue, setEditVenue] = useState('')
+  const [editStatus, setEditStatus] = useState<TournamentStatus>('upcoming')
+  const [editMaxTeams, setEditMaxTeams] = useState<number | ''>(8)
+  const [editFee, setEditFee] = useState<number | ''>(0)
   const [payments, setPayments] = useState<TournamentPayment[]>([])
   const [payPhone, setPayPhone] = useState('')
   const [payMessage, setPayMessage] = useState('')
@@ -496,6 +502,48 @@ export function TournamentsPage() {
       setSelectedTournamentId(filteredTournaments[0].id)
     }
   }, [filteredTournaments, selectedTournamentId])
+
+  const openEditTournament = () => {
+    if (!selectedTournament) {
+      return
+    }
+    setEditName(selectedTournament.name)
+    setEditVenue(selectedTournament.venue)
+    setEditStatus(selectedTournament.status)
+    setEditMaxTeams(selectedTournament.maxTeams ?? 8)
+    setEditFee(selectedTournament.entryFee ?? 0)
+    setEditOpen(true)
+  }
+
+  const handleSaveTournament = async () => {
+    if (!selectedTournament) {
+      return
+    }
+    const token = api.getToken()
+    if (!token) {
+      setMessage('Log in again to edit this tournament.')
+      return
+    }
+
+    try {
+      const updated = await api.updateTournament(
+        selectedTournament.id,
+        {
+          name: editName,
+          venue: editVenue,
+          status: editStatus,
+          maxTeams: editMaxTeams === '' ? undefined : Number(editMaxTeams),
+          entryFee: editFee === '' ? 0 : Number(editFee),
+        },
+        token,
+      )
+      setTournaments((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+      setEditOpen(false)
+      setMessage('Tournament updated.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not update the tournament.')
+    }
+  }
 
   const handleConfirmAvailability = async (status: 'accepted' | 'declined') => {
     if (!selectedTournament) {
@@ -990,6 +1038,54 @@ export function TournamentsPage() {
         </Card>
       )}
 
+      {selectedTournament && (
+        <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
+          <DialogTitle sx={{ fontSize: '0.92rem', fontWeight: 800 }}>Edit tournament</DialogTitle>
+          <DialogContent>
+            <Stack spacing={1.3} sx={{ mt: 0.5 }}>
+              <TextField size="small" label="Name" value={editName} onChange={(event) => setEditName(event.target.value)} />
+              <TextField size="small" label="Venue" value={editVenue} onChange={(event) => setEditVenue(event.target.value)} />
+              <TextField
+                select
+                size="small"
+                label="Status"
+                value={editStatus}
+                onChange={(event) => setEditStatus(event.target.value as TournamentStatus)}
+              >
+                <MenuItem value="upcoming">upcoming</MenuItem>
+                <MenuItem value="registration open">registration open</MenuItem>
+                <MenuItem value="ongoing">ongoing</MenuItem>
+                <MenuItem value="finished">finished</MenuItem>
+              </TextField>
+              <TextField
+                size="small"
+                label="Max teams"
+                type="number"
+                value={editMaxTeams}
+                onChange={(event) => setEditMaxTeams(event.target.value === '' ? '' : Number(event.target.value))}
+                slotProps={{ htmlInput: { min: 2 } }}
+              />
+              <TextField
+                size="small"
+                label="Entry fee (Ksh)"
+                type="number"
+                value={editFee}
+                onChange={(event) => setEditFee(event.target.value === '' ? '' : Number(event.target.value))}
+                slotProps={{ htmlInput: { min: 0 } }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button size="small" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="small" variant="contained" onClick={() => void handleSaveTournament()}>
+              Save changes
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
       {!showTournamentList && selectedTournament && (
         <Stack spacing={2}>
           <Card
@@ -1024,6 +1120,11 @@ export function TournamentsPage() {
                     <Typography variant="h3" sx={{ fontSize: { xs: '0.86rem', md: '1rem' }, fontWeight: 800, lineHeight: 1.2 }}>
                       {selectedTournament.name}
                     </Typography>
+                    {isOwner && (
+                      <Button size="small" variant="outlined" onClick={openEditTournament} sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}>
+                        Edit
+                      </Button>
+                    )}
                     <ShareButtons
                       payload={{
                         title: `${selectedTournament.name} — ${selectedTournament.sport}`,
