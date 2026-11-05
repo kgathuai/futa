@@ -39,6 +39,16 @@ export const buildTheme = (mode: ColorMode): Theme =>
       overline: { fontSize: '0.56rem', letterSpacing: '0.14em', fontWeight: 800, lineHeight: 1.6 },
     },
     components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          'input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator, input[type="datetime-local"]::-webkit-calendar-picker-indicator':
+            {
+              filter: mode === 'dark' ? 'invert(1)' : 'none',
+              opacity: mode === 'dark' ? 0.85 : 0.7,
+              cursor: 'pointer',
+            },
+        },
+      },
       MuiCard: {
         styleOverrides: {
           root: {
