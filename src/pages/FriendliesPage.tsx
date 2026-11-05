@@ -214,6 +214,10 @@ export function FriendliesPage() {
                     setRequestMessage('Pick the date, time and venue.')
                     return
                   }
+                  if (new Date(`${preferredDate}T${preferredTime}`).getTime() <= Date.now()) {
+                    setRequestMessage('Pick a date and time in the future.')
+                    return
+                  }
                   try {
                     await api.createMatch(
                       {
@@ -238,6 +242,11 @@ export function FriendliesPage() {
                   } catch (error) {
                     setRequestMessage(error instanceof Error ? error.message : 'Could not create the match.')
                   }
+                  return
+                }
+
+                if (new Date(`${preferredDate}T${preferredTime || '00:00'}`).getTime() <= Date.now()) {
+                  setRequestMessage('Pick a date and time in the future.')
                   return
                 }
 
@@ -350,7 +359,10 @@ export function FriendliesPage() {
                 value={preferredDate}
                 onChange={(event) => setPreferredDate(event.target.value)}
                 required
-                slotProps={{ inputLabel: { shrink: true } }}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: { min: new Date().toISOString().slice(0, 10) },
+                }}
               />
               <TextField
                 label="Preferred time"

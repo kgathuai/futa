@@ -442,7 +442,10 @@ export function HomePage() {
               size="small"
               value={editKickoff}
               onChange={(event) => setEditKickoff(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { min: new Date().toISOString().slice(0, 16) },
+              }}
             />
             <TextField
               label="Venue"

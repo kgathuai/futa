@@ -1219,6 +1219,12 @@ app.post('/api/friendlies', async (req, res) => {
     return
   }
 
+  const requestedWhen = new Date(`${body.preferredDate}T${body.preferredTime || '00:00'}`).getTime()
+  if (!Number.isFinite(requestedWhen) || requestedWhen <= Date.now()) {
+    res.status(400).json({ error: 'Pick a date and time in the future.' })
+    return
+  }
+
   if (body.referee?.trim()) {
     const registered = await findRefereeByName(body.referee)
     if (!registered) {

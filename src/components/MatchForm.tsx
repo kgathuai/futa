@@ -180,7 +180,10 @@ export function MatchForm({
           type="datetime-local"
           value={kickoff}
           onChange={(event) => setKickoff(event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { min: new Date().toISOString().slice(0, 16) },
+          }}
           required
           fullWidth
         />

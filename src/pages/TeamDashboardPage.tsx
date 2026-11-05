@@ -1307,7 +1307,10 @@ export function TeamDashboardPage() {
                         onChange={(event) =>
                           setRescheduleDrafts((prev) => ({ ...prev, [match.id]: event.target.value }))
                         }
-                        slotProps={{ inputLabel: { shrink: true } }}
+                        slotProps={{
+                          inputLabel: { shrink: true },
+                          htmlInput: { min: new Date().toISOString().slice(0, 16) },
+                        }}
                         sx={{ '& .MuiInputBase-input': { fontSize: '0.74rem' } }}
                       />
                       <Button
@@ -1770,7 +1773,10 @@ export function TeamDashboardPage() {
                     value={friendlyPreferredDate}
                     onChange={(event) => setFriendlyPreferredDate(event.target.value)}
                     required
-                    slotProps={{ inputLabel: { shrink: true } }}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: { min: new Date().toISOString().slice(0, 10) },
+                    }}
                   />
                   <TextField
                     label="Preferred time"
