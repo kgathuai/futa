@@ -775,12 +775,12 @@ export function Layout() {
       setIsNotificationsOpen(false)
       setIsAuthOpen(false)
       navigate(
-        notification.type === 'friendly-request' || notification.type === 'friendly-accepted'
-          ? notification.type === 'friendly-request'
-            ? '/friendlies'
-            : '/team-dashboard?create=manage'
-          : notification.relatedMatchId
-            ? '/'
+        notification.type === 'friendly-request'
+          ? '/friendlies'
+          : notification.type === 'match-score-reminder' ||
+              notification.type === 'friendly-accepted' ||
+              notification.type === 'referee-booking'
+            ? '/team-dashboard?create=manage'
             : '/',
       )
     }

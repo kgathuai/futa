@@ -380,8 +380,11 @@ export function TeamDashboardPage() {
   }, [bookingTotalPages])
 
   useEffect(() => {
-    if (new URLSearchParams(location.search).get('create') === 'team') {
-      setOpenCreateForm('team')
+    const requested = new URLSearchParams(location.search).get('create')
+    const allowed = ['match', 'friendly', 'team', 'result', 'tournament', 'manage'] as const
+    if (requested && (allowed as readonly string[]).includes(requested)) {
+      setOpenCreateForm(requested as (typeof allowed)[number])
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [location.search])
 
