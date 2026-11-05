@@ -2853,6 +2853,50 @@ let scoreReminderRunning = false
  * Once a match's kickoff + duration has passed without a score, notify every
  * account on both teams. `scoreReminderSentAt` dedupes across restarts.
  */
+const sendMatchStartReminders = async () => {
+  if (mongoose.connection.readyState !== 1) {
+    return
+  }
+
+  try {
+    const soon = await store.getMatchesStartingSoon()
+    const soonIds: string[] = []
+    for (const match of soon) {
+      const accountIds = await store.getAccountIdsForTeams([match.homeTeam, match.awayTeam])
+      if (accountIds.length > 0) {
+        await store.createNotifications(accountIds, {
+          type: 'match-starting-soon',
+          title: 'Kickoff in 15 minutes',
+          message: `${match.homeTeam} vs ${match.awayTeam} starts soon at ${match.venue}. Get your squad ready.`,
+          relatedMatchId: match.id,
+        })
+      }
+      soonIds.push(match.id)
+    }
+    if (soonIds.length > 0) {
+      await store.markStartReminderSent(soonIds)
+    }
+
+    const starting = await store.getMatchesKickingOff()
+    if (starting.length > 0) {
+      const fanAccountIds = await store.getFanAccountIds()
+      for (const match of starting) {
+        if (fanAccountIds.length > 0) {
+          await store.createNotifications(fanAccountIds, {
+            type: 'match-starting',
+            title: 'Match starting now',
+            message: `${match.homeTeam} vs ${match.awayTeam} is kicking off at ${match.venue}.`,
+            relatedMatchId: match.id,
+          })
+        }
+      }
+      await store.markKickoffNotified(starting.map((match) => match.id))
+    }
+  } catch (error) {
+    console.error('Match start reminder job failed', error)
+  }
+}
+
 const sendScoreReminders = async () => {
   if (mongoose.connection.readyState !== 1) {
     // Nothing to do until the database connection is back.
@@ -2917,8 +2961,10 @@ const startServer = async () => {
   }
 
   void sendScoreReminders()
+  void sendMatchStartReminders()
   setInterval(() => {
     void sendScoreReminders()
+    void sendMatchStartReminders()
   }, SCORE_REMINDER_INTERVAL_MS)
 }
 

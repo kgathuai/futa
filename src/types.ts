@@ -166,6 +166,8 @@ export interface NotificationItem {
     | 'match-score-reminder'
     | 'comment-reply'
     | 'referee-booking'
+    | 'match-starting-soon'
+    | 'match-starting'
   title: string
   message: string
   relatedFriendlyRequestId?: string

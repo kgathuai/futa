@@ -80,6 +80,8 @@ export interface NotificationRecord {
     | 'match-score-reminder'
     | 'comment-reply'
     | 'referee-booking'
+    | 'match-starting-soon'
+    | 'match-starting'
   title: string
   message: string
   relatedFriendlyRequestId?: string
@@ -145,6 +147,8 @@ const matchSchema = new Schema(
     // Live match timeline: goals, cards and substitutions with a minute.
     events: { type: [Schema.Types.Mixed], required: false, default: [] },
     scoreReminderSentAt: { type: Date, required: false },
+    startReminderSentAt: { type: Date, required: false },
+    kickoffNotifiedAt: { type: Date, required: false },
     engagement: { type: engagementSchema, required: true },
     tournamentId: { type: String, required: false },
     round: { type: Number, required: false },
@@ -937,6 +941,42 @@ export const store = {
     }
 
     return [...ids]
+  },
+  // Matches kicking off within the next 15 minutes (and not yet reminded).
+  getMatchesStartingSoon: async (now = Date.now(), minutes = 15) => {
+    const from = new Date(now)
+    const to = new Date(now + minutes * 60_000)
+    return MatchModel.find({
+      startReminderSentAt: { $exists: false },
+      status: { $ne: 'finished' },
+      kickoff: { $gte: from.toISOString(), $lte: to.toISOString() },
+    }).lean()
+  },
+  markStartReminderSent: async (matchIds: string[]) => {
+    await MatchModel.updateMany(
+      { id: { $in: matchIds } },
+      { $set: { startReminderSentAt: new Date() } },
+    )
+  },
+  // Matches that have just reached kickoff (and not yet announced).
+  getMatchesKickingOff: async (now = Date.now()) => {
+    const since = new Date(now - 10 * 60_000)
+    return MatchModel.find({
+      kickoffNotifiedAt: { $exists: false },
+      kickoff: { $gte: since.toISOString(), $lte: new Date(now).toISOString() },
+    }).lean()
+  },
+  markKickoffNotified: async (matchIds: string[]) => {
+    await MatchModel.updateMany(
+      { id: { $in: matchIds } },
+      { $set: { kickoffNotifiedAt: new Date() } },
+    )
+  },
+  getFanAccountIds: async () => {
+    const accounts = await AccountModel.find({ role: { $in: ['fan', 'player'] } })
+      .select({ _id: 1 })
+      .lean<Array<{ _id: mongoose.Types.ObjectId }>>()
+    return accounts.map((account) => account._id.toString())
   },
   markScoreReminderSent: async (matchIds: string[]) => {
     if (matchIds.length === 0) {
