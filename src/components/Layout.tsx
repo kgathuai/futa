@@ -805,7 +805,7 @@ export function Layout() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', overflowX: 'clip' }}>
       <TopToast toast={toast} onClose={() => setToast(null)} />
       {isApiLoading && <LoadingBar fixed />}
       <AppBar

@@ -41,6 +41,15 @@ export const buildTheme = (mode: ColorMode): Theme =>
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          'html, body': {
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          },
+          'body::-webkit-scrollbar, *::-webkit-scrollbar': {
+            width: 0,
+            height: 0,
+            display: 'none',
+          },
           'input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator, input[type="datetime-local"]::-webkit-calendar-picker-indicator':
             {
               filter: mode === 'dark' ? 'invert(1)' : 'none',
