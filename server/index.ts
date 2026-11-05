@@ -426,6 +426,11 @@ app.post('/api/matches', async (req, res) => {
     }
   }
 
+  if (!Number.isFinite(new Date(body.kickoff).getTime()) || new Date(body.kickoff).getTime() <= Date.now()) {
+    res.status(400).json({ error: 'Pick a kickoff time in the future.' })
+    return
+  }
+
   if (body.referee?.trim()) {
     const registered = await findRefereeByName(body.referee)
     if (!registered) {
@@ -516,6 +521,11 @@ app.post('/api/matches/:matchId/reschedule', async (req, res) => {
 
   if (!newKickoff || !Number.isFinite(new Date(newKickoff).getTime())) {
     res.status(400).json({ error: 'Provide the new date and time.' })
+    return
+  }
+
+  if (new Date(newKickoff).getTime() <= Date.now()) {
+    res.status(400).json({ error: 'The new kickoff must be in the future.' })
     return
   }
 
@@ -682,6 +692,11 @@ app.patch('/api/matches/:matchId', async (req, res) => {
     durationMinutes?: number
     referee?: string
     status?: string
+  }
+
+  if (body.kickoff && new Date(body.kickoff).getTime() <= Date.now()) {
+    res.status(400).json({ error: 'Pick a kickoff time in the future.' })
+    return
   }
 
   const updated = await store.updateMatchDetails(matchId, body)

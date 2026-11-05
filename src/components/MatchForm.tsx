@@ -68,6 +68,10 @@ export function MatchForm({
       setError('Pick a venue and kickoff time.')
       return
     }
+    if (new Date(kickoff).getTime() <= Date.now()) {
+      setError('Pick a kickoff time in the future.')
+      return
+    }
 
     setIsSubmitting(true)
     try {

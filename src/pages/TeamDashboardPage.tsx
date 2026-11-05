@@ -767,6 +767,10 @@ export function TeamDashboardPage() {
       setGlobalError('Choose the new date and time first.')
       return
     }
+    if (new Date(newKickoff).getTime() <= Date.now()) {
+      setGlobalError('The new kickoff must be in the future.')
+      return
+    }
 
     try {
       const request = await api.requestReschedule(

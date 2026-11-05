@@ -232,6 +232,10 @@ export function HomePage() {
       setEditError('Please log in again.')
       return
     }
+    if (new Date(editKickoff).getTime() <= Date.now()) {
+      setEditError('Pick a kickoff time in the future.')
+      return
+    }
 
     setIsSavingEdit(true)
     setEditError('')
