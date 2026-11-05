@@ -775,7 +775,9 @@ export function Layout() {
       setIsNotificationsOpen(false)
       setIsAuthOpen(false)
       navigate(
-        notification.type === 'friendly-request'
+        notification.relatedTournamentId
+          ? `/tournaments?tournament=${notification.relatedTournamentId}`
+          : notification.type === 'friendly-request'
           ? '/friendlies'
           : notification.type === 'match-score-reminder' ||
               notification.type === 'friendly-accepted' ||

@@ -87,6 +87,7 @@ export interface NotificationRecord {
   message: string
   relatedFriendlyRequestId?: string
   relatedMatchId?: string
+  relatedTournamentId?: string
   read: boolean
   createdAt: string
 }
@@ -191,6 +192,8 @@ const tournamentSchema = new Schema(
     maxTeams: { type: Number, required: false },
     // Entry fee per team in KES; 0 means free to enter.
     entryFee: { type: Number, required: false, default: 0 },
+    // Availability confirmations keyed by team name.
+    teamConfirmations: { type: Schema.Types.Mixed, required: false, default: {} },
   },
   { versionKey: false, timestamps: true },
 )
@@ -391,6 +394,7 @@ const notificationSchema = new Schema(
     message: { type: String, required: true },
     relatedFriendlyRequestId: { type: String, required: false },
     relatedMatchId: { type: String, required: false },
+    relatedTournamentId: { type: String, required: false },
     read: { type: Boolean, required: true, default: false },
     createdAt: { type: Date, required: true, default: Date.now },
   },
@@ -665,6 +669,7 @@ const createNotification = async (payload: {
   message: string
   relatedFriendlyRequestId?: string
   relatedMatchId?: string
+  relatedTournamentId?: string
 }) => {
   return NotificationModel.create({
     id: makeEntityId(),
@@ -674,6 +679,7 @@ const createNotification = async (payload: {
     message: payload.message,
     relatedFriendlyRequestId: payload.relatedFriendlyRequestId,
     relatedMatchId: payload.relatedMatchId,
+    relatedTournamentId: payload.relatedTournamentId,
     read: false,
     createdAt: new Date(),
   })
@@ -750,6 +756,53 @@ export const store = {
       { $set: { status: 'failed', notes: notes?.trim() ?? '' } },
       { returnDocument: 'after' },
     ).lean()
+  },
+  setTeamConfirmation: async (tournamentId: string, teamName: string, status: 'accepted' | 'declined') => {
+    const tournament = await TournamentModel.findOne({ id: tournamentId }).lean<{
+      registeredTeams?: string[]
+      teamConfirmations?: Record<string, string>
+      ownerTeam?: string
+      name: string
+    } | null>()
+
+    if (!tournament) {
+      return null
+    }
+
+    const confirmations = { ...(tournament.teamConfirmations ?? {}), [teamName]: status }
+    await TournamentModel.updateOne({ id: tournamentId }, { $set: { teamConfirmations: confirmations } })
+
+    const ownerAccountId = tournament.ownerTeam ? await store.getAccountIdForTeam(tournament.ownerTeam) : null
+    if (ownerAccountId) {
+      await createNotification({
+        accountId: ownerAccountId,
+        type: 'friendly-accepted',
+        title: status === 'accepted' ? 'Team confirmed' : 'Team unavailable',
+        message: `${teamName} ${status === 'accepted' ? 'confirmed they will take part in' : 'cannot take part in'} ${tournament.name}.`,
+      })
+    }
+
+    return { ...tournament, teamConfirmations: confirmations }
+  },
+  notifyTournamentTeams: async (tournamentId: string, teams: string[]) => {
+    const tournament = await TournamentModel.findOne({ id: tournamentId }).lean<{ name: string } | null>()
+    if (!tournament || teams.length === 0) {
+      return
+    }
+
+    for (const teamName of teams) {
+      const accountId = await store.getAccountIdForTeam(teamName)
+      if (!accountId) {
+        continue
+      }
+      await createNotification({
+        accountId,
+        type: 'friendly-request',
+        title: 'Confirm your availability',
+        message: `You have been added to ${tournament.name}. Confirm whether ${teamName} can take part.`,
+        relatedTournamentId: tournamentId,
+      })
+    }
   },
   getTournamentById: async (tournamentId: string) => {
     if (!tournamentId) {

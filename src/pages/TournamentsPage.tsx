@@ -41,6 +41,7 @@ export function TournamentsPage() {
   const [maxTeams, setMaxTeams] = useState<number | ''>(8)
   const [entryFee, setEntryFee] = useState<number | ''>(0)
   const [createTeams, setCreateTeams] = useState<string[]>([])
+  const [confirming, setConfirming] = useState(false)
   const [payments, setPayments] = useState<TournamentPayment[]>([])
   const [payPhone, setPayPhone] = useState('')
   const [payMessage, setPayMessage] = useState('')
@@ -495,6 +496,34 @@ export function TournamentsPage() {
       setSelectedTournamentId(filteredTournaments[0].id)
     }
   }, [filteredTournaments, selectedTournamentId])
+
+  const handleConfirmAvailability = async (status: 'accepted' | 'declined') => {
+    if (!selectedTournament) {
+      return
+    }
+    const token = api.getToken()
+    if (!token) {
+      setMessage('Log in with your team account to confirm.')
+      return
+    }
+
+    setConfirming(true)
+    try {
+      const response = await api.confirmTournamentAvailability(selectedTournament.id, status, token)
+      setTournaments((prev) =>
+        prev.map((tournament) =>
+          tournament.id === selectedTournament.id
+            ? { ...tournament, teamConfirmations: response.teamConfirmations as typeof tournament.teamConfirmations }
+            : tournament,
+        ),
+      )
+      setMessage(status === 'accepted' ? 'Availability confirmed.' : 'Organiser notified that you cannot take part.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save your response.')
+    } finally {
+      setConfirming(false)
+    }
+  }
 
   const handlePayEntry = async () => {
     if (!selectedTournament) {
@@ -1042,6 +1071,37 @@ export function TournamentsPage() {
                         ? `Full — ${selectedTournament.maxTeams}/${selectedTournament.maxTeams} teams`
                         : `${selectedTournamentTeams.length}/${selectedTournament.maxTeams} teams ${(selectedTournament.type ?? 'open') === 'closed' ? 'selected' : 'registered'}`}
                     </Typography>
+                  )}
+
+                  {loggedInTeam && selectedTournamentTeams.includes(loggedInTeam) && (
+                    <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', mb: 1.2, flexWrap: 'wrap', rowGap: 0.6 }}>
+                      <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
+                        Your spot: {selectedTournament.teamConfirmations?.[loggedInTeam] === 'accepted'
+                          ? 'confirmed'
+                          : selectedTournament.teamConfirmations?.[loggedInTeam] === 'declined'
+                            ? 'declined'
+                            : 'awaiting your confirmation'}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={confirming || selectedTournament.teamConfirmations?.[loggedInTeam] === 'accepted'}
+                        onClick={() => void handleConfirmAvailability('accepted')}
+                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                      >
+                        Confirm
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        disabled={confirming || selectedTournament.teamConfirmations?.[loggedInTeam] === 'declined'}
+                        onClick={() => void handleConfirmAvailability('declined')}
+                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                      >
+                        Can’t make it
+                      </Button>
+                    </Stack>
                   )}
 
                   {(selectedTournament.type ?? 'open') === 'closed' ? (

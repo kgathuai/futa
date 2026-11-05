@@ -2314,7 +2314,39 @@ app.post('/api/tournaments', async (req, res) => {
     entryFee: Number.isFinite(Number(body.entryFee)) ? Math.max(0, Number(body.entryFee)) : 0,
   })
 
+  if (requestedTeams.length > 0) {
+    await store.notifyTournamentTeams(tournament.id, requestedTeams)
+  }
+
   res.status(201).json(tournament)
+})
+
+// A participating team confirms or declines availability.
+app.post('/api/tournaments/:tournamentId/confirm', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const teamName = user.team?.trim() ?? ''
+  const status = (req.body as { status?: string }).status?.trim().toLowerCase()
+  if (!teamName || (status !== 'accepted' && status !== 'declined')) {
+    res.status(400).json({ error: 'Confirm as accepted or declined from a team account.' })
+    return
+  }
+
+  const updated = await store.setTeamConfirmation(
+    String(req.params.tournamentId ?? ''),
+    teamName,
+    status,
+  )
+  if (!updated) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  res.json({ teamConfirmations: updated.teamConfirmations })
 })
 
 app.patch('/api/tournaments/:tournamentId/teams', async (req, res) => {

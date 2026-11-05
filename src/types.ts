@@ -19,6 +19,7 @@ export interface TournamentItem {
   registeredTeams: string[]
   maxTeams?: number
   entryFee?: number
+  teamConfirmations?: Record<string, 'accepted' | 'declined'>
 }
 
 export interface TournamentPayment {
@@ -173,6 +174,7 @@ export interface NotificationItem {
   message: string
   relatedFriendlyRequestId?: string
   relatedMatchId?: string
+  relatedTournamentId?: string
   read: boolean
   createdAt: string
 }

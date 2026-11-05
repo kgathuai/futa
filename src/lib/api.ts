@@ -117,6 +117,11 @@ export const api = {
       token,
     }),
   getResults: () => request<ResultReport[]>('/api/results'),
+  confirmTournamentAvailability: (tournamentId: string, status: 'accepted' | 'declined', token: string) =>
+    request<{ teamConfirmations: Record<string, string> }>(
+      `/api/tournaments/${encodeURIComponent(tournamentId)}/confirm`,
+      { method: 'POST', body: { status }, token },
+    ),
   getTournamentPayments: (tournamentId: string, token: string) =>
     request<{ payments: TournamentPayment[]; entryFee: number; mpesaConfigured: boolean }>(
       `/api/tournaments/${encodeURIComponent(tournamentId)}/payments`,
