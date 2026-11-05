@@ -40,6 +40,7 @@ export function TournamentsPage() {
   const [status, setStatus] = useState<TournamentStatus>('upcoming')
   const [maxTeams, setMaxTeams] = useState<number | ''>(8)
   const [entryFee, setEntryFee] = useState<number | ''>(0)
+  const [createTeams, setCreateTeams] = useState<string[]>([])
   const [payments, setPayments] = useState<TournamentPayment[]>([])
   const [payPhone, setPayPhone] = useState('')
   const [payMessage, setPayMessage] = useState('')
@@ -571,12 +572,14 @@ export function TournamentsPage() {
           status,
           maxTeams: parsedMaxTeams,
           entryFee: entryFee === '' ? 0 : Math.max(0, Math.floor(Number(entryFee))),
+          registeredTeams: createTeams,
         },
         token,
       )
 
       setTournaments((prev) => [createdTournament, ...prev])
       setShowNewForm(false)
+      setCreateTeams([])
       setMessage('Tournament created successfully.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to create tournament.')
@@ -767,6 +770,22 @@ export function TournamentsPage() {
                 }}
                 slotProps={{ htmlInput: { min: 0, step: 50 } }}
                 helperText="0 means free. Paid fees are tracked in the tournament ledger."
+              />
+
+              <Autocomplete
+                multiple
+                size="small"
+                options={Object.keys(teamLogosByName).sort()}
+                value={createTeams}
+                onChange={(_event, value) => setCreateTeams(value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Teams taking part (optional)"
+                    placeholder="Search registered teams"
+                    helperText="Only teams already registered in Futa can be added."
+                  />
+                )}
               />
 
               <Stack direction="row" spacing={1}>
