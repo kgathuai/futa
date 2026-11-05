@@ -2897,6 +2897,40 @@ const sendMatchStartReminders = async () => {
   }
 }
 
+const sendMatchResultNotifications = async () => {
+  if (mongoose.connection.readyState !== 1) {
+    return
+  }
+
+  try {
+    const finished = await store.getMatchesWithFreshResult()
+    if (finished.length === 0) {
+      return
+    }
+
+    const fanAccountIds = await store.getFanAccountIds()
+    for (const match of finished) {
+      const accountIds = new Set<string>(fanAccountIds)
+      for (const id of await store.getAccountIdsForTeams([match.homeTeam, match.awayTeam])) {
+        accountIds.add(id)
+      }
+
+      if (accountIds.size > 0) {
+        await store.createNotifications([...accountIds], {
+          type: 'match-result',
+          title: 'Full time',
+          message: `${match.homeTeam} ${match.homeScore} - ${match.awayScore} ${match.awayTeam} at ${match.venue}.`,
+          relatedMatchId: match.id,
+        })
+      }
+    }
+
+    await store.markResultNotified(finished.map((match) => match.id))
+  } catch (error) {
+    console.error('Match result notification job failed', error)
+  }
+}
+
 const sendScoreReminders = async () => {
   if (mongoose.connection.readyState !== 1) {
     // Nothing to do until the database connection is back.
@@ -2962,9 +2996,11 @@ const startServer = async () => {
 
   void sendScoreReminders()
   void sendMatchStartReminders()
+  void sendMatchResultNotifications()
   setInterval(() => {
     void sendScoreReminders()
     void sendMatchStartReminders()
+    void sendMatchResultNotifications()
   }, SCORE_REMINDER_INTERVAL_MS)
 }
 

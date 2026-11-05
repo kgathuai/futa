@@ -82,6 +82,7 @@ export interface NotificationRecord {
     | 'referee-booking'
     | 'match-starting-soon'
     | 'match-starting'
+    | 'match-result'
   title: string
   message: string
   relatedFriendlyRequestId?: string
@@ -149,6 +150,7 @@ const matchSchema = new Schema(
     scoreReminderSentAt: { type: Date, required: false },
     startReminderSentAt: { type: Date, required: false },
     kickoffNotifiedAt: { type: Date, required: false },
+    resultNotifiedAt: { type: Date, required: false },
     engagement: { type: engagementSchema, required: true },
     tournamentId: { type: String, required: false },
     round: { type: Number, required: false },
@@ -970,6 +972,29 @@ export const store = {
     await MatchModel.updateMany(
       { id: { $in: matchIds } },
       { $set: { kickoffNotifiedAt: new Date() } },
+    )
+  },
+  // Matches whose regulation time has elapsed and that have a recorded score.
+  getMatchesWithFreshResult: async (now = Date.now()) => {
+    const candidates = await MatchModel.find({
+      resultNotifiedAt: { $exists: false },
+      homeScore: { $exists: true },
+      awayScore: { $exists: true },
+    }).lean()
+
+    return candidates.filter((match) => {
+      const kickoff = new Date(match.kickoff).getTime()
+      if (!Number.isFinite(kickoff)) {
+        return false
+      }
+      const end = kickoff + (match.durationMinutes ?? 90) * 60_000
+      return end <= now
+    })
+  },
+  markResultNotified: async (matchIds: string[]) => {
+    await MatchModel.updateMany(
+      { id: { $in: matchIds } },
+      { $set: { resultNotifiedAt: new Date() } },
     )
   },
   getFanAccountIds: async () => {

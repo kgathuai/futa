@@ -168,6 +168,7 @@ export interface NotificationItem {
     | 'referee-booking'
     | 'match-starting-soon'
     | 'match-starting'
+    | 'match-result'
   title: string
   message: string
   relatedFriendlyRequestId?: string
