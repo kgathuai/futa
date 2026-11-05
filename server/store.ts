@@ -757,6 +757,13 @@ export const store = {
       { returnDocument: 'after' },
     ).lean()
   },
+  replaceRegisteredTeams: async (tournamentId: string, teams: string[]) => {
+    return TournamentModel.findOneAndUpdate(
+      { id: tournamentId },
+      { $set: { registeredTeams: teams } },
+      { returnDocument: 'after' },
+    ).lean()
+  },
   updateTournament: async (
     tournamentId: string,
     patch: {

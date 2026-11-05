@@ -1205,18 +1205,20 @@ export function TournamentsPage() {
                     </Stack>
                   )}
 
+                  {isOwner && (
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={openManageTeams}
+                      disabled={selectedTournament.status === 'ongoing' || selectedTournament.status === 'finished' || rosterLocked}
+                      sx={{ mb: 1 }}
+                    >
+                      {rosterLocked ? 'Roster locked (fixtures generated)' : 'Add / manage teams'}
+                    </Button>
+                  )}
+
                   {(selectedTournament.type ?? 'open') === 'closed' ? (
-                    isOwner ? (
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        onClick={openManageTeams}
-                        disabled={selectedTournament.status === 'ongoing' || selectedTournament.status === 'finished' || rosterLocked}
-                        
-                      >
-                        {rosterLocked ? 'Roster locked (fixtures generated)' : 'Manage teams'}
-                      </Button>
-                    ) : null
+                    null
                   ) : (
                     <Button
                       fullWidth

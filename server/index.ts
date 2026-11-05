@@ -2447,6 +2447,31 @@ app.patch('/api/tournaments/:tournamentId/teams', async (req, res) => {
     return
   }
 
+  const tournamentDoc = await store.getTournamentById(tournamentId)
+  if (!tournamentDoc) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  const ownerOrAdmin =
+    (Boolean(tournamentDoc.ownerTeam) && tournamentDoc.ownerTeam === user.team) || isAdminRole(user.role)
+
+  if ((tournamentDoc.type ?? 'open') === 'open') {
+    if (!ownerOrAdmin) {
+      res.status(403).json({ error: 'Only the tournament owner can set the roster.' })
+      return
+    }
+    if (tournamentDoc.maxTeams && normalizedTeams.length > tournamentDoc.maxTeams) {
+      res.status(409).json({ error: `This tournament allows at most ${tournamentDoc.maxTeams} teams.` })
+      return
+    }
+
+    const updatedOpen = await store.replaceRegisteredTeams(tournamentId, normalizedTeams)
+    await store.notifyTournamentTeams(tournamentId, normalizedTeams)
+    res.json(updatedOpen)
+    return
+  }
+
   const result = await store.setTournamentTeams(tournamentId, user.team ?? '', normalizedTeams)
 
   if (result.status === 'not-found') {
