@@ -1894,8 +1894,16 @@ export const store = {
     return match
   },
   getPlayersBySport: async (sport: string) => {
-    const filter = sport?.trim() ? { sport: sport.trim() } : {}
-    const accounts = await AccountModel.find({ role: { $in: ['player', 'fan'] }, ...filter })
+    const wanted = sport?.trim() ?? ''
+    const sportFilter = wanted
+      ? {
+          $or: [
+            { sport: new RegExp(`^${escapeRegExp(wanted)}$`, 'i') },
+            { sports: new RegExp(`^${escapeRegExp(wanted)}$`, 'i') },
+          ],
+        }
+      : {}
+    const accounts = await AccountModel.find({ role: { $in: ['player', 'fan'] }, ...sportFilter })
       .select({ name: 1, sport: 1 })
       .sort({ name: 1 })
       .lean<Array<{ _id: mongoose.Types.ObjectId; name: string; sport: string }>>()
