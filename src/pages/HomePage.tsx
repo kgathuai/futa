@@ -389,6 +389,7 @@ export function HomePage() {
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
           pb: 0.4,
+          '& > *': { flexShrink: 0 },
         }}
       >
         {sports.map((sport) => (
@@ -399,12 +400,14 @@ export function HomePage() {
             aria-pressed={sport === selectedSport}
             variant="contained"
             sx={{
-              width: { xs: '100%', sm: 'auto' },
-              minWidth: 0,
+              flex: '0 0 auto',
+              width: 'auto',
+              minWidth: 'auto',
+              whiteSpace: 'nowrap',
               borderRadius: 999,
-              px: { xs: 0.5, sm: 1.4 },
+              px: { xs: 1.1, sm: 1.4 },
               py: 0.55,
-              fontSize: { xs: '0.62rem', sm: '0.75rem' },
+              fontSize: { xs: '0.66rem', sm: '0.75rem' },
               cursor: 'pointer',
               color: sport === selectedSport ? '#07111f' : '#e7ebf3',
               backgroundColor: sport === selectedSport ? '#4ce3a3' : '#2d3545',
