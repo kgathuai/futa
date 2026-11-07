@@ -9,7 +9,7 @@ export const buildTheme = (mode: ColorMode): Theme =>
   createTheme({
     palette: {
       mode,
-      primary: { main: '#4ce3a3', dark: '#3ecf92', contrastText: '#07111f' },
+      primary: { main: '#C7CDD2', dark: '#B3BAC0', contrastText: '#1A1D20' },
       // Dark mode = "ash grey": neutral charcoal surfaces, no blue cast.
       background:
         mode === 'dark'
@@ -22,7 +22,7 @@ export const buildTheme = (mode: ColorMode): Theme =>
       divider: mode === 'dark' ? '#3B4046' : 'rgba(11,18,32,0.12)',
       action:
         mode === 'dark'
-          ? { hover: 'rgba(255,255,255,0.06)', selected: 'rgba(76,227,163,0.12)' }
+          ? { hover: 'rgba(255,255,255,0.06)', selected: 'rgba(199,205,210,0.16)' }
           : undefined,
     },
     shape: { borderRadius: 12 },
@@ -93,9 +93,9 @@ export const buildTheme = (mode: ColorMode): Theme =>
       },
       MuiLinearProgress: {
         styleOverrides: {
-          root: { height: 4, borderRadius: 999, backgroundColor: 'rgba(76,227,163,0.18)', overflow: 'hidden' },
+          root: { height: 4, borderRadius: 999, backgroundColor: 'rgba(199,205,210,0.18)', overflow: 'hidden' },
           bar: {
-            backgroundColor: '#4ce3a3',
+            backgroundColor: '#C7CDD2',
             boxShadow: '0 0 10px rgba(76,227,163,0.85), 0 0 22px rgba(76,227,163,0.45)',
           },
         },

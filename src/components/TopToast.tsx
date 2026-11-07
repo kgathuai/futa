@@ -74,8 +74,8 @@ export function TopToast({
           py: 0,
           boxShadow: 'none',
           border: 'none',
-          borderTop: '1px solid rgba(76,227,163,0.45)',
-          borderBottom: '1px solid rgba(76,227,163,0.45)',
+          borderTop: '1px solid rgba(199,205,210,0.45)',
+          borderBottom: '1px solid rgba(199,205,210,0.45)',
           px: { xs: 4, sm: 5 },
           // Icon and close button sit at the edges so the message is truly centred.
           '& .MuiAlert-icon': {
