@@ -1332,51 +1332,33 @@ export function Layout() {
                 <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
                   SPORTS
                 </Typography>
-                <Stack
-                  direction="row"
-                  spacing={0.5}
-                  sx={{
-                    alignItems: 'center',
-                    flexWrap: 'nowrap',
-                    overflowX: 'auto',
-                    scrollbarWidth: 'none',
-                    '&::-webkit-scrollbar': { display: 'none' },
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 2,
-                    px: 0.8,
-                    py: 0.6,
-                  }}
-                >
-                  {profileSports.length === 0 && (
-                    <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', pr: 0.5 }}>
-                      No sports yet
-                    </Typography>
-                  )}
-                  {profileSports.map((sport) => (
-                    <Chip
-                      key={sport}
+                {profileSports.length === 0 ? (
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    sx={{ alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 2, px: 0.8, py: 0.6 }}
+                  >
+                    <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', pr: 0.5 }}>No sports yet</Typography>
+                    <Button
                       size="small"
-                      label={sport}
-                      onDelete={() => {
-                        const next = profileSports.filter((entry) => entry !== sport)
-                        setProfileSports(next)
-                        void handleSaveSports(next)
-                      }}
-                      disabled={isSavingSports}
-                      sx={{ flexShrink: 0, height: 24, fontSize: '0.66rem', fontWeight: 700 }}
-                    />
-                  ))}
+                      variant="text"
+                      onClick={(event) => setSportsMenuAnchor(event.currentTarget)}
+                      sx={{ fontSize: '0.66rem', minWidth: 0, px: 0.8 }}
+                    >
+                      + Add
+                    </Button>
+                  </Stack>
+                ) : (
                   <Button
                     size="small"
-                    variant="text"
+                    variant="outlined"
                     onClick={(event) => setSportsMenuAnchor(event.currentTarget)}
-                    disabled={isSavingSports || profileSports.length >= SPORTS.length}
-                    sx={{ flexShrink: 0, fontSize: '0.66rem', minWidth: 0, px: 0.8, whiteSpace: 'nowrap' }}
+                    disabled={isSavingSports}
+                    sx={{ fontSize: '0.66rem', py: 0.2, px: 1, alignSelf: 'flex-start' }}
                   >
-                    + Add
+                    + Add / remove sport
                   </Button>
-                </Stack>
+                )}
               </Stack>
 
               {profileSports.length > 0 && (
@@ -1432,20 +1414,29 @@ export function Layout() {
                 open={Boolean(sportsMenuAnchor)}
                 onClose={() => setSportsMenuAnchor(null)}
               >
-                {SPORTS.filter((sport) => !profileSports.includes(sport)).map((sport) => (
-                  <MenuItem
-                    key={sport}
-                    onClick={() => {
-                      const next = [...profileSports, sport]
-                      setProfileSports(next)
-                      setSportsMenuAnchor(null)
-                      void handleSaveSports(next)
-                    }}
-                    sx={{ fontSize: '0.74rem' }}
-                  >
-                    {sport}
-                  </MenuItem>
-                ))}
+                {SPORTS.map((sport) => {
+                  const selected = profileSports.includes(sport)
+                  return (
+                    <MenuItem
+                      key={sport}
+                      selected={selected}
+                      onClick={() => {
+                        const next = selected
+                          ? profileSports.filter((entry) => entry !== sport)
+                          : [...profileSports, sport]
+                        setProfileSports(next)
+                        setSportsMenuAnchor(null)
+                        void handleSaveSports(next)
+                      }}
+                      sx={{ fontSize: '0.74rem' }}
+                    >
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', width: '100%' }}>
+                        <Box sx={{ flex: 1 }}>{sport}</Box>
+                        {selected && <Typography sx={{ fontSize: '0.6rem', color: 'primary.main' }}>✓</Typography>}
+                      </Stack>
+                    </MenuItem>
+                  )
+                })}
               </Menu>
 
               <Stack direction="row" spacing={1} sx={{ mb: 1.6 }}>
