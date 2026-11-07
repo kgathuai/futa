@@ -16,6 +16,9 @@ const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || 'Futa <no-reply@kambumbu.co
 
 export const APP_URL = (process.env.APP_URL?.trim() || 'http://localhost:5173').replace(/\/$/, '')
 
+/** Where replies and support requests should land. */
+export const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL?.trim() || 'kambumbuke@gmail.com'
+
 export const isEmailConfigured = () => Boolean(EMAIL_API_URL && EMAIL_API_KEY)
 
 export const sendEmail = async (payload: {
@@ -41,6 +44,7 @@ export const sendEmail = async (payload: {
       body: JSON.stringify({
         from: EMAIL_FROM,
         to: [payload.to],
+        reply_to: SUPPORT_EMAIL,
         subject: payload.subject,
         text: payload.text,
         html: payload.html ?? `<p>${payload.text.replace(/\n/g, '<br />')}</p>`,
