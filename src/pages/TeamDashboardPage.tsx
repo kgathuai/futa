@@ -1842,10 +1842,11 @@ export function TeamDashboardPage() {
                           renderInput={(params) => (
                             <TextField
                               {...params}
-                              label={`${friendlySport} player`}
+                              label={`Challenge ${friendlySport} player`}
+                              placeholder="Search registered players…"
                               helperText={
                                 poolPlayers.length > 0
-                                  ? `Registered ${friendlySport} players only.`
+                                  ? `Pick the ${friendlySport} player you want to challenge.`
                                   : `No ${friendlySport} players registered yet.`
                               }
                             />
