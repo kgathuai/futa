@@ -128,8 +128,8 @@ export function AdminPage() {
   const { loggedInRole, loggedInAccountId } = useOutletContext<AuthOutletContext>()
   const { removeMatch } = useAppData()
 
-  const canAccessAdmin = isSuperAdminRole(loggedInRole)
-  const isSuperAdmin = canAccessAdmin
+  const canAccessAdmin = isSuperAdminRole(loggedInRole) || isAdminRole(loggedInRole)
+  const isSuperAdmin = isSuperAdminRole(loggedInRole)
 
   const [accounts, setAccounts] = useState<AdminAccount[]>([])
   const [matches, setMatches] = useState<MatchAnnouncement[]>([])
@@ -492,8 +492,11 @@ export function AdminPage() {
     }
   }
 
+  // Adepts can remove members; only a superadmin may remove admins/superadmins.
   const canDeleteAccount = (account: AdminAccount) =>
-    isSuperAdmin && account.id !== loggedInAccountId && !isSuperAdminRole(account.role)
+    account.id !== loggedInAccountId &&
+    !isSuperAdminRole(account.role) &&
+    (isSuperAdmin || !isAdminRole(account.role))
 
   return (
     <Stack spacing={2}>

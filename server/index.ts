@@ -1714,8 +1714,8 @@ app.post('/api/admin/accounts', async (req, res) => {
     return
   }
 
-  if (!isSuperAdminRole(user.role)) {
-    res.status(403).json({ error: 'Superadmins only.' })
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
     return
   }
 
@@ -1793,8 +1793,8 @@ app.get('/api/admin/accounts', async (req, res) => {
     return
   }
 
-  if (!isSuperAdminRole(user.role)) {
-    res.status(403).json({ error: 'Superadmins only.' })
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
     return
   }
 
@@ -1809,13 +1809,17 @@ app.patch('/api/admin/accounts/:accountId/role', async (req, res) => {
     return
   }
 
-  if (!isSuperAdminRole(user.role)) {
-    res.status(403).json({ error: 'Superadmins only.' })
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
     return
   }
 
   const accountId = req.params.accountId?.trim()
   const requestedRole = normalizeRole((req.body as { role?: string }).role ?? '')
+  if (!isSuperAdminRole(user.role) && isAdminRole(requestedRole)) {
+    res.status(403).json({ error: 'Only a superadmin can grant admin roles.' })
+    return
+  }
   if (!accountId || !assignableRoles.has(requestedRole)) {
     res.status(400).json({ error: 'A valid account id and role are required.' })
     return
@@ -1829,6 +1833,12 @@ app.patch('/api/admin/accounts/:accountId/role', async (req, res) => {
   const target = await store.findAccountById(accountId)
   if (!target) {
     res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  // Admins can moderate members, but only a superadmin may remove privileged accounts.
+  if (!isSuperAdminRole(user.role) && (isAdminRole(target.role) || isSuperAdminRole(target.role))) {
+    res.status(403).json({ error: 'Only a superadmin can delete an admin account.' })
     return
   }
 
@@ -1853,8 +1863,8 @@ app.delete('/api/admin/accounts/:accountId', async (req, res) => {
     return
   }
 
-  if (!isSuperAdminRole(user.role)) {
-    res.status(403).json({ error: 'Superadmins only.' })
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
     return
   }
 
@@ -1872,6 +1882,12 @@ app.delete('/api/admin/accounts/:accountId', async (req, res) => {
   const target = await store.findAccountById(accountId)
   if (!target) {
     res.status(404).json({ error: 'Account not found.' })
+    return
+  }
+
+  // Admins can moderate members, but only a superadmin may remove privileged accounts.
+  if (!isSuperAdminRole(user.role) && (isAdminRole(target.role) || isSuperAdminRole(target.role))) {
+    res.status(403).json({ error: 'Only a superadmin can delete an admin account.' })
     return
   }
 
@@ -2870,8 +2886,8 @@ app.patch('/api/admin/accounts/:accountId/team', async (req, res) => {
     res.status(401).json({ error: 'Unauthorized.' })
     return
   }
-  if (!isSuperAdminRole(user.role)) {
-    res.status(403).json({ error: 'Superadmins only.' })
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
     return
   }
 
@@ -2929,8 +2945,8 @@ app.post('/api/admin/teams', async (req, res) => {
     res.status(401).json({ error: 'Unauthorized.' })
     return
   }
-  if (!isSuperAdminRole(user.role)) {
-    res.status(403).json({ error: 'Superadmins only.' })
+  if (!isAdminRole(user.role)) {
+    res.status(403).json({ error: 'Admins only.' })
     return
   }
 
