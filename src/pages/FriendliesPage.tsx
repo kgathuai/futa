@@ -389,20 +389,34 @@ export function FriendliesPage() {
                 required
                 slotProps={{ inputLabel: { shrink: true } }}
               />
-              <TextField
-                select
-                label="Ground"
-                value={location}
-                onChange={(event) => setLocation(event.target.value)}
-                helperText={groundOptions.length === 0 ? 'No grounds available yet. Add team grounds or match venues first.' : undefined}
-                required
-              >
-                {groundOptions.map((groundOption) => (
-                  <MenuItem key={groundOption} value={groundOption}>
-                    {groundOption}
-                  </MenuItem>
-                ))}
-              </TextField>
+              {friendlySport === 'FIFA' ? (
+                <TextField
+                  select
+                  label="Venue"
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  helperText="FIFA matches are played online or in person."
+                  required
+                >
+                  <MenuItem value="Online">Online</MenuItem>
+                  <MenuItem value="Offline">Offline</MenuItem>
+                </TextField>
+              ) : (
+                <TextField
+                  select
+                  label="Ground"
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  helperText={groundOptions.length === 0 ? 'No grounds available yet. Add team grounds or match venues first.' : undefined}
+                  required
+                >
+                  {groundOptions.map((groundOption) => (
+                    <MenuItem key={groundOption} value={groundOption}>
+                      {groundOption}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
               <TextField
                 label="Notes"
                 value={note}

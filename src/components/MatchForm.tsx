@@ -166,13 +166,20 @@ export function MatchForm({
         ))}
       </TextField>
 
-      <TextField select label="Venue" value={venue} onChange={(event) => setVenue(event.target.value)} required>
-        {groundOptions.map((ground) => (
-          <MenuItem key={ground} value={ground}>
-            {ground}
-          </MenuItem>
-        ))}
-      </TextField>
+      {sport === 'FIFA' ? (
+        <TextField select label="Venue" value={venue} onChange={(event) => setVenue(event.target.value)} required>
+          <MenuItem value="Online">Online</MenuItem>
+          <MenuItem value="Offline">Offline</MenuItem>
+        </TextField>
+      ) : (
+        <TextField select label="Venue" value={venue} onChange={(event) => setVenue(event.target.value)} required>
+          {groundOptions.map((ground) => (
+            <MenuItem key={ground} value={ground}>
+              {ground}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2}>
         <TextField
