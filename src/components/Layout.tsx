@@ -999,9 +999,9 @@ export function Layout() {
                     py: 0.2,
                     ml: 0,
                     borderRadius: 999,
-                    color: 'text.secondary',
-                    '&:hover': { bgcolor: 'action.hover', color: 'primary.main' },
-                    '&.active': { bgcolor: 'rgba(76,227,163,0.14)', color: 'primary.main' },
+                    color: mode === 'light' ? 'text.primary' : '#FFFFFF',
+                    '&:hover': { bgcolor: 'action.hover', color: mode === 'light' ? '#0B1220' : '#FFFFFF' },
+                    '&.active': { bgcolor: 'action.selected', color: mode === 'light' ? '#0B1220' : '#FFFFFF' },
                   }}
                 >
                   {action.label}
