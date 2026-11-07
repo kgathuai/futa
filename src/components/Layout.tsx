@@ -1816,14 +1816,18 @@ export function Layout() {
                 placeholder="Your name"
                 required
               />
-              {registerRole !== 'Referee' && !isIndividualSport(registerSport) && (
+              {registerRole !== 'Referee' && (
                 <>
                   <TextField
                     label="Team (optional)"
                     value={registerTeam}
                     onChange={(event) => setRegisterTeam(event.target.value)}
                     placeholder="Team name"
-                    helperText="You can add or change this later from your account."
+                    helperText={
+                      isIndividualSport(registerSport)
+                        ? `${registerSport} can be played individually — leave this blank if you play alone.`
+                        : 'You can add or change this later from your account.'
+                    }
                   />
                   <TextField
                     select
