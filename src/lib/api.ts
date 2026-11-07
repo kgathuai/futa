@@ -10,6 +10,7 @@ export interface AuthUser {
   homeGround?: string
   role: string
   sport: string
+  sports?: string[]
   email: string
   avatar?: string
   emailVerified?: boolean
@@ -326,7 +327,7 @@ export const api = {
       token,
     }),
   updateProfile: (
-    payload: { team?: string; county?: string; homeGround?: string; avatar?: string },
+    payload: { team?: string; county?: string; homeGround?: string; avatar?: string; sports?: string[] },
     token: string,
   ) =>
     request<{ user: AuthUser }>('/api/auth/me', {

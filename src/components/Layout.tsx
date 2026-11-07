@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import {
   Alert,
   AppBar,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -48,7 +49,7 @@ import { LoadingBar } from './LoadingBar'
 import { TopToast } from './TopToast'
 import type { ToastMessage } from './TopToast'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
-import { isIndividualSport } from '../lib/sports'
+import { SPORTS, isIndividualSport } from '../lib/sports'
 import { useI18n } from '../lib/i18n'
 import { useColorMode } from '../theme/ColorModeProvider'
 import type { TranslationKey } from '../lib/i18n'
@@ -184,6 +185,8 @@ export function Layout() {
   const [profileCounty, setProfileCounty] = useState('')
   const [profileHomeGround, setProfileHomeGround] = useState('')
   const [profileAvatar, setProfileAvatar] = useState('')
+  const [profileSports, setProfileSports] = useState<string[]>([])
+  const [isSavingSports, setIsSavingSports] = useState(false)
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -311,6 +314,8 @@ export function Layout() {
                 setProfileCounty(response.user.county ?? '')
         setProfileHomeGround(response.user.homeGround ?? '')
         setProfileAvatar(response.user.avatar ?? '')
+      setProfileSports(response.user.sports ?? [])
+        setProfileSports(response.user.sports ?? [])
         setEmailVerified(response.user.emailVerified !== false)
         void refreshTeam()
       } catch {
@@ -342,6 +347,7 @@ export function Layout() {
             setProfileCounty(response.user.county ?? '')
       setProfileHomeGround(response.user.homeGround ?? '')
       setProfileAvatar(response.user.avatar ?? '')
+      setProfileSports(response.user.sports ?? [])
       setEmailVerified(response.user.emailVerified !== false)
       void refreshTeam()
       setAuthMessage(`Signed in as ${response.user.name || response.user.email} (${response.user.role}).`)
@@ -614,11 +620,32 @@ export function Layout() {
       const dataUrl = await fileToAvatarDataUrl(file)
       const response = await api.updateProfile({ avatar: dataUrl }, token)
       setProfileAvatar(response.user.avatar ?? '')
+      setProfileSports(response.user.sports ?? [])
       setToast({ message: 'Profile picture updated.', severity: 'success' })
     } catch (error) {
       setToast({ message: error instanceof Error ? error.message : 'Could not update your picture.', severity: 'error' })
     } finally {
       setIsSavingAvatar(false)
+    }
+  }
+
+  const handleSaveSports = async (sports: string[]) => {
+    const token = api.getToken()
+    if (!token) {
+      return
+    }
+    setIsSavingSports(true)
+    try {
+      const response = await api.updateProfile({ sports }, token)
+      setProfileSports(response.user.sports ?? sports)
+      setToast({ message: 'Sports updated.', severity: 'success' })
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Could not update your sports.',
+        severity: 'error',
+      })
+    } finally {
+      setIsSavingSports(false)
     }
   }
 
@@ -633,6 +660,7 @@ export function Layout() {
     try {
       const response = await api.updateProfile({ avatar: '' }, token)
       setProfileAvatar(response.user.avatar ?? '')
+      setProfileSports(response.user.sports ?? [])
       setToast({ message: 'Profile picture removed.', severity: 'success' })
     } catch (error) {
       setToast({ message: error instanceof Error ? error.message : 'Could not remove your picture.', severity: 'error' })
@@ -1261,6 +1289,26 @@ export function Layout() {
                 hidden
                 onChange={handleAvatarChange}
               />
+
+              <Stack spacing={0.8} sx={{ mb: 1.6 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
+                  SPORTS
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...SPORTS]}
+                  value={profileSports}
+                  onChange={(_event, value) => {
+                    setProfileSports(value)
+                    void handleSaveSports(value)
+                  }}
+                  disabled={isSavingSports}
+                  renderInput={(params) => (
+                    <TextField {...params} placeholder="Add a sport" helperText="Add every sport you play." />
+                  )}
+                />
+              </Stack>
 
               <Stack direction="row" spacing={1} sx={{ mb: 1.6 }}>
                 <Button

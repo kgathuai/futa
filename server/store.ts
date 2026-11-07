@@ -18,6 +18,7 @@ export interface AccountRecord {
   homeGround: string
   role: string
   sport: string
+  sports?: string[]
   email: string
   password: string
   avatar?: string
@@ -314,6 +315,8 @@ const accountSchema = new Schema(
     homeGround: { type: String, required: false, default: '' },
     role: { type: String, required: true },
     sport: { type: String, required: true },
+    // Extra sports this account plays, on top of their primary sport.
+    sports: { type: [String], required: false, default: [] },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     // Data URL or remote URL for the account profile picture.
@@ -446,6 +449,7 @@ const toPublicAccount = (account: AccountDoc): AccountRecord => ({
   homeGround: account.homeGround ?? '',
   role: account.role,
   sport: account.sport,
+  sports: account.sports ?? [],
   email: account.email,
   password: account.password,
   avatar: account.avatar ?? '',
@@ -1337,6 +1341,7 @@ export const store = {
       homeGround: payload.homeGround,
       role: payload.role,
       sport: payload.sport,
+      sports: [payload.sport],
       email: payload.email.toLowerCase(),
       password: hashPassword(payload.password),
       emailVerified: false,
@@ -1352,6 +1357,19 @@ export const store = {
     const account = await AccountModel.findByIdAndUpdate(
       accountId,
       { $set: { team, county, homeGround } },
+      { returnDocument: 'after' },
+    ).lean<AccountDoc | null>()
+
+    return account ? toPublicAccount(account) : null
+  },
+  updateAccountSports: async (accountId: string, sports: string[]) => {
+    if (!mongoose.isValidObjectId(accountId)) {
+      return null
+    }
+
+    const account = await AccountModel.findByIdAndUpdate(
+      accountId,
+      { $set: { sports } },
       { returnDocument: 'after' },
     ).lean<AccountDoc | null>()
 

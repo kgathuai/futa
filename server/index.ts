@@ -214,6 +214,7 @@ const sanitizeAccount = (account: AccountRecord) => ({
   homeGround: account.homeGround,
   role: account.role,
   sport: account.sport,
+  sports: account.sports ?? [],
   email: account.email,
   avatar: account.avatar ?? '',
   emailVerified: account.emailVerified !== false,
@@ -2110,11 +2111,12 @@ app.patch('/api/auth/me', async (req, res) => {
     return
   }
 
-  const body = req.body as { team?: string; county?: string; homeGround?: string; avatar?: string }
+  const body = req.body as { team?: string; county?: string; homeGround?: string; avatar?: string; sports?: string[] }
   const hasProfileFields = body.team !== undefined || body.county !== undefined || body.homeGround !== undefined
   const hasAvatar = body.avatar !== undefined
+  const hasSports = Array.isArray(body.sports)
 
-  if (!hasProfileFields && !hasAvatar) {
+  if (!hasProfileFields && !hasAvatar && !hasSports) {
     res.status(400).json({ error: 'Nothing to update.' })
     return
   }
@@ -2137,6 +2139,11 @@ app.patch('/api/auth/me', async (req, res) => {
       team ? county : '',
       team ? homeGround : '',
     )
+  }
+
+  if (hasSports) {
+    const sports = [...new Set(body.sports!.map((sport) => String(sport).trim()).filter(Boolean))].slice(0, 12)
+    account = await store.updateAccountSports(user.id, sports)
   }
 
   if (hasAvatar) {
