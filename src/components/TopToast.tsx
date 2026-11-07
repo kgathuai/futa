@@ -72,7 +72,7 @@ export function TopToast({
           minHeight: 0,
           height: { xs: 18, sm: 20 },
           py: 0,
-          boxShadow: '0 8px 18px rgba(4,8,18,0.45)',
+          boxShadow: 'none',
           border: 'none',
           borderTop: '1px solid rgba(76,227,163,0.45)',
           borderBottom: '1px solid rgba(76,227,163,0.45)',

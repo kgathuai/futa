@@ -1021,7 +1021,7 @@ export function Layout() {
           bgcolor: mode === 'light' ? '#ffffff' : 'background.paper',
           borderTop: '1px solid',
           borderColor: mode === 'light' ? 'rgba(11,18,32,0.12)' : 'rgba(255,255,255,0.14)',
-          boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.12)',
+          boxShadow: 'none',
         }}
       >
         {navLinks.map((link) => {

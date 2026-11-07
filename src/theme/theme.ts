@@ -41,6 +41,11 @@ export const buildTheme = (mode: ColorMode): Theme =>
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          // Flat UI: no elevation anywhere, separation comes from borders.
+          '.MuiPaper-root, .MuiAppBar-root, .MuiDrawer-paper, .MuiMenu-paper, .MuiPopover-paper, .MuiDialog-paper, .MuiSnackbar-root > div':
+            {
+              boxShadow: 'none !important',
+            },
           'html, body': {
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
@@ -68,6 +73,7 @@ export const buildTheme = (mode: ColorMode): Theme =>
         },
       },
       MuiAppBar: {
+        defaultProps: { elevation: 0 },
         styleOverrides: {
           root: {
             backgroundColor: mode === 'dark' ? '#0d1524' : '#ffffff',
@@ -75,7 +81,10 @@ export const buildTheme = (mode: ColorMode): Theme =>
           },
         },
       },
-      MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+      MuiPaper: {
+        defaultProps: { elevation: 0 },
+        styleOverrides: { root: { backgroundImage: 'none', boxShadow: 'none' } },
+      },
       MuiLinearProgress: {
         styleOverrides: {
           root: { height: 4, borderRadius: 999, backgroundColor: 'rgba(76,227,163,0.18)', overflow: 'hidden' },
