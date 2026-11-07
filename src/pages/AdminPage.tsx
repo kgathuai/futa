@@ -44,7 +44,7 @@ interface AuthOutletContext {
 
 const assignableRoles = ['admin', 'TM', 'Coach', 'captain', 'player', 'Referee', 'Fan'] as const
 const publicRoles = ['TM', 'Coach', 'captain', 'player', 'Referee', 'Fan'] as const
-const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table'] as const
+const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess'] as const
 
 const normalizeRole = (role: string | null | undefined) => {
   const normalized = role?.trim().toLowerCase() ?? ''

@@ -31,7 +31,7 @@ const formatDateTime = (value: string) =>
   })
 
 
-const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
+const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess']
 const statuses = ['Scheduled', 'Playing', 'Played']
 
 export function HomePage() {

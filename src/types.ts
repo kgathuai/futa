@@ -97,7 +97,19 @@ export interface MatchAnnouncement {
   homeScore?: number
   awayScore?: number
   category: 'League' | 'Friendly' | 'Cup'
-  sport: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+  sport:
+    | 'Football'
+    | 'Handball'
+    | 'Volleyball'
+    | 'Basketball'
+    | 'Rugby'
+    | 'Tennis'
+    | 'Paddle Tennis'
+    | 'Table Tennis'
+    | 'Pool Table'
+    | 'Darts'
+    | 'Golf'
+    | 'Chess'
   createdByTeam?: string
   createdByAccountId?: string
   likedByMe?: boolean

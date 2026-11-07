@@ -387,7 +387,7 @@ app.post('/api/matches', async (req, res) => {
     kickoff?: string
     durationMinutes?: number
     category?: 'League' | 'Friendly' | 'Cup'
-    sport?: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+    sport?: string
     comment?: string
     referee?: string
     intraSquad?: boolean
@@ -1507,7 +1507,7 @@ app.post('/api/tournaments/:tournamentId/generate-fixtures', async (req, res) =>
     pairs = doubleRoundRobinFixtures(teams)
   }
 
-  const sport = tournament.sport as 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+  const sport = tournament.sport as string
   const category = format.includes('league') || format.includes('round robin') ? 'League' : 'Cup'
 
   const created = await Promise.all(

@@ -42,7 +42,7 @@ interface GoalDraft {
   assist: string
 }
 
-const sports: MatchAnnouncement['sport'][] = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
+const sports: MatchAnnouncement['sport'][] = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess']
 const bookingsPageSize = 5
 
 const formatPeriod = (startDate: string, endDate: string) => {
@@ -1793,7 +1793,7 @@ export function TeamDashboardPage() {
                     onChange={(event) => setFriendlySport(event.target.value)}
                     helperText="The friendly will be played in this sport."
                   >
-                    {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table'].map((name) => (
+                    {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess'].map((name) => (
                       <MenuItem key={name} value={name}>
                         {name}
                       </MenuItem>

@@ -1728,7 +1728,7 @@ export const store = {
     kickoff: string
     durationMinutes: number
     category: 'League' | 'Friendly' | 'Cup'
-    sport: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+    sport: string
     comment?: string
     createdByTeam: string
     createdByAccountId: string

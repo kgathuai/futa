@@ -104,7 +104,7 @@ export const api = {
       kickoff: string
       durationMinutes: number
       category: 'League' | 'Friendly' | 'Cup'
-      sport: 'Football' | 'Handball' | 'Volleyball' | 'Basketball' | 'Rugby' | 'Tennis' | 'Pool Table'
+      sport: MatchAnnouncement['sport']
       comment?: string
       referee?: string
       intraSquad?: boolean

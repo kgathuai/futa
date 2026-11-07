@@ -72,7 +72,7 @@ const TikTokIcon = ({ fontSize = '1.15rem' }: { fontSize?: string }) => (
   </Box>
 )
 
-const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table']
+const sports = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess']
 
 const links: Array<{ to: string; key: TranslationKey }> = [
   { to: '/', key: 'home' },
