@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Alert, Avatar, Box, Card, CardContent, Stack, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
-import { LoadingBar } from '../components/LoadingBar'
+
 import type { Player } from '../types'
 
 const StatTile = ({ label, value, accent }: { label: string; value: number | string; accent?: string }) => (
@@ -124,7 +124,12 @@ export function PlayerPage() {
 
   return (
     <Stack spacing={2}>
-      {isLoading && <LoadingBar label="Loading player…" />}
+      {isLoading && (
+        <Stack spacing={1.4}>
+          <Skeleton variant="rounded" height={96} sx={{ borderRadius: 2 }} />
+          <Skeleton variant="rounded" height={140} sx={{ borderRadius: 2 }} />
+        </Stack>
+      )}
 
       <Card variant="outlined">
         <CardContent>

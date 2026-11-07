@@ -21,7 +21,7 @@ import { useAutoHide } from '../lib/useAutoHide'
 import { getTournamentStatus } from '../lib/tournamentStatus'
 import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
-import { LoadingBar } from '../components/LoadingBar'
+import { RowSkeleton } from '../components/LoadingSkeleton'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 
@@ -2190,12 +2190,9 @@ export function TeamDashboardPage() {
                   </Stack>
 
                   {loadingMyMatches && (
-                    <Stack spacing={0.8} sx={{ mb: 2 }}>
-                      <LoadingBar label="Loading matches…" />
-                      <Typography color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                        Loading matches…
-                      </Typography>
-                    </Stack>
+                    <Box sx={{ mb: 2 }}>
+                      <RowSkeleton rows={4} height={64} />
+                    </Box>
                   )}
 
                   {!loggedInAccountId && (

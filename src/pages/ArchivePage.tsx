@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { Box, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
 import { api } from '../lib/api'
-import { LoadingBar } from '../components/LoadingBar'
+import { CardSkeleton } from '../components/LoadingSkeleton'
 import type { MatchAnnouncement, TournamentItem } from '../types'
 
 interface SeasonRow {
@@ -118,7 +118,7 @@ export function ArchivePage() {
         </Typography>
       </Box>
 
-      {isLoading && <LoadingBar label="Loading archive…" />}
+      {isLoading && <CardSkeleton count={4} />}
 
       {!isLoading && seasons.length === 0 && (
         <Card variant="outlined">
