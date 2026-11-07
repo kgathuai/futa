@@ -12,6 +12,7 @@ import type { MatchAnnouncement, TournamentItem } from '../types'
 import { api } from '../lib/api'
 import { getMatchRuntimeStatus, getMatchStatusLabel } from '../lib/matchStatus'
 import { LoadingBar } from './LoadingBar'
+import { RowSkeleton } from './LoadingSkeleton'
 import { useMatchClock } from '../lib/useMatchClock'
 
 interface FixturesTabProps {
@@ -128,12 +129,7 @@ export function FixturesTab({
   const token = api.getToken()
 
   if (isLoading) {
-    return (
-      <Stack spacing={1.2} sx={{ py: 3 }}>
-        <LoadingBar label="Loading fixtures…" />
-        <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>Loading fixtures…</Typography>
-      </Stack>
-    )
+    return <RowSkeleton rows={4} height={46} />
   }
 
   return (

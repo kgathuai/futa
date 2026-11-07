@@ -25,7 +25,7 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import { Link, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
-import { LoadingBar } from '../components/LoadingBar'
+import { RowSkeleton } from '../components/LoadingSkeleton'
 import type { TeamSummary } from '../types'
 
 interface AuthOutletContext {
@@ -632,10 +632,7 @@ export function TeamPage() {
       )}
 
       {isLoadingTeams ? (
-        <Stack spacing={1} sx={{ py: 3 }}>
-          <LoadingBar label="Loading teams…" />
-          <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Loading teams…</Typography>
-        </Stack>
+        <RowSkeleton rows={6} />
       ) : visibleTeams.length === 0 ? (
         <Card variant="outlined" sx={{ borderRadius: 2, borderColor: 'rgba(159,176,201,0.14)' }}>
           <Stack sx={{ alignItems: 'center', py: 6, gap: 0.6 }}>

@@ -31,7 +31,7 @@ import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded'
 import { Navigate, useOutletContext } from 'react-router-dom'
 import { api } from '../lib/api'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
-import { LoadingBar } from '../components/LoadingBar'
+import { TableSkeleton } from '../components/LoadingSkeleton'
 import { useAppData } from '../context/AppContext'
 import type { AdminAccount, MatchAnnouncement } from '../types'
 
@@ -767,10 +767,7 @@ export function AdminPage() {
       </Stack>
 
       {isLoading ? (
-        <Stack spacing={1} sx={{ py: 3 }}>
-          <LoadingBar label="Loading accounts…" />
-          <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Loading accounts…</Typography>
-        </Stack>
+        <TableSkeleton rows={6} />
       ) : (
         <Box
           sx={{

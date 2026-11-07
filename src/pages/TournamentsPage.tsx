@@ -4,7 +4,7 @@ import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 import { FixturesTab } from '../components/FixturesTab'
-import { LoadingBar } from '../components/LoadingBar'
+import { CardSkeleton } from '../components/LoadingSkeleton'
 import { ShareButtons } from '../components/ShareButtons'
 import type { TournamentPayment } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
@@ -923,14 +923,7 @@ export function TournamentsPage() {
         ))}
       </Stack>
 
-      {isLoadingTournaments && (
-        <Stack spacing={0.8}>
-          <LoadingBar label="Loading tournaments…" />
-          <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
-            Loading tournaments…
-          </Typography>
-        </Stack>
-      )}
+      {isLoadingTournaments && <CardSkeleton count={3} />}
       {!isLoadingTournaments && filteredTournaments.length === 0 && (
         <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
           No tournaments yet. Created tournaments will appear here.
