@@ -1462,7 +1462,7 @@ export function Layout() {
               </Stack>
 
 
-              {!isRefereeAccount && (
+              {!isRefereeAccount && !isIndividualSport(activeSport) && (
               <Card
                 variant="outlined"
                 sx={{
