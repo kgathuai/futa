@@ -830,7 +830,7 @@ export function Layout() {
               alt="Futa logo"
               sx={{
                 height: { xs: 22, sm: 26, md: 30 },
-                maxWidth: { xs: 130, sm: 170, md: 230 },
+                maxWidth: { xs: 110, sm: 150, md: 180 },
                 width: 'auto',
                 display: 'block',
                 flexShrink: 1,
@@ -839,8 +839,19 @@ export function Layout() {
               style={{ pointerEvents: 'none' }}
             />
 
-            <Box sx={{ ml: 'auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: { xs: 0.2, sm: 1.25 } }}>
-              <Stack direction="row" spacing={{ xs: 0.1, sm: 0.5 }} sx={{ alignItems: 'center', minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+            <Box
+              sx={{
+                ml: 'auto',
+                flex: '1 1 auto',
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: { xs: 0.2, sm: 0.8 },
+                overflow: 'hidden',
+              }}
+            >
+              <Stack direction="row" spacing={{ xs: 0.1, sm: 0.5 }} sx={{ alignItems: 'center', minWidth: 0, flex: '0 1 auto', overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
                 {navLinks.map((link) => {
                   const isActive =
                     link.to === '/'
