@@ -3,7 +3,6 @@ import type { ChangeEvent, FormEvent } from 'react'
 import {
   Alert,
   AppBar,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -17,6 +16,7 @@ import {
   Drawer,
   Badge,
   FormControl,
+  Menu,
   IconButton,
   InputLabel,
   MenuItem,
@@ -188,6 +188,7 @@ export function Layout() {
   const [profileAvatar, setProfileAvatar] = useState('')
   const [profileSports, setProfileSports] = useState<string[]>([])
   const [isSavingSports, setIsSavingSports] = useState(false)
+  const [sportsMenuAnchor, setSportsMenuAnchor] = useState<HTMLElement | null>(null)
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -1295,21 +1296,73 @@ export function Layout() {
                 <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
                   SPORTS
                 </Typography>
-                <Autocomplete
-                  multiple
-                  size="small"
-                  options={[...SPORTS]}
-                  value={profileSports}
-                  onChange={(_event, value) => {
-                    setProfileSports(value)
-                    void handleSaveSports(value)
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{
+                    alignItems: 'center',
+                    flexWrap: 'nowrap',
+                    overflowX: 'auto',
+                    scrollbarWidth: 'none',
+                    '&::-webkit-scrollbar': { display: 'none' },
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    px: 0.8,
+                    py: 0.6,
                   }}
-                  disabled={isSavingSports}
-                  renderInput={(params) => (
-                    <TextField {...params} placeholder="Add a sport" helperText="Add every sport you play." />
+                >
+                  {profileSports.length === 0 && (
+                    <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', pr: 0.5 }}>
+                      No sports yet
+                    </Typography>
                   )}
-                />
+                  {profileSports.map((sport) => (
+                    <Chip
+                      key={sport}
+                      size="small"
+                      label={sport}
+                      onDelete={() => {
+                        const next = profileSports.filter((entry) => entry !== sport)
+                        setProfileSports(next)
+                        void handleSaveSports(next)
+                      }}
+                      disabled={isSavingSports}
+                      sx={{ flexShrink: 0, height: 24, fontSize: '0.66rem', fontWeight: 700 }}
+                    />
+                  ))}
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={(event) => setSportsMenuAnchor(event.currentTarget)}
+                    disabled={isSavingSports || profileSports.length >= SPORTS.length}
+                    sx={{ flexShrink: 0, fontSize: '0.66rem', minWidth: 0, px: 0.8, whiteSpace: 'nowrap' }}
+                  >
+                    + Add
+                  </Button>
+                </Stack>
               </Stack>
+
+              <Menu
+                anchorEl={sportsMenuAnchor}
+                open={Boolean(sportsMenuAnchor)}
+                onClose={() => setSportsMenuAnchor(null)}
+              >
+                {SPORTS.filter((sport) => !profileSports.includes(sport)).map((sport) => (
+                  <MenuItem
+                    key={sport}
+                    onClick={() => {
+                      const next = [...profileSports, sport]
+                      setProfileSports(next)
+                      setSportsMenuAnchor(null)
+                      void handleSaveSports(next)
+                    }}
+                    sx={{ fontSize: '0.74rem' }}
+                  >
+                    {sport}
+                  </MenuItem>
+                ))}
+              </Menu>
 
               <Stack direction="row" spacing={1} sx={{ mb: 1.6 }}>
                 <Button
