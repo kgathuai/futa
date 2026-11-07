@@ -2,7 +2,7 @@ import { Box, LinearProgress } from '@mui/material'
 import type { SxProps, Theme } from '@mui/material'
 
 /** The single luminous green used for every loading indicator. */
-export const LOADING_GREEN = '#C7CDD2'
+export const LOADING_GREEN = '#3FA34D'
 
 const GLOW = '0 0 10px rgba(76,227,163,0.85), 0 0 22px rgba(76,227,163,0.45)'
 
@@ -31,7 +31,7 @@ export function LoadingBar({
         {
           height,
           borderRadius: fixed ? 0 : 999,
-          bgcolor: 'rgba(199,205,210,0.18)',
+          bgcolor: 'rgba(63,163,77,0.18)',
           overflow: 'hidden',
           '& .MuiLinearProgress-bar': {
             bgcolor: LOADING_GREEN,

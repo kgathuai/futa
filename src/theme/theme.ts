@@ -9,17 +9,21 @@ export const buildTheme = (mode: ColorMode): Theme =>
   createTheme({
     palette: {
       mode,
-      primary: { main: '#C7CDD2', dark: '#B3BAC0', contrastText: '#1A1D20' },
+      primary: { main: '#3FA34D', dark: '#348A40', light: '#4FB65E', contrastText: '#FFFFFF' },
       // Dark mode = "ash grey": neutral charcoal surfaces, no blue cast.
+      // Marketplace-style mix: white surfaces, green primary, charcoal accents.
       background:
         mode === 'dark'
           ? { default: '#2E3237', paper: '#383D43' }
-          : { default: '#f2f5fa', paper: '#ffffff' },
+          : { default: '#F4F6F4', paper: '#FFFFFF' },
       text:
         mode === 'dark'
           ? { primary: '#ECEFF2', secondary: '#A0A7B0' }
           : { primary: '#0b1220', secondary: '#4a5670' },
-      divider: mode === 'dark' ? '#4A5058' : 'rgba(11,18,32,0.12)',
+      divider: mode === 'dark' ? '#4A5058' : 'rgba(17,24,17,0.12)',
+      error: { main: '#D93025' },
+      warning: { main: '#F5A623' },
+      success: { main: '#3FA34D' },
       action:
         mode === 'dark'
           ? { hover: 'rgba(255,255,255,0.06)', selected: 'rgba(199,205,210,0.16)' }
@@ -93,9 +97,9 @@ export const buildTheme = (mode: ColorMode): Theme =>
       },
       MuiLinearProgress: {
         styleOverrides: {
-          root: { height: 4, borderRadius: 999, backgroundColor: 'rgba(199,205,210,0.18)', overflow: 'hidden' },
+          root: { height: 4, borderRadius: 999, backgroundColor: 'rgba(63,163,77,0.18)', overflow: 'hidden' },
           bar: {
-            backgroundColor: '#C7CDD2',
+            backgroundColor: '#3FA34D',
             boxShadow: '0 0 10px rgba(76,227,163,0.85), 0 0 22px rgba(76,227,163,0.45)',
           },
         },
