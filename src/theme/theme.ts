@@ -13,13 +13,13 @@ export const buildTheme = (mode: ColorMode): Theme =>
       // Dark mode = "ash grey": neutral charcoal surfaces, no blue cast.
       background:
         mode === 'dark'
-          ? { default: '#23262A', paper: '#2B2F34' }
+          ? { default: '#2E3237', paper: '#383D43' }
           : { default: '#f2f5fa', paper: '#ffffff' },
       text:
         mode === 'dark'
           ? { primary: '#ECEFF2', secondary: '#A0A7B0' }
           : { primary: '#0b1220', secondary: '#4a5670' },
-      divider: mode === 'dark' ? '#3B4046' : 'rgba(11,18,32,0.12)',
+      divider: mode === 'dark' ? '#4A5058' : 'rgba(11,18,32,0.12)',
       action:
         mode === 'dark'
           ? { hover: 'rgba(255,255,255,0.06)', selected: 'rgba(199,205,210,0.16)' }
@@ -72,7 +72,7 @@ export const buildTheme = (mode: ColorMode): Theme =>
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: mode === 'dark' ? '#2B2F34' : '#ffffff',
+            backgroundColor: mode === 'dark' ? '#383D43' : '#ffffff',
             border: `1px solid ${mode === 'dark' ? 'rgba(159,176,201,0.16)' : 'rgba(11,18,32,0.1)'}`,
             boxShadow: 'none',
           },
@@ -82,7 +82,7 @@ export const buildTheme = (mode: ColorMode): Theme =>
         defaultProps: { elevation: 0 },
         styleOverrides: {
           root: {
-            backgroundColor: mode === 'dark' ? '#26292D' : '#ffffff',
+            backgroundColor: mode === 'dark' ? '#33383D' : '#ffffff',
             color: mode === 'dark' ? '#edf2f7' : '#0b1220',
           },
         },

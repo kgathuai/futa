@@ -161,7 +161,7 @@ export function FixturesTab({
                   label="Generating fixtures…"
                   sx={{
                     bgcolor: 'rgba(7,17,31,0.25)',
-                    '& .MuiLinearProgress-bar': { bgcolor: '#07111f', boxShadow: 'none' },
+                    '& .MuiLinearProgress-bar': { bgcolor: 'background.paper', boxShadow: 'none' },
                   }}
                 />
                 <span>Generating…</span>
