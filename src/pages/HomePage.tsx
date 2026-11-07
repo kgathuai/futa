@@ -19,6 +19,7 @@ interface AuthOutletContext {
   loggedInRole: string | null
   loggedInAccountId: string | null
   loggedInTeam: string | null
+  loggedInSports?: string[]
 }
 
 const formatDateTime = (value: string) =>
@@ -37,11 +38,12 @@ const statuses = ['Scheduled', 'Playing', 'Played']
 export function HomePage() {
   useMatchClock()
   const { matches, isLoading, updateMatch, removeMatch } = useAppData()
-  const { loggedInTeam, loggedInAccountId, loggedInUser, loggedInRole } = useOutletContext<AuthOutletContext>()
+  const { loggedInTeam, loggedInAccountId, loggedInUser, loggedInRole, loggedInSports } = useOutletContext<AuthOutletContext>()
   const canModerateMatches = ['admin', 'superadmin'].includes((loggedInRole ?? '').trim().toLowerCase())
   const [selectedSport, setSelectedSport] = useState('All sports')
   const [selectedStatus, setSelectedStatus] = useState('All')
   const [showAnnounceForm, setShowAnnounceForm] = useState(false)
+  const [onlyMySports, setOnlyMySports] = useState(false)
   const [teamLogos, setTeamLogos] = useState<Record<string, string | undefined>>({})
   const [teamOptions, setTeamOptions] = useState<string[]>([])
   const [refereeOptions, setRefereeOptions] = useState<Array<{ id: string; name: string }>>([])
@@ -300,7 +302,11 @@ export function HomePage() {
     }
   }
 
+  const mySports = loggedInSports ?? []
   const filteredMatches = matches.filter((match) => {
+    if (onlyMySports && mySports.length > 0 && !mySports.includes(match.sport)) {
+      return false
+    }
     const sportMatch = selectedSport === 'All sports' || match.sport === selectedSport
     const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
 
@@ -411,6 +417,21 @@ export function HomePage() {
           </Button>
         ))}
       </Stack>
+
+      {mySports.length > 0 && (
+        <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', mb: 0.4 }}>
+          <Chip
+            size="small"
+            label={onlyMySports ? 'My sports only' : 'My sports'}
+            color={onlyMySports ? 'primary' : 'default'}
+            variant={onlyMySports ? 'filled' : 'outlined'}
+            onClick={() => setOnlyMySports((prev) => !prev)}
+          />
+          <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>
+            {mySports.join(' · ')}
+          </Typography>
+        </Stack>
+      )}
 
       <Stack direction="row" spacing={0.9} aria-label="Match filters" sx={{ flexWrap: 'wrap' }}>
         {statuses.map((status) => (

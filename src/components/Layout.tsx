@@ -87,6 +87,7 @@ interface AuthOutletContext {
   loggedInRole: string | null
   loggedInAccountId: string | null
   loggedInTeam: string | null
+  loggedInSports?: string[]
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -2112,7 +2113,7 @@ export function Layout() {
 
       <Container maxWidth="lg" sx={{ py: 4, pb: { xs: 12, sm: 4 }, px: { xs: 2, md: 3 }, flex: 1, width: '100%' }}>
         <Outlet
-          context={{ loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } satisfies AuthOutletContext}
+          context={{ loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam, loggedInSports: profileSports } satisfies AuthOutletContext}
         />
       </Container>
 
