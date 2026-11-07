@@ -15,12 +15,13 @@ interface AuthOutletContext {
   loggedInUser: string | null
   loggedInRole: string | null
   loggedInTeam: string | null
+  loggedInSports?: string[]
 }
 
 const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'Fifa']
 
 export function TournamentsPage() {
-  const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()
+  const { loggedInUser, loggedInRole, loggedInTeam, loggedInSports } = useOutletContext<AuthOutletContext>()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -43,6 +44,7 @@ export function TournamentsPage() {
   const [maxTeams, setMaxTeams] = useState<number | ''>(8)
   const [entryFee, setEntryFee] = useState<number | ''>(0)
   const [createTeams, setCreateTeams] = useState<string[]>([])
+  const [onlyMySports, setOnlyMySports] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editName, setEditName] = useState('')
@@ -96,9 +98,16 @@ export function TournamentsPage() {
       })),
     [tournaments, statusClock],
   )
+  const mySports = loggedInSports ?? []
+
   const filteredTournaments = useMemo(
-    () => currentTournaments.filter((t) => selectedSport === 'All sports' || t.sport === selectedSport),
-    [currentTournaments, selectedSport],
+    () =>
+      currentTournaments.filter(
+        (t) =>
+          (selectedSport === 'All sports' || t.sport === selectedSport) &&
+          (!onlyMySports || mySports.length === 0 || mySports.includes(t.sport)),
+      ),
+    [currentTournaments, selectedSport, onlyMySports, mySports],
   )
   const runningTournaments = useMemo(
     () => filteredTournaments.filter((tournament) => tournament.status === 'ongoing'),
@@ -924,6 +933,19 @@ export function TournamentsPage() {
           />
         ))}
       </Stack>
+
+      {mySports.length > 0 && (
+        <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
+          <Chip
+            size="small"
+            label={onlyMySports ? 'My sports only' : 'My sports'}
+            color={onlyMySports ? 'primary' : 'default'}
+            variant={onlyMySports ? 'filled' : 'outlined'}
+            onClick={() => setOnlyMySports((prev) => !prev)}
+          />
+          <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>{mySports.join(' · ')}</Typography>
+        </Stack>
+      )}
 
       {isLoadingTournaments && <CardSkeleton count={3} />}
       {!isLoadingTournaments && filteredTournaments.length === 0 && (

@@ -21,11 +21,12 @@ interface AuthOutletContext {
   loggedInRole: string | null
   loggedInAccountId: string | null
   loggedInTeam: string | null
+  loggedInSports?: string[]
 }
 
 export function FriendliesPage() {
   const { friendlies } = useAppData()
-  const { loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } = useOutletContext<AuthOutletContext>()
+  const { loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam, loggedInSports } = useOutletContext<AuthOutletContext>()
 
   const [teamName, setTeamName] = useState('')
   const [contact, setContact] = useState('')
@@ -34,6 +35,7 @@ export function FriendliesPage() {
   const [location, setLocation] = useState('')
   const [note, setNote] = useState('')
   const [intraSquad, setIntraSquad] = useState(false)
+  const [onlyMySports, setOnlyMySports] = useState(false)
   const [friendlySport, setFriendlySport] = useState('Football')
   const [intraDuration, setIntraDuration] = useState(90)
   const [referee, setReferee] = useState('')
@@ -128,12 +130,17 @@ export function FriendliesPage() {
     }
   }
 
-  const visibleFriendlies = loggedInAccountId
+  const mySports = loggedInSports ?? []
+  const matchesMySports = (sport?: string) =>
+    !onlyMySports || mySports.length === 0 || (sport ? mySports.includes(sport) : true)
+
+  const visibleFriendlies = (loggedInAccountId
     ? friendlies.filter(
       (friendly) =>
         friendly.requesterAccountId === loggedInAccountId || friendly.recipientAccountId === loggedInAccountId,
     )
     : friendlies.filter((friendly) => friendly.status === 'pending')
+  ).filter((friendly) => matchesMySports(friendly.sport))
 
   const filteredFriendlies = useMemo(() => {
     if (statusFilter === 'all') {
@@ -469,7 +476,16 @@ export function FriendliesPage() {
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            {mySports.length > 0 && (
+              <Chip
+                size="small"
+                label={onlyMySports ? 'My sports only' : 'My sports'}
+                color={onlyMySports ? 'primary' : 'default'}
+                variant={onlyMySports ? 'filled' : 'outlined'}
+                onClick={() => setOnlyMySports((prev) => !prev)}
+              />
+            )}
             <TextField
               select
               size="small"
