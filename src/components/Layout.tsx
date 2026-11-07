@@ -190,6 +190,7 @@ export function Layout() {
   const [isSavingSports, setIsSavingSports] = useState(false)
   const [sportsMenuAnchor, setSportsMenuAnchor] = useState<HTMLElement | null>(null)
   const [activeSport, setActiveSport] = useState<string>('')
+  const [sportStats, setSportStats] = useState<{ played: number; wins: number; draws: number; losses: number; next: { opponent: string; when: string; venue: string } | null } | null>(null)
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -207,6 +208,26 @@ export function Layout() {
       setActiveSport(profileSports[0])
     }
   }, [profileSports, activeSport])
+
+  useEffect(() => {
+    const token = api.getToken()
+    if (!activeSport || !isIndividualSport(activeSport) || !token) {
+      setSportStats(null)
+      return
+    }
+    let active = true
+    void api
+      .getSportStats(activeSport, token)
+      .then((stats) => {
+        if (active) {
+          setSportStats(stats)
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [activeSport, isAuthOpen])
 
   const sportMatches = useMemo(
     () => (activeSport ? matches.filter((match) => match.sport === activeSport) : matches),
@@ -1376,6 +1397,34 @@ export function Layout() {
                     />
                   ))}
                 </Stack>
+              )}
+
+              {sportStats && (
+                <Card variant="outlined" sx={{ mb: 1.6 }}>
+                  <CardContent sx={{ p: 1.4, '&:last-child': { pb: 1.4 } }}>
+                    <Typography sx={{ fontSize: '0.6rem', letterSpacing: '0.1em', color: 'text.secondary', fontWeight: 800, mb: 0.8 }}>
+                      {activeSport.toUpperCase()} RECORD
+                    </Typography>
+                    <Stack direction="row" spacing={1.6} sx={{ mb: sportStats.next ? 1 : 0 }}>
+                      {[
+                        { label: 'P', value: sportStats.played },
+                        { label: 'W', value: sportStats.wins },
+                        { label: 'D', value: sportStats.draws },
+                        { label: 'L', value: sportStats.losses },
+                      ].map((item) => (
+                        <Box key={item.label}>
+                          <Typography sx={{ fontWeight: 800, fontSize: '0.92rem', lineHeight: 1 }}>{item.value}</Typography>
+                          <Typography sx={{ fontSize: '0.52rem', color: 'text.secondary', fontWeight: 800 }}>{item.label}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                    {sportStats.next && (
+                      <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                        Next: vs {sportStats.next.opponent} · {sportStats.next.when} · {sportStats.next.venue}
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
               )}
 
               <Menu

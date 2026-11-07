@@ -244,6 +244,11 @@ export const api = {
     }),
   getFriendlies: () => request<FriendlyRequest[]>('/api/friendlies'),
   getReferees: () => request<{ referees: RefereeSummary[] }>('/api/referees'),
+  getSportStats: (sport: string, token: string) =>
+    request<{ played: number; wins: number; draws: number; losses: number; next: { opponent: string; when: string; venue: string } | null }>(
+      `/api/account/sport-stats?sport=${encodeURIComponent(sport)}`,
+      { token },
+    ),
   getPlayersBySport: (sport: string) =>
     request<{ players: Array<{ id: string; name: string; sport: string }> }>(
       `/api/players?sport=${encodeURIComponent(sport)}`,

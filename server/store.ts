@@ -1893,6 +1893,43 @@ export const store = {
 
     return match
   },
+  getIndividualSportStats: async (accountId: string, sport: string) => {
+    if (!mongoose.isValidObjectId(accountId) || !sport.trim()) {
+      return { played: 0, wins: 0, draws: 0, losses: 0, next: null }
+    }
+
+    const rows = await FriendlyRequestModel.find({
+      sport,
+      status: 'accepted',
+      $or: [{ requesterAccountId: accountId }, { recipientAccountId: accountId }],
+    })
+      .sort({ preferredDate: 1 })
+      .lean<FriendlyRequestRecord[]>()
+
+    let played = 0
+    let wins = 0
+    let draws = 0
+    let losses = 0
+    let next: { opponent: string; when: string; venue: string } | null = null
+    const today = new Date().toISOString().slice(0, 10)
+
+    for (const row of rows) {
+      const isHome = row.requesterAccountId?.toString() === accountId
+      const opponent = isHome ? row.recipientTeam : row.requesterTeam
+      if (row.report) {
+        played += 1
+        const mine = isHome ? row.report.homeScore : row.report.awayScore
+        const theirs = isHome ? row.report.awayScore : row.report.homeScore
+        if (mine > theirs) wins += 1
+        else if (mine === theirs) draws += 1
+        else losses += 1
+      } else if (!next && row.preferredDate >= today) {
+        next = { opponent, when: `${row.preferredDate} ${row.preferredTime}`, venue: row.location }
+      }
+    }
+
+    return { played, wins, draws, losses, next }
+  },
   getPlayersBySport: async (sport: string) => {
     const wanted = sport?.trim() ?? ''
     const sportFilter = wanted

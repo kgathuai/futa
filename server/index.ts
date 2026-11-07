@@ -1016,6 +1016,17 @@ app.get('/api/friendlies', async (_req, res) => {
   res.json(friendlies)
 })
 
+app.get('/api/account/sport-stats', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized.' })
+    return
+  }
+
+  const sport = String(req.query.sport ?? '').trim()
+  res.json(await store.getIndividualSportStats(user.id, sport))
+})
+
 app.get('/api/players', async (req, res) => {
   const sport = String(req.query.sport ?? '').trim()
   const players = await store.getPlayersBySport(sport)
