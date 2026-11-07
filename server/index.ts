@@ -1543,8 +1543,9 @@ app.post('/api/tournaments/:tournamentId/generate-fixtures', async (req, res) =>
   res.status(201).json(created.map((m) => sanitizeMatchForViewer(m as MatchWithInteractions, user.id)))
 })
 
-app.get('/api/teams', async (_req, res) => {
-  const teams = await store.getTeams()
+app.get('/api/teams', async (req, res) => {
+  const sport = String(req.query.sport ?? '').trim()
+  const teams = await store.getTeams(sport)
   res.json({ teams })
 })
 

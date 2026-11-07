@@ -95,6 +95,7 @@ export function TeamDashboardPage() {
   const [friendlyLocation, setFriendlyLocation] = useState('')
   const [friendlyReferee, setFriendlyReferee] = useState('')
   const [friendlySport, setFriendlySport] = useState('Football')
+  const [sportTeamNames, setSportTeamNames] = useState<string[]>([])
   const [opponentType, setOpponentType] = useState<'team' | 'player'>('team')
   const [poolPlayers, setPoolPlayers] = useState<Array<{ id: string; name: string }>>([])
   const [poolOpponent, setPoolOpponent] = useState('')
@@ -349,6 +350,21 @@ export function TeamDashboardPage() {
       active = false
     }
   }, [loggedInTeam])
+
+  useEffect(() => {
+    let active = true
+    void api
+      .getTeams(friendlySport)
+      .then((response) => {
+        if (active) {
+          setSportTeamNames(response.teams.map((team) => team.name))
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [friendlySport])
 
   useEffect(() => {
     if (!isIndividualSport(friendlySport)) {
@@ -1815,9 +1831,7 @@ export function TeamDashboardPage() {
                       {opponentType === 'team' && (
                         <Autocomplete
                           size="small"
-                          options={teamOptions
-                            .filter((option) => option.name !== loggedInTeam)
-                            .map((option) => option.name)
+                          options={sportTeamNames
                             .filter((name) => name !== loggedInTeam)}
                           value={friendlyTeamName || null}
                           onChange={(_event, value) => setFriendlyTeamName(value ?? '')}
@@ -1826,7 +1840,7 @@ export function TeamDashboardPage() {
                               {...params}
                               label="Opponent team"
                               placeholder="Search registered teams…"
-                              helperText="Only teams registered in Futa appear here."
+                              helperText={`Only teams playing ${friendlySport} appear here.`}
                               required
                             />
                           )}

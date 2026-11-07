@@ -161,7 +161,8 @@ export const api = {
   getTournaments: () => request<TournamentItem[]>('/api/tournaments'),
   getTeam: (token: string | null = localStorage.getItem(AUTH_TOKEN_KEY)) =>
     request<TeamProfile | null>('/api/team', { token }),
-  getTeams: () => request<{ teams: TeamSummary[] }>('/api/teams'),
+  getTeams: (sport?: string) =>
+    request<{ teams: TeamSummary[] }>(`/api/teams${sport ? `?sport=${encodeURIComponent(sport)}` : ''}`),
   getGrounds: () => request<{ grounds: string[] }>('/api/grounds'),
   getAuditLog: (token: string) =>
     request<Array<{ id: string; actorName: string; action: string; targetType: string; targetId: string; detail: string; createdAt: string }>>(

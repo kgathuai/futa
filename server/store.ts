@@ -1171,9 +1171,19 @@ export const store = {
 
     return TeamModel.findOne().sort({ updatedAt: -1 }).lean()
   },
-  getTeams: async () => {
+  getTeams: async (sport?: string) => {
+    const wantedSport = sport?.trim().toLowerCase() ?? ''
+    const sportMatch = wantedSport
+      ? {
+          $or: [
+            { sport: new RegExp(`^${escapeRegExp(sport!.trim())}$`, 'i') },
+            { sports: new RegExp(`^${escapeRegExp(sport!.trim())}$`, 'i') },
+          ],
+        }
+      : {}
+
     const [accountTeams, savedTeams] = await Promise.all([
-      AccountModel.find({}, { team: 1, county: 1, homeGround: 1, _id: 0 }).lean<
+      AccountModel.find(sportMatch, { team: 1, county: 1, homeGround: 1, _id: 0 }).lean<
         Array<{ team?: string; county?: string; homeGround?: string }>
       >(),
       TeamModel.find({}, { name: 1, logoUrl: 1, manager: 1, county: 1, homeGround: 1, level: 1, bio: 1, updatedAt: 1, _id: 0 })
