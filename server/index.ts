@@ -1015,6 +1015,12 @@ app.get('/api/friendlies', async (_req, res) => {
   res.json(friendlies)
 })
 
+app.get('/api/players', async (req, res) => {
+  const sport = String(req.query.sport ?? '').trim()
+  const players = await store.getPlayersBySport(sport)
+  res.json({ players })
+})
+
 app.get('/api/referees', async (_req, res) => {
   const referees = await store.getReferees()
   res.json({ referees })
@@ -1243,6 +1249,15 @@ app.post('/api/friendlies', async (req, res) => {
       error: 'Use a Kenyan phone number (07XXXXXXXX / 01XXXXXXXX / +2547XXXXXXXX) or an email address.',
     })
     return
+  }
+
+  const opponentType = (req.body as { opponentType?: string }).opponentType === 'player' ? 'player' : 'team'
+  if (opponentType === 'team') {
+    const registeredTeamNames = await store.getRegisteredTeamNames()
+    if (!registeredTeamNames.includes(body.teamName)) {
+      res.status(400).json({ error: `${body.teamName} is not a registered team.` })
+      return
+    }
   }
 
   try {

@@ -243,6 +243,10 @@ export const api = {
     }),
   getFriendlies: () => request<FriendlyRequest[]>('/api/friendlies'),
   getReferees: () => request<{ referees: RefereeSummary[] }>('/api/referees'),
+  getPlayersBySport: (sport: string) =>
+    request<{ players: Array<{ id: string; name: string; sport: string }> }>(
+      `/api/players?sport=${encodeURIComponent(sport)}`,
+    ),
   getFollowedTeams: (token: string) => request<{ teams: string[] }>('/api/follows', { token }),
   followTeam: (team: string, token: string) =>
     request<{ team: string }>('/api/follows', { method: 'POST', body: { team }, token }),
@@ -426,6 +430,7 @@ export const api = {
       note: string
       sport?: string
       referee?: string
+      opponentType?: 'team' | 'player'
     },
     token?: string | null,
   ) =>

@@ -94,6 +94,9 @@ export function TeamDashboardPage() {
   const [friendlyLocation, setFriendlyLocation] = useState('')
   const [friendlyReferee, setFriendlyReferee] = useState('')
   const [friendlySport, setFriendlySport] = useState('Football')
+  const [opponentType, setOpponentType] = useState<'team' | 'player'>('team')
+  const [poolPlayers, setPoolPlayers] = useState<Array<{ id: string; name: string }>>([])
+  const [poolOpponent, setPoolOpponent] = useState('')
   const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
   const [squad, setSquad] = useState<Player[]>([])
   const [eventDrafts, setEventDrafts] = useState<Record<string, { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; minute: string }>>({})
@@ -347,6 +350,25 @@ export function TeamDashboardPage() {
   }, [loggedInTeam])
 
   useEffect(() => {
+    if (friendlySport !== 'Pool Table') {
+      setOpponentType('team')
+      return
+    }
+    let active = true
+    void api
+      .getPlayersBySport('Pool Table')
+      .then((response) => {
+        if (active) {
+          setPoolPlayers(response.players)
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [friendlySport])
+
+  useEffect(() => {
     const loadReferees = async () => {
       try {
         const response = await api.getReferees()
@@ -461,13 +483,14 @@ export function TeamDashboardPage() {
     try {
       await api.createFriendlyRequest(
         {
-          teamName: friendlyTeamName,
+          teamName: friendlySport === 'Pool Table' && opponentType === 'player' ? poolOpponent : friendlyTeamName,
           contact: contactCheck.value,
           preferredDate: friendlyPreferredDate,
           preferredTime: friendlyPreferredTime,
           location: friendlyLocation,
           note: friendlyNote,
           sport: friendlySport,
+          opponentType: friendlySport === 'Pool Table' ? opponentType : 'team',
           referee: friendlyReferee,
         },
         token,
@@ -1757,9 +1780,10 @@ export function TeamDashboardPage() {
                         {...params}
                         label="Opponent team"
                         placeholder="Search teams…"
-                        required
+                        required={friendlySport !== 'Pool Table' || opponentType === 'team'}
                       />
                     )}
+                    sx={{ display: friendlySport === 'Pool Table' && opponentType === 'player' ? 'none' : undefined }}
                   />
                   <TextField
                     select
@@ -1774,6 +1798,40 @@ export function TeamDashboardPage() {
                       </MenuItem>
                     ))}
                   </TextField>
+                  {friendlySport === 'Pool Table' && (
+                    <>
+                      <TextField
+                        select
+                        label="Opponent type"
+                        value={opponentType}
+                        onChange={(event) => setOpponentType(event.target.value as 'team' | 'player')}
+                        helperText="Play a club, or an individual pool player."
+                      >
+                        <MenuItem value="team">Team</MenuItem>
+                        <MenuItem value="player">Individual player</MenuItem>
+                      </TextField>
+
+                      {opponentType === 'player' && (
+                        <Autocomplete
+                          size="small"
+                          options={poolPlayers.map((player) => player.name)}
+                          value={poolOpponent || null}
+                          onChange={(_event, value) => setPoolOpponent(value ?? '')}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Pool player"
+                              helperText={
+                                poolPlayers.length > 0
+                                  ? 'Registered Pool Table players only.'
+                                  : 'No pool players registered yet.'
+                              }
+                            />
+                          )}
+                        />
+                      )}
+                    </>
+                  )}
                   <TextField
                     label="Contact"
                     value={friendlyContact}
@@ -1801,6 +1859,15 @@ export function TeamDashboardPage() {
                     required
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
+                  {friendlySport === 'Pool Table' ? (
+                    <TextField
+                      label="Venue"
+                      value={friendlyLocation}
+                      onChange={(event) => setFriendlyLocation(event.target.value)}
+                      placeholder="e.g. Cue Lounge, Westlands"
+                      required
+                    />
+                  ) : (
                   <TextField
                     select
                     label="Ground"
@@ -1814,6 +1881,7 @@ export function TeamDashboardPage() {
                       </MenuItem>
                     ))}
                   </TextField>
+                  )}
                   <TextField
                     select
                     label="Referee"

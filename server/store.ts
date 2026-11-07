@@ -354,6 +354,7 @@ const friendlyRequestSchema = new Schema(
     referee: { type: String, required: false },
     sport: { type: String, required: false, default: 'Football' },
     refereeAccountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
+    opponentType: { type: String, required: false, default: 'team' },
     refereeStatus: { type: String, required: false, default: 'pending' },
     refereeRespondedAt: { type: String, required: false },
     report: {
@@ -1874,6 +1875,14 @@ export const store = {
 
     return match
   },
+  getPlayersBySport: async (sport: string) => {
+    const filter = sport?.trim() ? { sport: sport.trim() } : {}
+    const accounts = await AccountModel.find({ role: { $in: ['player', 'fan'] }, ...filter })
+      .select({ name: 1, sport: 1 })
+      .sort({ name: 1 })
+      .lean<Array<{ _id: mongoose.Types.ObjectId; name: string; sport: string }>>()
+    return accounts.map((account) => ({ id: account._id.toString(), name: account.name, sport: account.sport }))
+  },
   getReferees: async () => {
     const referees = await AccountModel.find({ role: 'referee' })
       .select({ name: 1 })
@@ -1902,6 +1911,12 @@ export const store = {
     }
 
     return MatchModel.findOneAndUpdate({ id: matchId }, { $set: update }, { returnDocument: 'after' }).lean()
+  },
+  getAccountIdByName: async (name: string) => {
+    const account = await AccountModel.findOne({
+      name: new RegExp(`^${escapeRegExp(name.trim())}$`, 'i'),
+    }).lean<AccountDoc | null>()
+    return account ? account._id.toString() : null
   },
   getAccountIdForTeam: async (teamName: string) => {
     const account = await AccountModel.findOne({
@@ -2389,9 +2404,14 @@ export const store = {
     }
 
     const recipientTeamName = payload.teamName.trim()
-    const recipientAccountId = await findTeamOwnerAccountId(recipientTeamName)
+    let recipientAccountId = await findTeamOwnerAccountId(recipientTeamName)
+    if (!recipientAccountId && payload.teamName) {
+      // Pool-style individual opponent: the "team" field carries the player's name,
+      // and the opponent is a registered player account rather than a club.
+      recipientAccountId = await store.getAccountIdByName(recipientTeamName)
+    }
     if (!recipientAccountId) {
-      throw new Error('That team does not have an owner yet.')
+      throw new Error('That opponent does not have an account yet.')
     }
 
     const refereeName = payload.referee?.trim() || ''
