@@ -826,8 +826,8 @@ export function Layout() {
           <Toolbar disableGutters sx={{ height: { xs: 48, sm: 52 }, minHeight: { xs: 48, sm: 52 }, gap: { xs: 0.5, sm: 2 }, overflow: 'visible' }}>
             <Box
               component="img"
-              src="/kabum.png"
-              alt="Futa logo"
+              src={mode === 'light' ? '/kambumbu-logo-light.svg' : '/kambumbu-logo-dark.svg'}
+              alt="Kambumbu logo"
               sx={{
                 height: { xs: 82, sm: 130, md: 170 },
                 maxWidth: { xs: 92, sm: 145, md: 'none' },
@@ -835,8 +835,6 @@ export function Layout() {
                 display: 'block',
                 flexShrink: 1,
                 objectFit: 'contain',
-                // The logo art is white; darken it so it stays readable in light mode.
-                filter: mode === 'light' ? 'brightness(0.25)' : 'none',
               }}
               style={{ pointerEvents: 'none' }}
             />
