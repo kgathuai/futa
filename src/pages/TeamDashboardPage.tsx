@@ -1781,10 +1781,10 @@ export function TeamDashboardPage() {
                         {...params}
                         label="Opponent team"
                         placeholder="Search teams…"
-                        required={!isIndividualSport(friendlySport) || opponentType === 'team'}
+                        required={!isIndividualSport(friendlySport)}
                       />
                     )}
-                    sx={{ display: isIndividualSport(friendlySport) && opponentType === 'player' ? 'none' : undefined }}
+                    sx={{ display: isIndividualSport(friendlySport) ? 'none' : undefined }}
                   />
                   <TextField
                     select
@@ -1811,6 +1811,27 @@ export function TeamDashboardPage() {
                         <MenuItem value="team">Team</MenuItem>
                         <MenuItem value="player">Individual player</MenuItem>
                       </TextField>
+
+                      {opponentType === 'team' && (
+                        <Autocomplete
+                          size="small"
+                          options={teamOptions
+                            .filter((option) => option.name !== loggedInTeam)
+                            .map((option) => option.name)
+                            .filter((name) => name !== loggedInTeam)}
+                          value={friendlyTeamName || null}
+                          onChange={(_event, value) => setFriendlyTeamName(value ?? '')}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Opponent team"
+                              placeholder="Search registered teams…"
+                              helperText="Only teams registered in Futa appear here."
+                              required
+                            />
+                          )}
+                        />
+                      )}
 
                       {opponentType === 'player' && (
                         <Autocomplete
