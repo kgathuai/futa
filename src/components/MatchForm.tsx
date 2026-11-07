@@ -219,7 +219,7 @@ export function MatchForm({
           required
           fullWidth
         >
-          {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess'].map((name) => (
+          {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'FIFA'].map((name) => (
             <MenuItem key={name} value={name}>
               {name}
             </MenuItem>

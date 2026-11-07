@@ -17,7 +17,7 @@ interface AuthOutletContext {
   loggedInTeam: string | null
 }
 
-const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess']
+const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'FIFA']
 
 export function TournamentsPage() {
   const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()

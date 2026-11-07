@@ -110,6 +110,7 @@ export interface MatchAnnouncement {
     | 'Darts'
     | 'Golf'
     | 'Chess'
+    | 'FIFA'
   createdByTeam?: string
   createdByAccountId?: string
   likedByMe?: boolean

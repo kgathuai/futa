@@ -42,7 +42,7 @@ interface GoalDraft {
   assist: string
 }
 
-const sports: MatchAnnouncement['sport'][] = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess']
+const sports: MatchAnnouncement['sport'][] = ['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'FIFA']
 const bookingsPageSize = 5
 
 const formatPeriod = (startDate: string, endDate: string) => {
@@ -1793,7 +1793,7 @@ export function TeamDashboardPage() {
                     onChange={(event) => setFriendlySport(event.target.value)}
                     helperText="The friendly will be played in this sport."
                   >
-                    {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess'].map((name) => (
+                    {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'FIFA'].map((name) => (
                       <MenuItem key={name} value={name}>
                         {name}
                       </MenuItem>
@@ -1860,7 +1860,19 @@ export function TeamDashboardPage() {
                     required
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  {isIndividualSport(friendlySport) ? (
+                  {friendlySport === 'FIFA' ? (
+                    <TextField
+                      select
+                      label="Venue"
+                      value={friendlyLocation}
+                      onChange={(event) => setFriendlyLocation(event.target.value)}
+                      helperText="FIFA matches are played online or in person."
+                      required
+                    >
+                      <MenuItem value="Online">Online</MenuItem>
+                      <MenuItem value="Offline">Offline</MenuItem>
+                    </TextField>
+                  ) : isIndividualSport(friendlySport) ? (
                     <TextField
                       label="Venue"
                       value={friendlyLocation}

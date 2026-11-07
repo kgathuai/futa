@@ -342,7 +342,7 @@ export function FriendliesPage() {
                 onChange={(event) => setFriendlySport(event.target.value)}
                 helperText={intraSquad ? undefined : 'The friendly will be played in this sport.'}
               >
-                {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess'].map((name) => (
+                {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'FIFA'].map((name) => (
                   <MenuItem key={name} value={name}>
                     {name}
                   </MenuItem>
