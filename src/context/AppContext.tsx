@@ -53,6 +53,7 @@ interface NewTeamProfile {
 
 interface AppContextValue {
   team: TeamProfile
+  isLoading: boolean
   matches: MatchAnnouncement[]
   friendlies: FriendlyRequest[]
   comments: CommunityComment[]
@@ -76,6 +77,7 @@ const AppContext = createContext<AppContextValue | undefined>(undefined)
 const makeId = () => `${Date.now()}-${Math.floor(Math.random() * 10_000)}`
 
 export function AppProvider({ children }: PropsWithChildren) {
+  const [isLoading, setIsLoading] = useState(true)
   const [matches, setMatches] = useState<MatchAnnouncement[]>([])
   const [team, setTeam] = useState<TeamProfile>({
     name: '',
@@ -107,6 +109,8 @@ export function AppProvider({ children }: PropsWithChildren) {
         }
       } catch {
         // Keep seeded local state when backend is unavailable.
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -228,6 +232,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const value = useMemo(
     () => ({
       team,
+      isLoading,
       matches,
       friendlies,
       comments,
@@ -247,6 +252,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       comments,
       createTeam,
       friendlies,
+      isLoading,
       matches,
       refreshTeam,
       removeMatch,

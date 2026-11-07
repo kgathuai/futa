@@ -12,6 +12,7 @@ import { useAutoHide } from '../lib/useAutoHide'
 import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
 import { MatchForm } from '../components/MatchForm'
+import { CardSkeleton } from '../components/LoadingSkeleton'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -35,7 +36,7 @@ const statuses = ['Scheduled', 'Playing', 'Played']
 
 export function HomePage() {
   useMatchClock()
-  const { matches, updateMatch, removeMatch } = useAppData()
+  const { matches, isLoading, updateMatch, removeMatch } = useAppData()
   const { loggedInTeam, loggedInAccountId, loggedInUser, loggedInRole } = useOutletContext<AuthOutletContext>()
   const canModerateMatches = ['admin', 'superadmin'].includes((loggedInRole ?? '').trim().toLowerCase())
   const [selectedSport, setSelectedSport] = useState('All sports')
@@ -510,8 +511,10 @@ export function HomePage() {
         </DialogActions>
       </Dialog>
 
+      {isLoading && <CardSkeleton count={3} />}
+
       <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
-        {filteredMatches.map((match) => {
+        {!isLoading && filteredMatches.map((match) => {
           const runtimeStatus = getMatchRuntimeStatus(match.kickoff, match.durationMinutes, match.homeScore, match.awayScore)
           const firstCommentText = match.comments.find((entry) => entry.text.trim().length > 0)?.text
           return (
