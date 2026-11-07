@@ -1020,6 +1020,24 @@ export function Layout() {
         </Container>
       </AppBar>
 
+      <Box
+        sx={{
+          display: { xs: 'flex', sm: 'none' },
+          alignItems: 'center',
+          px: 2,
+          pt: 1.2,
+          pb: 0.4,
+          bgcolor: 'background.default',
+        }}
+      >
+        <Box
+          component="img"
+          src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
+          alt="Kambumbu"
+          sx={{ height: 24, maxWidth: 150, width: 'auto', objectFit: 'contain' }}
+        />
+      </Box>
+
       {location.pathname.startsWith('/team-dashboard') && canAccessDashboard && (
         <Box
           component="nav"

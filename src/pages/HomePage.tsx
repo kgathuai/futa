@@ -382,11 +382,13 @@ export function HomePage() {
           width: '100%',
           position: 'relative',
           zIndex: 1,
-          display: { xs: 'grid', sm: 'flex' },
-          gridTemplateColumns: { xs: 'repeat(4, minmax(0, 1fr))' },
+          display: 'flex',
           columnGap: { xs: 0.7, sm: 0.9 },
-          rowGap: { xs: 1.6, sm: 0.9 },
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+          pb: 0.4,
         }}
       >
         {sports.map((sport) => (
