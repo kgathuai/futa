@@ -22,7 +22,7 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(themeStorageKey, mode)
       document.documentElement.dataset.theme = mode
-      document.body.style.backgroundColor = mode === 'dark' ? '#17191C' : '#f2f5fa'
+      document.body.style.backgroundColor = mode === 'dark' ? '#23262A' : '#f2f5fa'
     }
   }, [mode])
 
