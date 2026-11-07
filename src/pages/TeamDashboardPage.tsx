@@ -93,6 +93,7 @@ export function TeamDashboardPage() {
   const [friendlyPreferredTime, setFriendlyPreferredTime] = useState('')
   const [friendlyLocation, setFriendlyLocation] = useState('')
   const [friendlyReferee, setFriendlyReferee] = useState('')
+  const [friendlySport, setFriendlySport] = useState('Football')
   const [refereeOptions, setRefereeOptions] = useState<{ id: string; name: string }[]>([])
   const [squad, setSquad] = useState<Player[]>([])
   const [eventDrafts, setEventDrafts] = useState<Record<string, { type: 'goal' | 'yellow' | 'red' | 'sub'; player: string; minute: string }>>({})
@@ -466,6 +467,7 @@ export function TeamDashboardPage() {
           preferredTime: friendlyPreferredTime,
           location: friendlyLocation,
           note: friendlyNote,
+          sport: friendlySport,
           referee: friendlyReferee,
         },
         token,
@@ -1759,6 +1761,19 @@ export function TeamDashboardPage() {
                       />
                     )}
                   />
+                  <TextField
+                    select
+                    label="Sport"
+                    value={friendlySport}
+                    onChange={(event) => setFriendlySport(event.target.value)}
+                    helperText="The friendly will be played in this sport."
+                  >
+                    {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table'].map((name) => (
+                      <MenuItem key={name} value={name}>
+                        {name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <TextField
                     label="Contact"
                     value={friendlyContact}
