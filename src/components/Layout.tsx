@@ -826,7 +826,7 @@ export function Layout() {
           <Toolbar disableGutters sx={{ height: { xs: 48, sm: 52 }, minHeight: { xs: 48, sm: 52 }, gap: { xs: 0.5, sm: 2 }, overflow: 'visible' }}>
             <Box
               component="img"
-              src="/kambumbu.png"
+              src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
               alt="Futa logo"
               sx={{
                 height: { xs: 82, sm: 130, md: 170 },
