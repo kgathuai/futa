@@ -355,10 +355,13 @@ export function Layout() {
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const isReferee = registerRole === 'Referee'
+    // Pool is played by individuals, so no team details are collected.
+    const isIndividualSport = registerSport === 'Pool Table'
+    const needsTeam = !isReferee && !isIndividualSport
     const safeName = registerName.trim()
-    const safeTeam = isReferee ? '' : registerTeam.trim()
-    const safeCounty = isReferee ? '' : registerCounty.trim()
-    const safeHomeGround = isReferee ? '' : registerHomeGround.trim()
+    const safeTeam = needsTeam ? registerTeam.trim() : ''
+    const safeCounty = needsTeam ? registerCounty.trim() : ''
+    const safeHomeGround = needsTeam ? registerHomeGround.trim() : ''
     const safeRole = registerRole.trim()
     const safeSport = registerSport.trim()
     const safeEmail = registerEmail.trim().toLowerCase()
@@ -1813,7 +1816,7 @@ export function Layout() {
                 placeholder="Your name"
                 required
               />
-              {registerRole !== 'Referee' && (
+              {registerRole !== 'Referee' && registerSport !== 'Pool Table' && (
                 <>
                   <TextField
                     label="Team (optional)"
