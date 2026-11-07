@@ -424,6 +424,7 @@ export const api = {
       preferredTime: string
       location: string
       note: string
+      sport?: string
       referee?: string
     },
     token?: string | null,

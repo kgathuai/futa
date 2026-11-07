@@ -1205,6 +1205,7 @@ app.post('/api/friendlies', async (req, res) => {
     location?: string
     note?: string
     referee?: string
+    sport?: string
   }
 
   if (
@@ -1252,6 +1253,7 @@ app.post('/api/friendlies', async (req, res) => {
       preferredTime: body.preferredTime,
       location: body.location,
       note: body.note,
+      sport: body.sport,
       referee: body.referee,
     }, user.id)
 

@@ -55,6 +55,7 @@ export interface FriendlyRequestRecord {
   preferredTime: string
   location: string
   note: string
+  sport?: string
   referee?: string
   refereeAccountId?: string
   refereeStatus?: 'pending' | 'accepted' | 'declined'
@@ -351,6 +352,7 @@ const friendlyRequestSchema = new Schema(
     location: { type: String, required: true },
     note: { type: String, required: true },
     referee: { type: String, required: false },
+    sport: { type: String, required: false, default: 'Football' },
     refereeAccountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
     refereeStatus: { type: String, required: false, default: 'pending' },
     refereeRespondedAt: { type: String, required: false },
@@ -2376,6 +2378,7 @@ export const store = {
     preferredTime: string
     location: string
     note: string
+    sport?: string
     referee?: string
     },
     senderAccountId: string,
@@ -2411,6 +2414,7 @@ export const store = {
       preferredTime: payload.preferredTime,
       location: payload.location,
       note: payload.note,
+      sport: payload.sport?.trim() || 'Football',
       referee: refereeName || undefined,
       refereeAccountId: refereeAccount?._id,
       status: 'pending',

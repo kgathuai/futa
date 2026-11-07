@@ -128,6 +128,7 @@ export interface FriendlyRequest {
   preferredTime: string
   location: string
   note: string
+  sport?: string
   referee?: string
   refereeAccountId?: string
   refereeStatus?: 'pending' | 'accepted' | 'declined'

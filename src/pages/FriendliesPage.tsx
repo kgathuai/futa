@@ -13,6 +13,7 @@ import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import { Link, useOutletContext } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
+import type { MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 
 interface AuthOutletContext {
@@ -33,6 +34,7 @@ export function FriendliesPage() {
   const [location, setLocation] = useState('')
   const [note, setNote] = useState('')
   const [intraSquad, setIntraSquad] = useState(false)
+  const [friendlySport, setFriendlySport] = useState('Football')
   const [intraDuration, setIntraDuration] = useState(90)
   const [referee, setReferee] = useState('')
   const [showRequestForm, setShowRequestForm] = useState(false)
@@ -226,7 +228,7 @@ export function FriendliesPage() {
                         kickoff: new Date(`${preferredDate}T${preferredTime}`).toISOString(),
                         durationMinutes: intraDuration,
                         category: 'Friendly',
-                        sport: 'Football',
+                        sport: friendlySport as MatchAnnouncement['sport'],
                         comment: note.trim() || 'Sisi kwa sisi',
                         referee: referee.trim() || undefined,
                         intraSquad: true,
@@ -264,6 +266,7 @@ export function FriendliesPage() {
                     preferredTime,
                     location,
                     note,
+                    sport: friendlySport,
                     referee: referee.trim() || undefined,
                   }, token)
                   setTeamName('')
@@ -331,6 +334,20 @@ export function FriendliesPage() {
               >
                 🤝 Sisi kwa sisi (Team A vs Team B)
               </Button>
+
+              <TextField
+                select
+                label="Sport"
+                value={friendlySport}
+                onChange={(event) => setFriendlySport(event.target.value)}
+                helperText={intraSquad ? undefined : 'The friendly will be played in this sport.'}
+              >
+                {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Pool Table'].map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </TextField>
 
               {intraSquad && (
                 <TextField
