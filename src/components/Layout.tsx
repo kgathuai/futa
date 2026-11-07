@@ -1972,6 +1972,27 @@ export function Layout() {
                 >
                   Forgot password?
                 </Button>
+                {' · '}
+                <Button
+                  onClick={async () => {
+                    const email = loginEmail.trim().toLowerCase()
+                    if (!email) {
+                      setToast({ message: 'Enter your email first.', severity: 'error' })
+                      return
+                    }
+                    try {
+                      const response = await api.resendVerificationEmail(email)
+                      setToast({ message: response.message, severity: 'info' })
+                    } catch {
+                      setToast({ message: 'Could not resend the link.', severity: 'error' })
+                    }
+                  }}
+                  variant="text"
+                  size="small"
+                  sx={{ p: 0, minWidth: 0 }}
+                >
+                  Resend verification
+                </Button>
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 No account yet?{' '}

@@ -1983,6 +1983,14 @@ app.post('/api/auth/login', async (req, res) => {
     return
   }
 
+  if (result.account.emailVerified === false && isEmailConfigured()) {
+    res.status(403).json({
+      error: 'Verify your email before signing in. Check your inbox, or request a new link.',
+      needsVerification: true,
+    })
+    return
+  }
+
   const session = await store.createSession(result.account.id)
 
   res.json({
@@ -2060,6 +2068,23 @@ app.post('/api/auth/reset-password', rateLimit('reset', 10, 15 * 60_000), async 
   }
 
   res.json({ message: 'Password updated. You can log in with your new password.' })
+})
+
+app.post('/api/auth/resend-verification-email', rateLimit('resend-verify-email', 5, 15 * 60_000), async (req, res) => {
+  const email = (req.body as { email?: string }).email?.trim().toLowerCase() ?? ''
+  const generic = { message: 'If that account still needs verification, a new link is on its way.' }
+
+  if (!email) {
+    res.status(400).json({ error: 'Enter the email on your account.' })
+    return
+  }
+
+  const account = await store.findAccountByEmail(email)
+  if (account && account.emailVerified === false) {
+    await sendVerificationEmail(account)
+  }
+
+  res.json(generic)
 })
 
 app.post('/api/auth/verify-email', async (req, res) => {

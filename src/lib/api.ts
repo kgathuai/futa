@@ -318,6 +318,11 @@ export const api = {
       method: 'POST',
       body: { token, password },
     }),
+  resendVerificationEmail: (email: string) =>
+    request<{ message: string }>('/api/auth/resend-verification-email', {
+      method: 'POST',
+      body: { email },
+    }),
   verifyEmail: (token: string) =>
     request<{ message: string }>('/api/auth/verify-email', {
       method: 'POST',
