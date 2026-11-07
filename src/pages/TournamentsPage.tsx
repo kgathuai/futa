@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 import { FixturesTab } from '../components/FixturesTab'
 import { CardSkeleton } from '../components/LoadingSkeleton'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { ShareButtons } from '../components/ShareButtons'
 import type { TournamentPayment } from '../types'
 import { useAutoHide } from '../lib/useAutoHide'
@@ -22,6 +23,7 @@ export function TournamentsPage() {
   const { loggedInUser, loggedInRole, loggedInTeam } = useOutletContext<AuthOutletContext>()
   const location = useLocation()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const navState = location.state as { openTournamentId?: string; showTournamentList?: boolean } | null
   const showTournamentList = Boolean(navState?.showTournamentList)
   const [selectedSport, setSelectedSport] = useState('All sports')
@@ -925,9 +927,52 @@ export function TournamentsPage() {
 
       {isLoadingTournaments && <CardSkeleton count={3} />}
       {!isLoadingTournaments && filteredTournaments.length === 0 && (
-        <Typography color="text.secondary" sx={{ fontSize: { xs: '0.72rem', sm: '0.8rem' } }}>
-          No tournaments yet. Created tournaments will appear here.
-        </Typography>
+        <Card variant="outlined" sx={{ borderRadius: 2.2, borderStyle: 'dashed', borderColor: 'rgba(63,163,77,0.4)' }}>
+          <CardContent sx={{ py: { xs: 3.5, md: 5 }, px: 2.5, textAlign: 'center' }}>
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                mx: 'auto',
+                mb: 1.5,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'rgba(63,163,77,0.12)',
+                border: '1px solid rgba(63,163,77,0.4)',
+                color: 'primary.main',
+              }}
+            >
+              <EmojiEventsIcon sx={{ fontSize: '1.6rem' }} />
+            </Box>
+
+            <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.92rem', md: '1.05rem' }, mb: 0.6 }}>
+              {selectedSport === 'All sports' ? 'No tournaments yet' : `No ${selectedSport.toLowerCase()} tournaments yet`}
+            </Typography>
+
+            <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.76rem', md: '0.82rem' }, maxWidth: 430, mx: 'auto', mb: 2 }}>
+              Tournaments are how teams compete for a trophy: set the sport, venue and team limit, then invite
+              registered teams, generate fixtures and track the table automatically.
+            </Typography>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'center', alignItems: 'center' }}>
+              {canCreateHere ? (
+                <Button variant="contained" onClick={() => setShowNewForm(true)} sx={{ fontSize: '0.76rem' }}>
+                  Create a tournament
+                </Button>
+              ) : (
+                <Button variant="contained" onClick={() => navigate('/team')} sx={{ fontSize: '0.76rem' }}>
+                  Browse teams
+                </Button>
+              )}
+              {selectedSport !== 'All sports' && (
+                <Button variant="text" onClick={() => setSelectedSport('All sports')} sx={{ fontSize: '0.76rem' }}>
+                  Show all sports
+                </Button>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
       )}
 
       {!isLoadingTournaments && filteredTournaments.length > 0 && (
