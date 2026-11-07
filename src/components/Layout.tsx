@@ -48,6 +48,7 @@ import { LoadingBar } from './LoadingBar'
 import { TopToast } from './TopToast'
 import type { ToastMessage } from './TopToast'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
+import { isIndividualSport } from '../lib/sports'
 import { useI18n } from '../lib/i18n'
 import { useColorMode } from '../theme/ColorModeProvider'
 import type { TranslationKey } from '../lib/i18n'
@@ -355,9 +356,8 @@ export function Layout() {
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const isReferee = registerRole === 'Referee'
-    // Pool is played by individuals, so no team details are collected.
-    const isIndividualSport = registerSport === 'Pool Table'
-    const needsTeam = !isReferee && !isIndividualSport
+    // Individual sports (pool, tennis) do not collect team details.
+    const needsTeam = !isReferee && !isIndividualSport(registerSport)
     const safeName = registerName.trim()
     const safeTeam = needsTeam ? registerTeam.trim() : ''
     const safeCounty = needsTeam ? registerCounty.trim() : ''
@@ -1816,7 +1816,7 @@ export function Layout() {
                 placeholder="Your name"
                 required
               />
-              {registerRole !== 'Referee' && registerSport !== 'Pool Table' && (
+              {registerRole !== 'Referee' && !isIndividualSport(registerSport) && (
                 <>
                   <TextField
                     label="Team (optional)"

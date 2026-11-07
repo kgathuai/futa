@@ -24,6 +24,7 @@ import { useMatchClock } from '../lib/useMatchClock'
 import { RowSkeleton } from '../components/LoadingSkeleton'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
+import { isIndividualSport } from '../lib/sports'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -350,13 +351,13 @@ export function TeamDashboardPage() {
   }, [loggedInTeam])
 
   useEffect(() => {
-    if (friendlySport !== 'Pool Table') {
+    if (!isIndividualSport(friendlySport)) {
       setOpponentType('team')
       return
     }
     let active = true
     void api
-      .getPlayersBySport('Pool Table')
+      .getPlayersBySport(friendlySport)
       .then((response) => {
         if (active) {
           setPoolPlayers(response.players)
@@ -483,14 +484,14 @@ export function TeamDashboardPage() {
     try {
       await api.createFriendlyRequest(
         {
-          teamName: friendlySport === 'Pool Table' && opponentType === 'player' ? poolOpponent : friendlyTeamName,
+          teamName: isIndividualSport(friendlySport) && opponentType === 'player' ? poolOpponent : friendlyTeamName,
           contact: contactCheck.value,
           preferredDate: friendlyPreferredDate,
           preferredTime: friendlyPreferredTime,
           location: friendlyLocation,
           note: friendlyNote,
           sport: friendlySport,
-          opponentType: friendlySport === 'Pool Table' ? opponentType : 'team',
+          opponentType: isIndividualSport(friendlySport) ? opponentType : 'team',
           referee: friendlyReferee,
         },
         token,
@@ -1780,10 +1781,10 @@ export function TeamDashboardPage() {
                         {...params}
                         label="Opponent team"
                         placeholder="Search teams…"
-                        required={friendlySport !== 'Pool Table' || opponentType === 'team'}
+                        required={!isIndividualSport(friendlySport) || opponentType === 'team'}
                       />
                     )}
-                    sx={{ display: friendlySport === 'Pool Table' && opponentType === 'player' ? 'none' : undefined }}
+                    sx={{ display: isIndividualSport(friendlySport) && opponentType === 'player' ? 'none' : undefined }}
                   />
                   <TextField
                     select
@@ -1798,14 +1799,14 @@ export function TeamDashboardPage() {
                       </MenuItem>
                     ))}
                   </TextField>
-                  {friendlySport === 'Pool Table' && (
+                  {isIndividualSport(friendlySport) && (
                     <>
                       <TextField
                         select
                         label="Opponent type"
                         value={opponentType}
                         onChange={(event) => setOpponentType(event.target.value as 'team' | 'player')}
-                        helperText="Play a club, or an individual pool player."
+                        helperText="Play a club, or an individual player."
                       >
                         <MenuItem value="team">Team</MenuItem>
                         <MenuItem value="player">Individual player</MenuItem>
@@ -1820,11 +1821,11 @@ export function TeamDashboardPage() {
                           renderInput={(params) => (
                             <TextField
                               {...params}
-                              label="Pool player"
+                              label={`${friendlySport} player`}
                               helperText={
                                 poolPlayers.length > 0
-                                  ? 'Registered Pool Table players only.'
-                                  : 'No pool players registered yet.'
+                                  ? `Registered ${friendlySport} players only.`
+                                  : `No ${friendlySport} players registered yet.`
                               }
                             />
                           )}
@@ -1859,7 +1860,7 @@ export function TeamDashboardPage() {
                     required
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  {friendlySport === 'Pool Table' ? (
+                  {isIndividualSport(friendlySport) ? (
                     <TextField
                       label="Venue"
                       value={friendlyLocation}
