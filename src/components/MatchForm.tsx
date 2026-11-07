@@ -166,7 +166,7 @@ export function MatchForm({
         ))}
       </TextField>
 
-      {sport === 'FIFA' ? (
+      {sport === 'Fifa' ? (
         <TextField select label="Venue" value={venue} onChange={(event) => setVenue(event.target.value)} required>
           <MenuItem value="Online">Online</MenuItem>
           <MenuItem value="Offline">Offline</MenuItem>
@@ -226,7 +226,7 @@ export function MatchForm({
           required
           fullWidth
         >
-          {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'FIFA'].map((name) => (
+          {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'Fifa'].map((name) => (
             <MenuItem key={name} value={name}>
               {name}
             </MenuItem>
