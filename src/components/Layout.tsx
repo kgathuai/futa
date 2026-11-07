@@ -824,6 +824,21 @@ export function Layout() {
       >
         <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
           <Toolbar disableGutters sx={{ height: { xs: 48, sm: 52 }, minHeight: { xs: 48, sm: 52 }, gap: { xs: 0.5, sm: 2 }, overflow: 'visible' }}>
+            <Box
+              component="img"
+              src={mode === 'light' ? '/kambumbu-logo-light.svg' : '/kambumbu-logo-dark.svg'}
+              alt="Kambumbu logo"
+              sx={{
+                height: { xs: 82, sm: 130, md: 170 },
+                maxWidth: { xs: 92, sm: 145, md: 'none' },
+                width: 'auto',
+                display: 'block',
+                flexShrink: 1,
+                objectFit: 'contain',
+              }}
+              style={{ pointerEvents: 'none' }}
+            />
+
             <Box sx={{ ml: 'auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: { xs: 0.2, sm: 1.25 } }}>
               <Stack direction="row" spacing={{ xs: 0.1, sm: 0.5 }} sx={{ alignItems: 'center', minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
                 {navLinks.map((link) => {
