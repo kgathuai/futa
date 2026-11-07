@@ -189,6 +189,7 @@ export function Layout() {
   const [profileSports, setProfileSports] = useState<string[]>([])
   const [isSavingSports, setIsSavingSports] = useState(false)
   const [sportsMenuAnchor, setSportsMenuAnchor] = useState<HTMLElement | null>(null)
+  const [activeSport, setActiveSport] = useState<string>('')
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -197,7 +198,21 @@ export function Layout() {
   const myTeamName = (loggedInTeam ?? '').trim()
   const myTeamProfile =
     myTeamName && team.name.trim().toLowerCase() === myTeamName.toLowerCase() ? team : null
-  const myTeamStats = useMemo(() => computeTeamStats(matches, myTeamName), [matches, myTeamName])
+  useEffect(() => {
+    if (profileSports.length === 0) {
+      setActiveSport('')
+      return
+    }
+    if (!profileSports.includes(activeSport)) {
+      setActiveSport(profileSports[0])
+    }
+  }, [profileSports, activeSport])
+
+  const sportMatches = useMemo(
+    () => (activeSport ? matches.filter((match) => match.sport === activeSport) : matches),
+    [matches, activeSport],
+  )
+  const myTeamStats = useMemo(() => computeTeamStats(sportMatches, myTeamName), [sportMatches, myTeamName])
   const myTeamCounty = myTeamProfile?.county || profileCounty
   const myTeamGround = myTeamProfile?.homeGround || profileHomeGround
   const myRoleLabel = roleLabel(loggedInRole)
@@ -235,7 +250,7 @@ export function Layout() {
   const upcomingMatches = useMemo(() => {
     const now = Date.now()
     const normalisedTeam = myTeamName.toLowerCase()
-    return matches
+    return sportMatches
       .filter((match) => {
         const involvesMe =
           !normalisedTeam ||
@@ -252,7 +267,7 @@ export function Layout() {
       })
       .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
       .slice(0, 5)
-  }, [matches, myTeamName])
+  }, [sportMatches, myTeamName])
 
 
   useEffect(() => subscribeToApiLoading(setIsApiLoading), [])
@@ -1342,6 +1357,26 @@ export function Layout() {
                   </Button>
                 </Stack>
               </Stack>
+
+              {profileSports.length > 0 && (
+                <Stack
+                  direction="row"
+                  spacing={0.6}
+                  sx={{ mb: 1.6, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}
+                >
+                  {profileSports.map((sport) => (
+                    <Chip
+                      key={`tab-${sport}`}
+                      label={sport}
+                      size="small"
+                      color={activeSport === sport ? 'primary' : 'default'}
+                      variant={activeSport === sport ? 'filled' : 'outlined'}
+                      onClick={() => setActiveSport(sport)}
+                      sx={{ flexShrink: 0, height: 26, fontSize: '0.68rem', fontWeight: 700 }}
+                    />
+                  ))}
+                </Stack>
+              )}
 
               <Menu
                 anchorEl={sportsMenuAnchor}
