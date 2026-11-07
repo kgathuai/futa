@@ -1182,6 +1182,16 @@ export const store = {
         }
       : {}
 
+    const playedTeams = wantedSport
+      ? new Set(
+          (
+            await MatchModel.find({ sport: new RegExp(`^${escapeRegExp(sport!.trim())}$`, 'i') })
+              .select({ homeTeam: 1, awayTeam: 1, _id: 0 })
+              .lean<Array<{ homeTeam: string; awayTeam: string }>>()
+          ).flatMap((match) => [match.homeTeam, match.awayTeam]),
+        )
+      : new Set<string>()
+
     const [accountTeams, savedTeams] = await Promise.all([
       AccountModel.find(sportMatch, { team: 1, county: 1, homeGround: 1, _id: 0 }).lean<
         Array<{ team?: string; county?: string; homeGround?: string }>
@@ -1231,6 +1241,16 @@ export const store = {
           status: 'active',
           updatedAt: team.updatedAt?.toISOString(),
         })
+      }
+    }
+
+    // Include teams that have played this sport even if their account lists another sport.
+    if (wantedSport) {
+      for (const name of playedTeams) {
+        const trimmed = name?.trim()
+        if (trimmed && !teamsByName.has(trimmed)) {
+          teamsByName.set(trimmed, { name: trimmed })
+        }
       }
     }
 
