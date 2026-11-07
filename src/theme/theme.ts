@@ -24,10 +24,10 @@ export const buildTheme = (mode: ColorMode): Theme =>
       error: { main: '#D93025' },
       warning: { main: '#F5A623' },
       success: { main: '#3FA34D' },
-      action:
-        mode === 'dark'
-          ? { hover: 'rgba(255,255,255,0.06)', selected: 'rgba(199,205,210,0.16)' }
-          : undefined,
+      action: {
+        hover: mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(17,24,17,0.06)',
+        selected: mode === 'dark' ? 'rgba(63,163,77,0.18)' : 'rgba(63,163,77,0.12)',
+      },
     },
     shape: { borderRadius: 12 },
     typography: {
