@@ -829,8 +829,8 @@ export function Layout() {
               src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
               alt="Futa logo"
               sx={{
-                height: { xs: 82, sm: 130, md: 170 },
-                maxWidth: { xs: 92, sm: 145, md: 'none' },
+                height: { xs: 22, sm: 26, md: 30 },
+                maxWidth: { xs: 130, sm: 170, md: 230 },
                 width: 'auto',
                 display: 'block',
                 flexShrink: 1,
