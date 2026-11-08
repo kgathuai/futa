@@ -15,6 +15,7 @@ import { Link, useOutletContext } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
 import type { MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
+import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, isRaceSport } from '../lib/matchFormat'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -38,6 +39,7 @@ export function FriendliesPage() {
   const [onlyMySports, setOnlyMySports] = useState(false)
   const [friendlySport, setFriendlySport] = useState('Football')
   const [intraDuration, setIntraDuration] = useState(90)
+  const [raceTo, setRaceTo] = useState(DEFAULT_RACE_TO)
   const [referee, setReferee] = useState('')
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [teamOptions, setTeamOptions] = useState<{ name: string; logoUrl?: string }[]>([])
@@ -233,7 +235,10 @@ export function FriendliesPage() {
                         awayTeam: `${loggedInTeam} B`,
                         venue: location,
                         kickoff: new Date(`${preferredDate}T${preferredTime}`).toISOString(),
-                        durationMinutes: intraDuration,
+                        // Pool is a race to a set number of racks; the minutes
+                        // value only blocks the ground for scheduling.
+                        durationMinutes: isRaceSport(friendlySport) ? 90 : intraDuration,
+                        raceTo: isRaceSport(friendlySport) ? raceTo : undefined,
                         category: 'Friendly',
                         sport: friendlySport as MatchAnnouncement['sport'],
                         comment: note.trim() || 'Sisi kwa sisi',
@@ -274,6 +279,7 @@ export function FriendliesPage() {
                     location,
                     note,
                     sport: friendlySport,
+                    raceTo: isRaceSport(friendlySport) ? raceTo : undefined,
                     referee: referee.trim() || undefined,
                   }, token)
                   setTeamName('')
@@ -356,7 +362,21 @@ export function FriendliesPage() {
                 ))}
               </TextField>
 
-              {intraSquad && (
+              {isRaceSport(friendlySport) ? (
+                <TextField
+                  select
+                  label="Race to (racks)"
+                  value={raceTo}
+                  onChange={(event) => setRaceTo(Number(event.target.value))}
+                  helperText="Pool is decided by racks won, not by the clock."
+                >
+                  {RACE_TO_OPTIONS.map((racks) => (
+                    <MenuItem key={racks} value={racks}>
+                      Race to {racks}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : intraSquad ? (
                 <TextField
                   label="Match duration (min)"
                   type="number"
@@ -364,7 +384,7 @@ export function FriendliesPage() {
                   onChange={(event) => setIntraDuration(Number(event.target.value))}
                   slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
                 />
-              )}
+              ) : null}
 
               {!intraSquad && (
               <TextField
@@ -647,6 +667,19 @@ export function FriendliesPage() {
                         }}
                         variant="outlined"
                       />
+                      {request.raceTo ? (
+                        <Chip
+                          label={`RACE TO ${request.raceTo}`}
+                          size="small"
+                          sx={{
+                            color: '#8fd3ff',
+                            borderColor: 'rgba(143,211,255,0.4)',
+                            bgcolor: 'rgba(143,211,255,0.1)',
+                            '& .MuiChip-label': { fontWeight: 800, fontSize: { xs: '0.62rem', md: '0.75rem' } },
+                          }}
+                          variant="outlined"
+                        />
+                      ) : null}
                     </Stack>
 
                     <Button variant="outlined" size="small" sx={{ minWidth: { xs: 0, md: 102 }, px: { xs: 1, md: 1.5 }, fontWeight: 700, flexShrink: 0 }} onClick={() => setSelectedFriendlyForDetails(request.id)}>
@@ -801,6 +834,17 @@ export function FriendliesPage() {
                     <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>{selectedFriendly?.location}</Typography>
                     <Typography sx={{ color: '#999', fontSize: '0.85rem', mt: 0.3 }}>City Sports Complex, Court 3' to add depth</Typography>
                   </Box>
+
+                  {selectedFriendly?.raceTo ? (
+                    <Box>
+                      <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                        FORMAT
+                      </Typography>
+                      <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                        Race to {selectedFriendly.raceTo} racks — no clock.
+                      </Typography>
+                    </Box>
+                  ) : null}
 
                   {/* ASSIGNED REFEREE */}
                   <Box>

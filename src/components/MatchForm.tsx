@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { api } from '../lib/api'
+import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, isRaceSport } from '../lib/matchFormat'
 import type { MatchAnnouncement } from '../types'
 
 export interface MatchFormProps {
@@ -17,7 +18,8 @@ export interface MatchFormProps {
 /**
  * Shared "create a match" form used by the home page and the team dashboard.
  * Handles sisi kwa sisi (same club, Team A vs Team B), registered referees,
- * venue, kickoff, duration, category and sport.
+ * venue, kickoff, match length, category and sport. Pool sports race to a
+ * number of racks instead of playing against the clock.
  */
 export function MatchForm({
   homeTeam,
@@ -33,6 +35,7 @@ export function MatchForm({
   const [venue, setVenue] = useState('')
   const [kickoff, setKickoff] = useState('')
   const [duration, setDuration] = useState('90')
+  const [raceTo, setRaceTo] = useState(DEFAULT_RACE_TO)
   const [referee, setReferee] = useState('')
   const [category, setCategory] = useState<'League' | 'Friendly' | 'Cup'>('Friendly')
   const [sport, setSport] = useState('Football')
@@ -40,6 +43,8 @@ export function MatchForm({
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const racesToRacks = isRaceSport(sport)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -60,8 +65,12 @@ export function MatchForm({
       return
     }
     const parsedDuration = Number(duration)
-    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+    if (!racesToRacks && (!Number.isFinite(parsedDuration) || parsedDuration <= 0)) {
       setError('Enter a valid match duration in minutes.')
+      return
+    }
+    if (racesToRacks && (!Number.isFinite(raceTo) || raceTo <= 0)) {
+      setError('Pick how many racks this match races to.')
       return
     }
     if (!venue || !kickoff) {
@@ -80,7 +89,9 @@ export function MatchForm({
           awayTeam: intraSquad ? `${homeTeam} B` : awayTeam,
           venue,
           kickoff: new Date(kickoff).toISOString(),
-          durationMinutes: parsedDuration,
+          // Pool races to racks; durationMinutes stays as the scheduling window.
+          durationMinutes: racesToRacks ? 90 : parsedDuration,
+          raceTo: racesToRacks ? raceTo : undefined,
           category,
           sport: sport as MatchAnnouncement['sport'],
           comment: comment.trim() || undefined,
@@ -96,6 +107,7 @@ export function MatchForm({
       setVenue('')
       setKickoff('')
       setDuration('90')
+      setRaceTo(DEFAULT_RACE_TO)
       setReferee('')
       setCategory('Friendly')
       setSport('Football')
@@ -194,15 +206,33 @@ export function MatchForm({
           required
           fullWidth
         />
-        <TextField
-          label="Duration (min)"
-          type="number"
-          value={duration}
-          onChange={(event) => setDuration(event.target.value)}
-          slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
-          required
-          fullWidth
-        />
+        {racesToRacks ? (
+          <TextField
+            select
+            label="Race to (racks)"
+            value={raceTo}
+            onChange={(event) => setRaceTo(Number(event.target.value))}
+            helperText="Pool is played to a set number of racks — not a clock."
+            required
+            fullWidth
+          >
+            {RACE_TO_OPTIONS.map((racks) => (
+              <MenuItem key={racks} value={racks}>
+                Race to {racks}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <TextField
+            label="Duration (min)"
+            type="number"
+            value={duration}
+            onChange={(event) => setDuration(event.target.value)}
+            slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
+            required
+            fullWidth
+          />
+        )}
       </Stack>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2}>

@@ -387,6 +387,7 @@ app.post('/api/matches', async (req, res) => {
     venue?: string
     kickoff?: string
     durationMinutes?: number
+    raceTo?: number
     category?: 'League' | 'Friendly' | 'Cup'
     sport?: string
     comment?: string
@@ -395,8 +396,15 @@ app.post('/api/matches', async (req, res) => {
     homeTeam?: string
   }
 
-  if (!body.awayTeam || !body.venue || !body.kickoff || !body.durationMinutes || !body.category || !body.sport) {
+  if (!body.awayTeam || !body.venue || !body.kickoff || (!body.durationMinutes && !body.raceTo) || !body.category || !body.sport) {
     res.status(400).json({ error: 'Missing match fields.' })
+    return
+  }
+
+  // Pool sports are a race to a number of racks, not a timed game.
+  const raceTo = Number(body.raceTo)
+  if (body.raceTo !== undefined && (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 50)) {
+    res.status(400).json({ error: 'Pick a race-to target between 1 and 50 racks.' })
     return
   }
 
@@ -466,7 +474,8 @@ app.post('/api/matches', async (req, res) => {
     awayTeam,
     venue: body.venue,
     kickoff: body.kickoff,
-    durationMinutes: body.durationMinutes,
+    durationMinutes: body.durationMinutes || 90,
+    raceTo: body.raceTo !== undefined ? raceTo : undefined,
     category: body.category,
     sport: body.sport,
     comment: body.comment,
@@ -691,6 +700,7 @@ app.patch('/api/matches/:matchId', async (req, res) => {
     kickoff?: string
     venue?: string
     durationMinutes?: number
+    raceTo?: number
     referee?: string
     status?: string
   }
@@ -698,6 +708,15 @@ app.patch('/api/matches/:matchId', async (req, res) => {
   if (body.kickoff && new Date(body.kickoff).getTime() <= Date.now()) {
     res.status(400).json({ error: 'Pick a kickoff time in the future.' })
     return
+  }
+
+  if (body.raceTo !== undefined) {
+    const raceTo = Number(body.raceTo)
+    if (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 50) {
+      res.status(400).json({ error: 'Pick a race-to target between 1 and 50 racks.' })
+      return
+    }
+    body.raceTo = raceTo
   }
 
   const updated = await store.updateMatchDetails(matchId, body)
@@ -715,6 +734,7 @@ app.patch('/api/matches/:matchId', async (req, res) => {
       body.kickoff ? `kickoff ${new Date(body.kickoff).toLocaleString()}` : '',
       body.venue ? `venue ${body.venue}` : '',
       body.durationMinutes ? `duration ${body.durationMinutes} min` : '',
+      body.raceTo ? `race to ${body.raceTo} racks` : '',
       body.status ? `status ${body.status}` : '',
     ]
       .filter(Boolean)
@@ -1224,6 +1244,7 @@ app.post('/api/friendlies', async (req, res) => {
     note?: string
     referee?: string
     sport?: string
+    raceTo?: number
   }
 
   if (
@@ -1272,6 +1293,12 @@ app.post('/api/friendlies', async (req, res) => {
     }
   }
 
+  const raceTo = Number(body.raceTo)
+  if (body.raceTo !== undefined && (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 50)) {
+    res.status(400).json({ error: 'Pick a race-to target between 1 and 50 racks.' })
+    return
+  }
+
   try {
     const request = await store.addFriendlyRequest({
       teamName: body.teamName,
@@ -1281,6 +1308,7 @@ app.post('/api/friendlies', async (req, res) => {
       location: body.location,
       note: body.note,
       sport: body.sport,
+      raceTo: body.raceTo !== undefined ? raceTo : undefined,
       referee: body.referee,
     }, user.id)
 

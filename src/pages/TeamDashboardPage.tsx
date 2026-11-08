@@ -25,6 +25,7 @@ import { RowSkeleton } from '../components/LoadingSkeleton'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { isIndividualSport } from '../lib/sports'
+import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, isRaceSport } from '../lib/matchFormat'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -84,6 +85,7 @@ export function TeamDashboardPage() {
   const [venue, setVenue] = useState('')
   const [kickoff, setKickoff] = useState('')
   const [durationMinutes, setDurationMinutes] = useState(90)
+  const [matchRaceTo, setMatchRaceTo] = useState(DEFAULT_RACE_TO)
   const [category, setCategory] = useState<MatchAnnouncement['category']>('League')
   const [sport, setSport] = useState<MatchAnnouncement['sport']>('Football')
   const [comment, setComment] = useState('')
@@ -95,6 +97,7 @@ export function TeamDashboardPage() {
   const [friendlyLocation, setFriendlyLocation] = useState('')
   const [friendlyReferee, setFriendlyReferee] = useState('')
   const [friendlySport, setFriendlySport] = useState('Football')
+  const [friendlyRaceTo, setFriendlyRaceTo] = useState(DEFAULT_RACE_TO)
   const [sportTeamNames, setSportTeamNames] = useState<string[]>([])
   const [opponentType, setOpponentType] = useState<'team' | 'player'>('team')
   const [poolPlayers, setPoolPlayers] = useState<Array<{ id: string; name: string }>>([])
@@ -451,7 +454,8 @@ export function TeamDashboardPage() {
           awayTeam: intraSquad ? `${loggedInTeam ?? ''} B` : awayTeam,
           venue,
           kickoff: new Date(kickoff).toISOString(),
-          durationMinutes,
+          durationMinutes: isRaceSport(sport) ? 90 : durationMinutes,
+          raceTo: isRaceSport(sport) ? matchRaceTo : undefined,
           category,
           sport,
           comment,
@@ -466,6 +470,7 @@ export function TeamDashboardPage() {
       setVenue('')
       setKickoff('')
       setDurationMinutes(90)
+      setMatchRaceTo(DEFAULT_RACE_TO)
       setCategory('League')
       setSport('Football')
       setComment('')
@@ -507,6 +512,7 @@ export function TeamDashboardPage() {
           location: friendlyLocation,
           note: friendlyNote,
           sport: friendlySport,
+          raceTo: isRaceSport(friendlySport) ? friendlyRaceTo : undefined,
           opponentType: isIndividualSport(friendlySport) ? opponentType : 'team',
           referee: friendlyReferee,
         },
@@ -1650,14 +1656,31 @@ export function TeamDashboardPage() {
                             required
                             slotProps={{ inputLabel: { shrink: true } }}
                           />
-                          <TextField
-                            label="Duration (Min) *"
-                            type="number"
-                            value={durationMinutes}
-                            onChange={(event) => setDurationMinutes(Number(event.target.value))}
-                            slotProps={{ htmlInput: { min: 1 } }}
-                            required
-                          />
+                          {isRaceSport(sport) ? (
+                            <TextField
+                              select
+                              label="Race to (racks) *"
+                              value={matchRaceTo}
+                              onChange={(event) => setMatchRaceTo(Number(event.target.value))}
+                              helperText="Pool is played to a set number of racks."
+                              required
+                            >
+                              {RACE_TO_OPTIONS.map((racks) => (
+                                <MenuItem key={racks} value={racks}>
+                                  Race to {racks}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          ) : (
+                            <TextField
+                              label="Duration (Min) *"
+                              type="number"
+                              value={durationMinutes}
+                              onChange={(event) => setDurationMinutes(Number(event.target.value))}
+                              slotProps={{ htmlInput: { min: 1 } }}
+                              required
+                            />
+                          )}
                         </Box>
 
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.2 }}>
@@ -1896,6 +1919,21 @@ export function TeamDashboardPage() {
                     required
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
+                  {isRaceSport(friendlySport) && (
+                    <TextField
+                      select
+                      label="Race to (racks)"
+                      value={friendlyRaceTo}
+                      onChange={(event) => setFriendlyRaceTo(Number(event.target.value))}
+                      helperText="Pool friendlies are decided by racks won, not by the clock."
+                    >
+                      {RACE_TO_OPTIONS.map((racks) => (
+                        <MenuItem key={racks} value={racks}>
+                          Race to {racks}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
                   {friendlySport === 'Fifa' ? (
                     <TextField
                       select

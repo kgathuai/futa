@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
@@ -12,6 +12,7 @@ import { useAutoHide } from '../lib/useAutoHide'
 import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
 import { MatchForm } from '../components/MatchForm'
+import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, formatMatchLength, isRaceSport } from '../lib/matchFormat'
 import { CardSkeleton } from '../components/LoadingSkeleton'
 
 interface AuthOutletContext {
@@ -57,6 +58,7 @@ export function HomePage() {
   const [editKickoff, setEditKickoff] = useState('')
   const [editVenue, setEditVenue] = useState('')
   const [editDuration, setEditDuration] = useState(90)
+  const [editRaceTo, setEditRaceTo] = useState(DEFAULT_RACE_TO)
   const [editError, setEditError] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   useAutoHide(announceMessage, () => setAnnounceMessage(''))
@@ -223,6 +225,7 @@ export function HomePage() {
     setEditKickoff(new Date(match.kickoff).toISOString().slice(0, 16))
     setEditVenue(match.venue)
     setEditDuration(match.durationMinutes ?? 90)
+    setEditRaceTo(match.raceTo ?? DEFAULT_RACE_TO)
     setEditError('')
   }
 
@@ -240,12 +243,20 @@ export function HomePage() {
       return
     }
 
+    const raceMatch = editingMatch ? isRaceSport(editingMatch.sport) : false
+
     setIsSavingEdit(true)
     setEditError('')
     try {
       const updated = await api.updateMatchDetails(
         editingMatch.id,
-        { kickoff: new Date(editKickoff).toISOString(), venue: editVenue, durationMinutes: editDuration },
+        {
+          kickoff: new Date(editKickoff).toISOString(),
+          venue: editVenue,
+          ...(raceMatch
+            ? { raceTo: editRaceTo, durationMinutes: editingMatch.durationMinutes ?? 90 }
+            : { durationMinutes: editDuration }),
+        },
         token,
       )
       updateMatch(updated)
@@ -480,14 +491,30 @@ export function HomePage() {
               value={editVenue}
               onChange={(event) => setEditVenue(event.target.value)}
             />
-            <TextField
-              label="Duration (min)"
-              type="number"
-              size="small"
-              value={editDuration}
-              onChange={(event) => setEditDuration(Number(event.target.value))}
-              slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
-            />
+            {isRaceSport(editingMatch?.sport) ? (
+              <TextField
+                select
+                label="Race to (racks)"
+                size="small"
+                value={editRaceTo}
+                onChange={(event) => setEditRaceTo(Number(event.target.value))}
+              >
+                {RACE_TO_OPTIONS.map((racks) => (
+                  <MenuItem key={racks} value={racks}>
+                    Race to {racks}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField
+                label="Duration (min)"
+                type="number"
+                size="small"
+                value={editDuration}
+                onChange={(event) => setEditDuration(Number(event.target.value))}
+                slotProps={{ htmlInput: { min: 20, max: 240, step: 5 } }}
+              />
+            )}
             <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
               Saving notifies the other team about the change.
             </Typography>
@@ -681,8 +708,8 @@ export function HomePage() {
                   <FmdGoodOutlinedIcon sx={{ fontSize: 14 }} />
                   <Typography variant="body2">{match.venue}</Typography>
                 </Stack>
-                {match.durationMinutes ? (
-                  <Typography variant="body2">• {match.durationMinutes} min</Typography>
+                {formatMatchLength(match) ? (
+                  <Typography variant="body2">• {formatMatchLength(match)}</Typography>
                 ) : null}
               </Stack>
 

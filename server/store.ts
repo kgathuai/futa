@@ -57,6 +57,8 @@ export interface FriendlyRequestRecord {
   location: string
   note: string
   sport?: string
+  /** Pool sports: the friendly is a race to this many racks. */
+  raceTo?: number
   referee?: string
   refereeAccountId?: string
   refereeStatus?: 'pending' | 'accepted' | 'declined'
@@ -134,6 +136,8 @@ const matchSchema = new Schema(
     venue: { type: String, required: true },
     kickoff: { type: String, required: true },
     durationMinutes: { type: Number, required: false },
+    // Pool sports: the match is a race to this many racks instead of a timed game.
+    raceTo: { type: Number, required: false },
     homeScore: { type: Number, required: false },
     awayScore: { type: Number, required: false },
     category: { type: String, required: true },
@@ -356,6 +360,8 @@ const friendlyRequestSchema = new Schema(
     note: { type: String, required: true },
     referee: { type: String, required: false },
     sport: { type: String, required: false, default: 'Football' },
+    // Pool sports: the friendly is a race to this many racks.
+    raceTo: { type: Number, required: false },
     refereeAccountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
     opponentType: { type: String, required: false, default: 'team' },
     refereeStatus: { type: String, required: false, default: 'pending' },
@@ -1775,6 +1781,7 @@ export const store = {
     venue: string
     kickoff: string
     durationMinutes: number
+    raceTo?: number
     category: 'League' | 'Friendly' | 'Cup'
     sport: string
     comment?: string
@@ -1792,6 +1799,8 @@ export const store = {
       venue: payload.venue,
       kickoff: payload.kickoff,
       durationMinutes: payload.durationMinutes,
+      // Pool is won by racks, so make sure every pool match carries its race target.
+      raceTo: payload.raceTo ?? (payload.sport === 'Pool Table' ? 5 : undefined),
       category: payload.category,
       sport: payload.sport,
       createdByTeam: payload.createdByTeam,
@@ -1991,12 +2000,20 @@ export const store = {
   },
   updateMatchDetails: async (
     matchId: string,
-    patch: { kickoff?: string; venue?: string; durationMinutes?: number; referee?: string; status?: string },
+    patch: {
+      kickoff?: string
+      venue?: string
+      durationMinutes?: number
+      raceTo?: number
+      referee?: string
+      status?: string
+    },
   ) => {
     const update: Record<string, unknown> = {}
     if (patch.kickoff) update.kickoff = patch.kickoff
     if (patch.venue) update.venue = patch.venue.trim()
     if (Number.isFinite(patch.durationMinutes)) update.durationMinutes = Number(patch.durationMinutes)
+    if (Number.isFinite(patch.raceTo) && Number(patch.raceTo) > 0) update.raceTo = Number(patch.raceTo)
     if (patch.referee !== undefined) update.referee = patch.referee.trim()
     if (patch.status) update.status = patch.status
     if (Object.keys(update).length === 0) {
@@ -2487,6 +2504,7 @@ export const store = {
     location: string
     note: string
     sport?: string
+    raceTo?: number
     referee?: string
     },
     senderAccountId: string,
@@ -2528,6 +2546,7 @@ export const store = {
       location: payload.location,
       note: payload.note,
       sport: payload.sport?.trim() || 'Football',
+      raceTo: payload.raceTo ?? (payload.sport === 'Pool Table' ? 5 : undefined),
       referee: refereeName || undefined,
       refereeAccountId: refereeAccount?._id,
       status: 'pending',
@@ -2703,8 +2722,9 @@ export const store = {
       venue: updatedRequest.location,
       kickoff: buildKickoffIso(updatedRequest.preferredDate, updatedRequest.preferredTime),
       durationMinutes: 90,
+      raceTo: updatedRequest.raceTo ?? (updatedRequest.sport === 'Pool Table' ? 5 : undefined),
       category: 'Friendly',
-      sport: 'Football',
+      sport: updatedRequest.sport?.trim() || 'Football',
       createdByTeam: updatedRequest.recipientTeam,
       createdByAccountId: ownerAccountId,
       status: 'scheduled',

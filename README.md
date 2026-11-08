@@ -14,7 +14,9 @@ It ships as an installable PWA backed by a single Express + MongoDB service.
 ## 1. Feature overview
 
 ### Match day
-- Announce fixtures (league, cup, friendly) with venue, kickoff and duration.
+- Announce fixtures (league, cup, friendly) with venue, kickoff and match length.
+  Most sports use a duration in minutes; **Pool Table** matches are a race to a
+  set number of racks (`raceTo`) instead of playing against the clock.
 - Runtime status derived from the clock: **Scheduled → Playing → Played**
   (`src/lib/matchStatus.ts`), refreshed every 30 s without a reload.
 - Score reporting restricted to the two participating teams' management accounts
@@ -38,6 +40,9 @@ It ships as an installable PWA backed by a single Express + MongoDB service.
 
 ### Friendlies
 - Request a friendly against a registered team: ground, date, time, referee, note.
+- **Pool Table friendlies are a race to a set number of racks**, not a timed
+  match: the form asks "Race to (racks)" and the accepted request keeps the same
+  target when it becomes a scheduled match.
 - Referees are chosen from the registered referee directory.
 - Accept / decline as the receiving team; the referee independently accepts or
   declines the appointment.
@@ -131,12 +136,12 @@ deploy/               setup-server.sh, deploy.sh, nginx/, systemd/, README.md
 | `accounts` | name, email (unique), password (scrypt), role, sport, team, county, homeGround, avatar, emailVerified |
 | `sessions` | token (unique), accountId, expiresAt (TTL index) |
 | `authTokens` | token, accountId, type (`reset`/`verify`), expiresAt (TTL), usedAt |
-| `matches` | id, home/away team, venue, kickoff, duration, scores, status, goals[], events[], comments[], tournamentId, round, engagement counters, scoreReminderSentAt |
+| `matches` | id, home/away team, venue, kickoff, duration, raceTo (pool), scores, status, goals[], events[], comments[], tournamentId, round, engagement counters, scoreReminderSentAt |
 | `results` | home/away, scores, venue, playedOn, reportedBy, engagement |
 | `tournaments` | id, sport, format, name, period, dates, venue, status, type (`open`/`closed`), ownerTeam, registeredTeams[], maxTeams, entryFee |
 | `teams` | name, manager, county, homeGround, level, bio, logoUrl, ownerAccountId |
 | `players` | id, team, name, number, position |
-| `friendlies` | requester/recipient accounts and teams, contact, date/time, location, note, referee + refereeAccountId, refereeStatus, report, status |
+| `friendlies` | requester/recipient accounts and teams, contact, date/time, location, note, sport, raceTo (pool), referee + refereeAccountId, refereeStatus, report, status |
 | `follows` | accountId + team (unique pair) |
 | `payments` | tournamentId, team, accountId, amount, phone, status (`pending`/`paid`/`failed`), reference, receipt |
 | `reschedules` | matchId, requestedBy, currentKickoff, newKickoff, reason, status |

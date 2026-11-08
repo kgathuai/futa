@@ -104,6 +104,8 @@ export const api = {
       venue: string
       kickoff: string
       durationMinutes: number
+      /** Pool sports: the friendly is a race to this many racks. */
+      raceTo?: number
       category: 'League' | 'Friendly' | 'Cup'
       sport: MatchAnnouncement['sport']
       comment?: string
@@ -441,6 +443,7 @@ export const api = {
       location: string
       note: string
       sport?: string
+      raceTo?: number
       referee?: string
       opponentType?: 'team' | 'player'
     },
@@ -505,7 +508,14 @@ export const api = {
     ),
   updateMatchDetails: (
     matchId: string,
-    payload: { kickoff?: string; venue?: string; durationMinutes?: number; referee?: string; status?: string },
+    payload: {
+      kickoff?: string
+      venue?: string
+      durationMinutes?: number
+      raceTo?: number
+      referee?: string
+      status?: string
+    },
     token: string,
   ) =>
     request<MatchAnnouncement>(`/api/matches/${encodeURIComponent(matchId)}`, {

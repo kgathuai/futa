@@ -94,6 +94,8 @@ export interface MatchAnnouncement {
   venue: string
   kickoff: string
   durationMinutes?: number
+  /** Pool-style friendlies are a race to this many racks, not a timed match. */
+  raceTo?: number
   homeScore?: number
   awayScore?: number
   category: 'League' | 'Friendly' | 'Cup'
@@ -142,6 +144,8 @@ export interface FriendlyRequest {
   location: string
   note: string
   sport?: string
+  /** Pool-style friendlies: race to this many racks instead of a timed match. */
+  raceTo?: number
   referee?: string
   refereeAccountId?: string
   refereeStatus?: 'pending' | 'accepted' | 'declined'
