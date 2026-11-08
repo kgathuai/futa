@@ -1983,7 +1983,12 @@ app.post('/api/auth/login', async (req, res) => {
     return
   }
 
-  if (result.account.emailVerified === false && isEmailConfigured()) {
+  // Verification is opt-in: set REQUIRE_EMAIL_VERIFICATION=true to enforce it.
+  if (
+    result.account.emailVerified === false &&
+    isEmailConfigured() &&
+    process.env.REQUIRE_EMAIL_VERIFICATION?.trim() === 'true'
+  ) {
     res.status(403).json({
       error: 'Verify your email before signing in. Check your inbox, or request a new link.',
       needsVerification: true,
