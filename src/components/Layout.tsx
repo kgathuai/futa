@@ -905,7 +905,7 @@ export function Layout() {
                 flexShrink: 1,
                 objectFit: 'contain',
               }}
-              style={{ pointerEvents: 'none' }}
+              onClick={() => navigate('/')}
             />
 
             <Box
@@ -1034,7 +1034,8 @@ export function Layout() {
           component="img"
           src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
           alt="Kambumbu"
-          sx={{ height: 24, maxWidth: 150, width: 'auto', objectFit: 'contain' }}
+          onClick={() => navigate('/')}
+          sx={{ height: 24, maxWidth: 150, width: 'auto', objectFit: 'contain', cursor: 'pointer' }}
         />
       </Box>
 
