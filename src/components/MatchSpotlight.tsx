@@ -420,7 +420,7 @@ export function MatchSpotlight({
                 maxWidth: 760,
               }}
             >
-              Kambumbu connects teams, players and fans across Kenya. Find an opponent, book a friendly, run a
+              Kambumbu connects teams, players and fans. Find an opponent, book a friendly, run a
               tournament and keep every result in one place.
             </Typography>
           </>
