@@ -2314,10 +2314,7 @@ export function Layout() {
           }}
         >
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-            © {currentYear} Nurevie. For Sports Updates.{' '}
-            <Box component="a" href="mailto:kambumbuke@gmail.com" sx={{ color: 'primary.main', textDecoration: 'none' }}>
-              kambumbuke@gmail.com
-            </Box>
+            © {currentYear} Nurevie. For Sports Updates.
           </Typography>
 
           <Stack
