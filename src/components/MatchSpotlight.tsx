@@ -172,7 +172,8 @@ export function MatchSpotlight({
         // Match slides use a tall hero with the CTAs pinned to the bottom; the
         // no-match welcome fallback sizes to its content instead.
         minHeight: slides.length > 0 ? { xs: 300, sm: 380, md: 440 } : 'auto',
-        borderRadius: 2.4,
+        // Square-edged banner.
+        borderRadius: 0,
         borderColor: 'rgba(76,227,163,0.32)',
         background:
           'linear-gradient(135deg, rgba(76,227,163,0.16) 0%, rgba(20,32,52,0.66) 45%, rgba(13,21,36,0.6) 100%)',
