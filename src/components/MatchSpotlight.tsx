@@ -172,13 +172,12 @@ export function MatchSpotlight({
         display: 'flex',
         // On phones the banner runs edge to edge: cancel the page container's
         // 16px side padding (Layout uses px: { xs: 2, md: 3 }).
-        ml: { xs: '-16px', md: 0 },
-        mr: { xs: '-16px', md: 0 },
-        width: { xs: 'calc(100% + 32px)', md: '100%' },
-        // Match slides use a tall hero with the CTAs pinned to the bottom; the
-        // no-match welcome fallback sizes to its content instead.
+        ml: { md: 0, xs: '-16px', sm: '-16px' },
+        mr: { md: 0, xs: '-16px', sm: '-16px' },
+        width: { md: '100%', xs: 'calc(100% + 32px)', sm: 'calc(100% + 32px)' },
+        // Tall hero for both states, with the CTAs pinned to the bottom.
         // Phone height is ~5 cm taller than the previous 400px (1 cm ≈ 38px).
-        minHeight: slides.length > 0 ? { xs: 590, sm: 400, md: 440 } : 'auto',
+        minHeight: { xs: 590, sm: 400, md: 440 },
         // Square-edged banner.
         borderRadius: 0,
         borderColor: 'rgba(76,227,163,0.32)',

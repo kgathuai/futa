@@ -630,9 +630,9 @@ export function HomePage() {
           variant="outlined"
           sx={{
             // Full-bleed on phones, matching the spotlight banner.
-            ml: { xs: '-16px', md: 0 },
-            mr: { xs: '-16px', md: 0 },
-            width: { xs: 'calc(100% + 32px)', md: '100%' },
+            ml: { md: 0, xs: '-16px', sm: '-16px' },
+            mr: { md: 0, xs: '-16px', sm: '-16px' },
+            width: { md: '100%', xs: 'calc(100% + 32px)', sm: 'calc(100% + 32px)' },
             borderRadius: { xs: 0, md: 2.2 },
             borderStyle: 'dashed',
             borderColor: 'rgba(76,227,163,0.3)',
