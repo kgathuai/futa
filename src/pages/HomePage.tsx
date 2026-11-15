@@ -625,10 +625,15 @@ export function HomePage() {
       {isLoading && <CardSkeleton count={3} />}
 
       {!isLoading && filteredMatches.length === 0 && (
+        <Box sx={{ minWidth: 0 }}>
         <Card
           variant="outlined"
           sx={{
-            borderRadius: 2.2,
+            // Full-bleed on phones, matching the spotlight banner.
+            ml: { xs: '-16px', md: 0 },
+            mr: { xs: '-16px', md: 0 },
+            width: { xs: 'calc(100% + 32px)', md: '100%' },
+            borderRadius: { xs: 0, md: 2.2 },
             borderStyle: 'dashed',
             borderColor: 'rgba(76,227,163,0.3)',
             bgcolor: 'rgba(76,227,163,0.03)',
@@ -683,6 +688,7 @@ export function HomePage() {
             </Stack>
           </CardContent>
         </Card>
+        </Box>
       )}
 
       <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
