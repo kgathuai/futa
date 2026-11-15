@@ -175,9 +175,10 @@ export function MatchSpotlight({
         ml: { md: 0, xs: '-16px', sm: '-16px' },
         mr: { md: 0, xs: '-16px', sm: '-16px' },
         width: { md: '100%', xs: 'calc(100% + 32px)', sm: 'calc(100% + 32px)' },
-        // Tall hero for both states, with the CTAs pinned to the bottom.
+        // Match slides use the tall hero; the no-match welcome fallback sizes to
+        // its content so it doesn't leave a dead band above the CTAs.
         // Phone height is ~5 cm taller than the previous 400px (1 cm ≈ 38px).
-        minHeight: { xs: 590, sm: 400, md: 440 },
+        minHeight: slides.length > 0 ? { xs: 590, sm: 400, md: 440 } : 'auto',
         // Square-edged banner.
         borderRadius: 0,
         borderColor: 'rgba(76,227,163,0.32)',
