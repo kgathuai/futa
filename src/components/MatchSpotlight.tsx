@@ -129,15 +129,16 @@ export function MatchSpotlight({
   )
 
   const actions = (
-    <Stack
-      direction="row"
-      spacing={{ xs: 1, md: 1.4 }}
+    <Box
       sx={{
         // Pin the call-to-action row to the bottom edge of the banner.
         mt: 'auto',
         pt: { xs: 2.2, md: 3 },
-        flexWrap: 'wrap',
-        rowGap: 1.2,
+        // Neat 2×2 grid on phones/tablets, one row on desktop.
+        display: 'grid',
+        gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, auto)' },
+        gap: { xs: 1, md: 1.4 },
+        justifyContent: 'start',
         alignItems: 'center',
       }}
     >
@@ -159,7 +160,7 @@ export function MatchSpotlight({
           Create a match
         </Button>
       ) : null}
-    </Stack>
+    </Box>
   )
 
   return (
