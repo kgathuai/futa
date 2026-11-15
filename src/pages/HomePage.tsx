@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
+import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import { useAppData } from '../context/AppContext'
 import type { MatchAnnouncement } from '../types'
 import { api } from '../lib/api'
-import { useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
 import { useMatchClock } from '../lib/useMatchClock'
 import { MatchForm } from '../components/MatchForm'
+import { MatchSpotlight } from '../components/MatchSpotlight'
 import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, formatMatchLength, isRaceSport } from '../lib/matchFormat'
 import { CardSkeleton } from '../components/LoadingSkeleton'
 
@@ -34,7 +36,7 @@ const formatDateTime = (value: string) =>
 
 
 const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'Fifa']
-const statuses = ['Scheduled', 'Playing', 'Played']
+const statuses = ['All', 'Scheduled', 'Playing', 'Played']
 
 export function HomePage() {
   useMatchClock()
@@ -65,6 +67,9 @@ export function HomePage() {
   useAutoHide(engagementMessage, () => setEngagementMessage(''))
 
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
+  const openAccountPanel = () => {
+    document.querySelector<HTMLButtonElement>('[aria-label="Account"]')?.click()
+  }
   const canCreateHere =
     Boolean(loggedInUser) &&
     (normalizedRole === 'tm' ||
@@ -353,6 +358,59 @@ export function HomePage() {
         </Alert>
       )}
 
+      <MatchSpotlight
+        matches={matches}
+        teamLogos={teamLogos}
+        isGuest={!loggedInUser}
+        canCreateMatch={canCreateHere}
+        onCreateMatch={() => setShowAnnounceForm(true)}
+        onRegister={openAccountPanel}
+      />
+
+      <Box>
+        <Typography
+          sx={{ fontSize: '0.54rem', letterSpacing: '0.14em', fontWeight: 800, color: '#5f6a84' }}
+        >
+          MATCH CENTRE
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: { xs: '1.05rem', md: '1.2rem' },
+            fontWeight: 800,
+            lineHeight: 1.15,
+            letterSpacing: '-0.02em',
+            mt: 0.2,
+          }}
+        >
+          Matches
+        </Typography>
+        <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary', mt: 0.3, maxWidth: 640 }}>
+          Live scores, upcoming kickoffs and completed games from teams across the community.
+        </Typography>
+      </Box>
+
+      {loggedInUser && !loggedInTeam && (
+        <Alert
+          severity="info"
+          action={
+            canCreateHere ? (
+              <Button
+                component={Link}
+                to="/team-dashboard?create=team"
+                color="inherit"
+                size="small"
+                sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}
+              >
+                Register your team
+              </Button>
+            ) : undefined
+          }
+        >
+          You&apos;re signed in, but you don&apos;t have a team yet
+          {canCreateHere ? ' — set one up to create matches, request friendlies and enter tournaments.' : '.'}
+        </Alert>
+      )}
+
       {canCreateHere && showAnnounceForm && (
         <Card variant="outlined">
           <CardContent>
@@ -565,6 +623,67 @@ export function HomePage() {
       </Dialog>
 
       {isLoading && <CardSkeleton count={3} />}
+
+      {!isLoading && filteredMatches.length === 0 && (
+        <Card
+          variant="outlined"
+          sx={{
+            borderRadius: 2.2,
+            borderStyle: 'dashed',
+            borderColor: 'rgba(76,227,163,0.3)',
+            bgcolor: 'rgba(76,227,163,0.03)',
+          }}
+        >
+          <CardContent sx={{ py: { xs: 3.5, md: 5 }, px: 2.5, textAlign: 'center' }}>
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                mx: 'auto',
+                mb: 1.5,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'rgba(76,227,163,0.12)',
+                border: '1px solid rgba(76,227,163,0.35)',
+                color: 'primary.main',
+              }}
+            >
+              <SportsSoccerOutlinedIcon sx={{ fontSize: '1.6rem' }} />
+            </Box>
+            <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.95rem', md: '1.05rem' }, mb: 0.6 }}>
+              {matches.length === 0 ? 'No matches on the board yet' : 'Nothing matches this filter'}
+            </Typography>
+            <Typography
+              sx={{ color: 'text.secondary', fontSize: { xs: '0.78rem', md: '0.84rem' }, maxWidth: 470, mx: 'auto', mb: 2 }}
+            >
+              {matches.length === 0
+                ? loggedInUser
+                  ? 'Post the first fixture — pick an opponent, a ground and a kickoff, and it shows up here for everyone.'
+                  : 'Matches appear here as soon as teams post them. Find a team to follow, or sign in to put the first fixture on the board.'
+                : 'No matches match the sport and status you picked. Try another filter, or create a match.'}
+            </Typography>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{ justifyContent: 'center', alignItems: 'center' }}
+            >
+              {canCreateHere ? (
+                <Button variant="contained" onClick={() => setShowAnnounceForm(true)} sx={{ fontSize: '0.78rem' }}>
+                  Create a match
+                </Button>
+              ) : (
+                <Button component={Link} to="/team" variant="contained" sx={{ fontSize: '0.78rem' }}>
+                  Find a team
+                </Button>
+              )}
+              <Button component={Link} to="/friendlies" variant="text" sx={{ fontSize: '0.78rem' }}>
+                See friendlies
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       <Box sx={{ display: 'grid', gap: 1.2, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' } }}>
         {!isLoading && filteredMatches.map((match) => {

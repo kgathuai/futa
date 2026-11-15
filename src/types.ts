@@ -115,6 +115,8 @@ export interface MatchAnnouncement {
     | 'Fifa'
   createdByTeam?: string
   createdByAccountId?: string
+  /** Registered referee assigned to the match, if any. */
+  referee?: string
   likedByMe?: boolean
   ratedByMe?: boolean
   status: 'scheduled' | 'playing' | 'finished' | 'postponed'

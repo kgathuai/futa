@@ -41,11 +41,12 @@ export function TopToast({
       role="status"
       aria-live="polite"
       sx={{
-        position: 'fixed',
+        // In flow (not fixed) so the bar sits above the app bar instead of
+        // covering the logo, and sticks to the top while scrolling.
+        position: 'sticky',
         top: 0,
-        left: 0,
-        right: 0,
         width: '100%',
+        flexShrink: 0,
         zIndex: 3000,
         animation: 'futa-toast-in 220ms ease-out',
         '@keyframes futa-toast-in': {
@@ -64,8 +65,9 @@ export function TopToast({
           justifyContent: 'center',
           width: '100%',
           borderRadius: 0,
-          bgcolor: 'background.paper',
-          color: 'text.primary',
+          // Brand-green notification bar with white text for readability.
+          bgcolor: 'success.dark',
+          color: 'success.contrastText',
           fontSize: { xs: '0.64rem', sm: '0.68rem' },
           fontWeight: 600,
           lineHeight: 1,
@@ -74,12 +76,12 @@ export function TopToast({
           py: 0,
           boxShadow: 'none',
           border: 'none',
-          borderTop: '1px solid rgba(63,163,77,0.45)',
-          borderBottom: '1px solid rgba(63,163,77,0.45)',
+          borderTop: '1px solid rgba(255,255,255,0.18)',
+          borderBottom: '1px solid rgba(0,0,0,0.25)',
           px: { xs: 4, sm: 5 },
           // Icon and close button sit at the edges so the message is truly centred.
           '& .MuiAlert-icon': {
-            color: '#4ce3a3',
+            color: 'success.contrastText',
             position: 'absolute',
             left: { xs: 8, sm: 14 },
             top: '50%',
@@ -98,7 +100,11 @@ export function TopToast({
             p: 0,
             alignItems: 'center',
           },
-          '& .MuiAlert-action .MuiIconButton-root': { p: 0.1, fontSize: '0.8rem' },
+          '& .MuiAlert-action .MuiIconButton-root': {
+            color: 'success.contrastText',
+            p: 0.1,
+            fontSize: '0.8rem',
+          },
         }}
       >
         {toast.message}

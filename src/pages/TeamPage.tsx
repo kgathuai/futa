@@ -159,7 +159,7 @@ function TeamRow({
       sx={{
         display: { xs: 'block', md: 'grid' },
         gridTemplateColumns: {
-          md: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) 88px minmax(0,1.2fr)',
+          md: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) 88px minmax(0,1.2fr) 104px',
         },
         gap: { md: 1.4 },
         px: { xs: 1.4, md: 1.8 },
@@ -270,6 +270,33 @@ function TeamRow({
         <Meta label="COUNTY" value={team.county || 'Not set'} />
         <Meta label="LEVEL" value={team.level || 'Amateur'} accent />
         <Meta label="GROUND" value={team.homeGround || 'Not set'} />
+      </Box>
+
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, mt: { xs: 1.1, md: 0 } }}>
+        {highlighted ? (
+          <Typography sx={{ fontSize: '0.6rem', color: '#4ce3a3', fontWeight: 800, alignSelf: 'center' }}>
+            YOUR TEAM
+          </Typography>
+        ) : (
+          <Button
+            component={Link}
+            to={`/friendlies?team=${encodeURIComponent(team.name)}&request=1`}
+            variant="outlined"
+            size="small"
+            sx={{
+              fontSize: '0.64rem',
+              fontWeight: 800,
+              py: 0.3,
+              px: 1,
+              whiteSpace: 'nowrap',
+              borderColor: 'rgba(76,227,163,0.35)',
+              color: '#4ce3a3',
+              '&:hover': { borderColor: '#4ce3a3', bgcolor: 'rgba(76,227,163,0.08)' },
+            }}
+          >
+            Challenge
+          </Button>
+        )}
       </Box>
     </Box>
   )
@@ -490,7 +517,7 @@ export function TeamPage() {
         spacing={1.2}
         sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}
       >
-        <Box>
+        <Box sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0 }}>
           <Stack direction="row" spacing={0.7} sx={{ alignItems: 'center', mb: 0.3 }}>
             <GroupsOutlinedIcon sx={{ fontSize: '0.9rem', color: '#4ce3a3' }} />
             <Typography sx={{ fontSize: '0.54rem', letterSpacing: '0.14em', fontWeight: 800, color: '#5f6a84' }}>
@@ -503,7 +530,7 @@ export function TeamPage() {
             Teams
           </Typography>
           <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary', mt: 0.25 }}>
-            Browse every team in the community — no account needed.
+            Browse every team in the community, then challenge one to a friendly in a tap.
           </Typography>
         </Box>
 
@@ -665,7 +692,7 @@ export function TeamPage() {
             <Box
               sx={{
                 display: { xs: 'none', md: 'grid' },
-                gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) 88px minmax(0,1.2fr)',
+                gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) 88px minmax(0,1.2fr) 104px',
                 gap: 1.4,
                 px: 1.8,
                 py: 0.6,
@@ -673,7 +700,7 @@ export function TeamPage() {
                 bgcolor: 'rgba(255,255,255,0.012)',
               }}
             >
-              {['TEAM', 'MANAGER', 'COUNTY', 'LEVEL', 'GROUND'].map((label) => (
+              {['TEAM', 'MANAGER', 'COUNTY', 'LEVEL', 'GROUND', 'ACTION'].map((label) => (
                 <Typography
                   key={`team-head-${label}`}
                   sx={{ fontSize: '0.52rem', letterSpacing: '0.12em', fontWeight: 800, color: '#5f6a84' }}

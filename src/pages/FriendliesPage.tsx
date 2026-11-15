@@ -11,7 +11,7 @@ import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
-import { Link, useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
 import type { MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
@@ -55,6 +55,8 @@ export function FriendliesPage() {
   const [selectedFriendlyForDetails, setSelectedFriendlyForDetails] = useState<string | null>(null)
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null)
   const [statusEditId, setStatusEditId] = useState<string | null>(null)
+  const [presetMessage, setPresetMessage] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
   const canCreateHere =
     Boolean(loggedInUser) &&
@@ -64,6 +66,35 @@ export function FriendliesPage() {
       normalizedRole === 'admin' ||
       normalizedRole === 'superadmin')
   const pageSize = 3
+
+  // "Challenge this team" links from the team directory arrive as
+  // /friendlies?team=<name>&request=1 — prefill the form and open it.
+  useEffect(() => {
+    const requestedTeam = searchParams.get('team')?.trim() ?? ''
+    const wantsForm = searchParams.get('request') === '1'
+    if (!requestedTeam && !wantsForm) {
+      return
+    }
+
+    if (requestedTeam) {
+      setTeamName(requestedTeam)
+    }
+    if (canCreateHere) {
+      setShowRequestForm(true)
+    } else {
+      setPresetMessage(
+        loggedInUser
+          ? requestedTeam
+            ? `Only a TM, coach, captain or admin can request a friendly against ${requestedTeam}. Ask your team manager to send it.`
+            : 'Only a TM, coach, captain or admin can request a friendly.'
+          : requestedTeam
+            ? `Sign in with your team account to challenge ${requestedTeam}.`
+            : 'Sign in with your team account to request a friendly — it only takes a minute.',
+      )
+    }
+    setSearchParams({}, { replace: true })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [searchParams, setSearchParams, canCreateHere, loggedInUser])
 
   useEffect(() => {
     const loadFriendlyOptions = async () => {
@@ -199,6 +230,12 @@ export function FriendliesPage() {
           Signed in as {loggedInUser}
           {loggedInTeam ? ` · ${loggedInTeam}` : ''}
           {loggedInRole ? ` · ${loggedInRole}` : ''}
+        </Alert>
+      )}
+
+      {presetMessage && (
+        <Alert severity="info" onClose={() => setPresetMessage('')}>
+          {presetMessage}
         </Alert>
       )}
 
@@ -486,13 +523,25 @@ export function FriendliesPage() {
       )}
 
       <Stack spacing={2.2}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.2 }}>
-          <Box>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          sx={{
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            flexWrap: 'wrap',
+            gap: 1.2,
+          }}
+        >
+          <Box sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0 }}>
             <Typography variant="overline" sx={{ color: '#7f8799', letterSpacing: '0.06em', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.6 }}>
               Match Schedule
             </Typography>
             <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '0.95rem', md: '1rem' }, lineHeight: 1.2 }}>
               All Friendlies
+            </Typography>
+            <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary', mt: 0.35, maxWidth: 620 }}>
+              Book a fixture, invite an opponent and confirm from here — friendlies are the easiest way to get a
+              game against teams in your area.
             </Typography>
           </Box>
 
@@ -565,15 +614,15 @@ export function FriendliesPage() {
                 </Box>
 
                 <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.95rem', md: '1.1rem' }, mb: 0.6 }}>
-                  {loggedInAccountId ? 'No friendlies booked yet' : 'No open friendly requests'}
+                  {loggedInAccountId ? 'Be the first to book a friendly' : 'No open friendly requests — yet'}
                 </Typography>
 
                 <Typography
-                  sx={{ color: 'text.secondary', fontSize: { xs: '0.78rem', md: '0.84rem' }, maxWidth: 420, mx: 'auto', mb: 2 }}
+                  sx={{ color: 'text.secondary', fontSize: { xs: '0.78rem', md: '0.84rem' }, maxWidth: 460, mx: 'auto', mb: 2 }}
                 >
                   {loggedInAccountId
-                    ? 'Pick an opponent, a ground and a kickoff time — the other team gets a request and you both confirm from here.'
-                    : 'Requests from other teams will appear here. Sign in with your team account to send your own.'}
+                    ? 'Got a free weekend? Pick an opponent, a ground and a kickoff — they get a request, you both confirm here, and the whole community sees the fixture.'
+                    : 'This is where teams post challenges and find opponents. Sign in with your team account and put out the first call — someone is always looking for a game.'}
                 </Typography>
 
                 <Stack
@@ -731,44 +780,46 @@ export function FriendliesPage() {
           })}
         </Stack>
 
-        <Stack direction="row" spacing={0.8} sx={{ justifyContent: 'center', alignItems: 'center', mt: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage <= 1}
-            sx={{ minWidth: 36, px: 0 }}
-          >
-            <ChevronLeftRoundedIcon fontSize="small" />
-          </Button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        {sortedFriendlies.length > 0 && (
+          <Stack direction="row" spacing={0.8} sx={{ justifyContent: 'center', alignItems: 'center', mt: 1 }}>
             <Button
-              key={`friendlies-page-${page}`}
               size="small"
-              onClick={() => setCurrentPage(page)}
-              sx={{
-                minWidth: 36,
-                fontWeight: 800,
-                bgcolor: currentPage === page ? '#4ce3a3' : 'transparent',
-                color: currentPage === page ? '#07111f' : '#a7afc2',
-                border: '1px solid rgba(159,176,201,0.18)',
-              }}
+              variant="outlined"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage <= 1}
+              sx={{ minWidth: 36, px: 0 }}
             >
-              {page}
+              <ChevronLeftRoundedIcon fontSize="small" />
             </Button>
-          ))}
 
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={currentPage >= totalPages}
-            sx={{ minWidth: 36, px: 0 }}
-          >
-            <ChevronRightRoundedIcon fontSize="small" />
-          </Button>
-        </Stack>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={`friendlies-page-${page}`}
+                size="small"
+                onClick={() => setCurrentPage(page)}
+                sx={{
+                  minWidth: 36,
+                  fontWeight: 800,
+                  bgcolor: currentPage === page ? '#4ce3a3' : 'transparent',
+                  color: currentPage === page ? '#07111f' : '#a7afc2',
+                  border: '1px solid rgba(159,176,201,0.18)',
+                }}
+              >
+                {page}
+              </Button>
+            ))}
+
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage >= totalPages}
+              sx={{ minWidth: 36, px: 0 }}
+            >
+              <ChevronRightRoundedIcon fontSize="small" />
+            </Button>
+          </Stack>
+        )}
       </Stack>
 
       <Dialog open={Boolean(selectedFriendlyForDetails && friendlies.find((f) => f.id === selectedFriendlyForDetails))} onClose={() => setSelectedFriendlyForDetails(null)} maxWidth="sm" fullWidth>

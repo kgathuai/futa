@@ -766,7 +766,23 @@ export function TournamentsPage() {
 
   return (
     <Stack spacing={3}>
-     
+      <Box>
+        <Stack direction="row" spacing={0.7} sx={{ alignItems: 'center', mb: 0.3 }}>
+          <EmojiEventsIcon sx={{ fontSize: '0.95rem', color: '#4ce3a3' }} />
+          <Typography sx={{ fontSize: '0.54rem', letterSpacing: '0.14em', fontWeight: 800, color: '#5f6a84' }}>
+            COMPETITIONS
+          </Typography>
+        </Stack>
+        <Typography
+          sx={{ fontSize: { xs: '1.05rem', md: '1.2rem' }, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}
+        >
+          Tournaments
+        </Typography>
+        <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary', mt: 0.3, maxWidth: 680 }}>
+          Run a league or knockout: register teams, generate fixtures and let the table update itself as results
+          come in.
+        </Typography>
+      </Box>
 
       {canCreateHere && showNewForm && (
         <Card variant="outlined">
@@ -969,12 +985,14 @@ export function TournamentsPage() {
             </Box>
 
             <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.92rem', md: '1.05rem' }, mb: 0.6 }}>
-              {selectedSport === 'All sports' ? 'No tournaments yet' : `No ${selectedSport.toLowerCase()} tournaments yet`}
+              {selectedSport === 'All sports'
+                ? 'No tournaments yet — host the first one'
+                : `No ${selectedSport.toLowerCase()} tournaments yet`}
             </Typography>
 
-            <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.76rem', md: '0.82rem' }, maxWidth: 430, mx: 'auto', mb: 2 }}>
-              Tournaments are how teams compete for a trophy: set the sport, venue and team limit, then invite
-              registered teams, generate fixtures and track the table automatically.
+            <Typography sx={{ color: 'text.secondary', fontSize: { xs: '0.76rem', md: '0.82rem' }, maxWidth: 470, mx: 'auto', mb: 2 }}>
+              A tournament gives your community something to chase. Pick the sport, format and venue, invite
+              registered teams, and Kambumbu generates the fixtures and tracks the table for you.
             </Typography>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -982,10 +1000,23 @@ export function TournamentsPage() {
                 <Button variant="contained" onClick={() => setShowNewForm(true)} sx={{ fontSize: '0.76rem' }}>
                   Create a tournament
                 </Button>
-              ) : (
+              ) : loggedInUser ? (
                 <Button variant="contained" onClick={() => navigate('/team')} sx={{ fontSize: '0.76rem' }}>
                   Browse teams
                 </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={() => document.querySelector<HTMLButtonElement>('[aria-label="Account"]')?.click()}
+                    sx={{ fontSize: '0.76rem' }}
+                  >
+                    Sign in to create one
+                  </Button>
+                  <Button variant="outlined" onClick={() => navigate('/team')} sx={{ fontSize: '0.76rem' }}>
+                    Browse teams
+                  </Button>
+                </>
               )}
               {selectedSport !== 'All sports' && (
                 <Button variant="text" onClick={() => setSelectedSport('All sports')} sx={{ fontSize: '0.76rem' }}>
@@ -1009,7 +1040,7 @@ export function TournamentsPage() {
             <Typography sx={{ fontWeight: 700, mb: 1.2 }}>Running Tournaments</Typography>
             {runningTournaments.length === 0 ? (
               <Typography color="text.secondary" sx={{ fontSize: '0.84rem' }}>
-                No tournaments are running right now.
+                Nothing is live right now — the upcoming brackets are listed below.
               </Typography>
             ) : (
             <Stack spacing={1}>

@@ -3190,21 +3190,51 @@ const sendScoreReminders = async () => {
 
 const startServer = async () => {
   let databaseError: string | null = null
+  let failureLogged = false
+  let retryDelayMs = 5_000
+  let retryTimer: NodeJS.Timeout | null = null
 
-  try {
-    await connectDatabase(mongoUri)
-  } catch (error) {
-    // Keep listening so /api/health reports the problem instead of the dev proxy
-    // failing with ECONNREFUSED (usually an Atlas IP allow-list issue).
-    databaseError = error instanceof Error ? error.message : String(error)
-    console.error('MongoDB connection failed:', databaseError)
+  // Connection failures are handled by the retry loop below; keep the driver's
+  // error event from becoming an unhandled EventEmitter error.
+  mongoose.connection.on('error', () => undefined)
+
+  // The Atlas IP allow-list can be fixed while the server is already running,
+  // so keep retrying instead of requiring a restart. Backoff tops out at 60 s.
+  const connect = async () => {
+    try {
+      await connectDatabase(mongoUri)
+      retryDelayMs = 5_000
+      if (databaseError) {
+        console.log('MongoDB reconnected — API is live again.')
+      }
+      databaseError = null
+      failureLogged = false
+    } catch (error) {
+      databaseError = error instanceof Error ? error.message : String(error)
+      if (!failureLogged) {
+        // Keep listening so /api/health reports the problem instead of the dev proxy
+        // failing with ECONNREFUSED (usually an Atlas IP allow-list issue).
+        console.error('MongoDB connection failed:', databaseError)
+        failureLogged = true
+      }
+      if (!retryTimer) {
+        retryTimer = setTimeout(() => {
+          retryTimer = null
+          void connect()
+        }, retryDelayMs)
+        retryTimer.unref()
+        retryDelayMs = Math.min(retryDelayMs * 2, 60_000)
+      }
+    }
   }
+
+  await connect()
 
   const host = process.env.HOST?.trim() || undefined
   const onListening = () => {
     console.log(`Monolith backend running on http://${host ?? 'localhost'}:${port}`)
     if (databaseError) {
-      console.warn('Database unavailable — API reads/writes will fail until it reconnects.')
+      console.warn('Database unavailable — retrying in the background until it connects.')
     } else {
       console.log('MongoDB connected')
     }
