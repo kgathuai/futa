@@ -177,7 +177,8 @@ export function MatchSpotlight({
         width: { xs: 'calc(100% + 32px)', md: '100%' },
         // Match slides use a tall hero with the CTAs pinned to the bottom; the
         // no-match welcome fallback sizes to its content instead.
-        minHeight: slides.length > 0 ? { xs: 400, sm: 400, md: 440 } : 'auto',
+        // Phone height is ~5 cm taller than the previous 400px (1 cm ≈ 38px).
+        minHeight: slides.length > 0 ? { xs: 590, sm: 400, md: 440 } : 'auto',
         // Square-edged banner.
         borderRadius: 0,
         borderColor: 'rgba(76,227,163,0.32)',
