@@ -171,7 +171,7 @@ export function MatchSpotlight({
         display: 'flex',
         // Match slides use a tall hero with the CTAs pinned to the bottom; the
         // no-match welcome fallback sizes to its content instead.
-        minHeight: slides.length > 0 ? { xs: 260, sm: 320, md: 360 } : 'auto',
+        minHeight: slides.length > 0 ? { xs: 300, sm: 380, md: 440 } : 'auto',
         borderRadius: 2.4,
         borderColor: 'rgba(76,227,163,0.32)',
         background:
