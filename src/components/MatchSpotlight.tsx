@@ -402,10 +402,10 @@ export function MatchSpotlight({
             </Typography>
             <Typography
               sx={{
-                fontSize: { xs: '1.6rem', sm: '2.1rem', md: '3rem' },
+                fontSize: { xs: '1.3rem', sm: '1.65rem', md: '2.2rem' },
                 fontWeight: 800,
-                lineHeight: 1.05,
-                letterSpacing: '-0.03em',
+                lineHeight: 1.08,
+                letterSpacing: '-0.02em',
                 maxWidth: 780,
               }}
             >
