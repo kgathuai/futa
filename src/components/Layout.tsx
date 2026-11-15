@@ -1026,8 +1026,14 @@ export function Layout() {
           alignItems: 'center',
           px: 2,
           pt: 1.2,
-          pb: 0.4,
-          bgcolor: 'background.default',
+          pb: 0.8,
+          // Keep the logo visible while the page scrolls.
+          position: 'sticky',
+          top: 0,
+          zIndex: 1100,
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: mode === 'light' ? 'rgba(11,18,32,0.12)' : 'rgba(159,176,201,0.14)',
         }}
       >
         <Box
