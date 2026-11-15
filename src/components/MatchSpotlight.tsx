@@ -163,12 +163,18 @@ export function MatchSpotlight({
   )
 
   return (
-    <Card
-      variant="outlined"
+    <Box sx={{ minWidth: 0 }}>
+      <Card
+        variant="outlined"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       sx={{
         display: 'flex',
+        // On phones the banner runs edge to edge: cancel the page container's
+        // 16px side padding (Layout uses px: { xs: 2, md: 3 }).
+        ml: { xs: '-16px', md: 0 },
+        mr: { xs: '-16px', md: 0 },
+        width: { xs: 'calc(100% + 32px)', md: '100%' },
         // Match slides use a tall hero with the CTAs pinned to the bottom; the
         // no-match welcome fallback sizes to its content instead.
         minHeight: slides.length > 0 ? { xs: 400, sm: 400, md: 440 } : 'auto',
@@ -420,6 +426,7 @@ export function MatchSpotlight({
 
         {actions}
       </CardContent>
-    </Card>
+      </Card>
+    </Box>
   )
 }
