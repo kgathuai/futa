@@ -21,15 +21,21 @@ export function SportFilterBar({ selected, onSelect, ariaLabel = 'Sport filters'
         position: 'relative',
         zIndex: 1,
         display: 'flex',
-        columnGap: { xs: 0.7, sm: 0.9 },
         flexWrap: 'nowrap',
         overflowX: 'auto',
         scrollbarWidth: 'none',
         '&::-webkit-scrollbar': { display: 'none' },
         pb: 0.4,
-        '& > *': { flexShrink: 0 },
       }}
     >
+      <Stack
+        direction="row"
+        spacing={{ xs: 0.7, sm: 0.9 }}
+        sx={{
+          mx: 'auto',
+          '& > *': { flexShrink: 0 },
+        }}
+      >
       {SPORT_FILTERS.map((sport) => (
         <Button
           key={sport}
@@ -59,6 +65,7 @@ export function SportFilterBar({ selected, onSelect, ariaLabel = 'Sport filters'
           {sport}
         </Button>
       ))}
+      </Stack>
     </Stack>
   )
 }
