@@ -198,6 +198,17 @@ export function MatchSpotlight({
           '&:last-child': { pb: { xs: 3, sm: 4, md: 5.5 } },
         }}
       >
+        <Box
+          sx={{
+            // Share the banner's spare height around the content instead of
+            // leaving one big void above the CTAs.
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
         {slides.length > 0 ? (
           <>
             <Box
@@ -425,6 +436,7 @@ export function MatchSpotlight({
             </Typography>
           </>
         )}
+        </Box>
 
         {actions}
       </CardContent>
