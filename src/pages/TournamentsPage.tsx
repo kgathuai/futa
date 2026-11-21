@@ -4,6 +4,8 @@ import { useLocation, useNavigate, useOutletContext, useSearchParams } from 'rea
 import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 import { FixturesTab } from '../components/FixturesTab'
+import { SportFilterBar } from '../components/SportFilterBar'
+import { SPORTS } from '../lib/sports'
 import { CardSkeleton } from '../components/LoadingSkeleton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { ShareButtons } from '../components/ShareButtons'
@@ -18,7 +20,6 @@ interface AuthOutletContext {
   loggedInSports?: string[]
 }
 
-const sports = ['All sports', 'Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'Fifa']
 
 export function TournamentsPage() {
   const { loggedInUser, loggedInRole, loggedInTeam, loggedInSports } = useOutletContext<AuthOutletContext>()
@@ -810,9 +811,7 @@ export function TournamentsPage() {
                 onChange={(event) => setSport(event.target.value)}
                 required
               >
-                {sports
-                  .filter((item) => item !== 'All sports')
-                  .map((item) => (
+                {SPORTS.map((item) => (
                     <MenuItem key={item} value={item}>
                       {item}
                     </MenuItem>
@@ -924,32 +923,7 @@ export function TournamentsPage() {
         </Stack>
       )}
 
-      <Stack
-        direction="row"
-        aria-label="Sport filters"
-        sx={{
-          width: '100%',
-          display: { xs: 'grid', sm: 'flex' },
-          gridTemplateColumns: { xs: 'repeat(4, minmax(0, 1fr))' },
-          flexWrap: 'wrap',
-          columnGap: { xs: 0.7, sm: 1.4 },
-          rowGap: { xs: 1.6, sm: 1 },
-        }}
-      >
-        {sports.map((sport) => (
-          <Chip
-            key={sport}
-            label={sport}
-            clickable
-            color={sport === selectedSport ? 'primary' : 'default'}
-            onClick={() => setSelectedSport(sport)}
-            sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0,
-              ...(sport === selectedSport ? { color: '#07111f', fontWeight: 700 } : {}),
-              '& .MuiChip-label': { fontSize: { xs: '0.62rem', sm: '0.7rem' }, px: { xs: 0.5, sm: 1.2 } },
-            }}
-          />
-        ))}
-      </Stack>
+      <SportFilterBar selected={selectedSport} onSelect={setSelectedSport} />
 
       {mySports.length > 0 && (
         <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
