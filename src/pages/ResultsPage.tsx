@@ -46,17 +46,22 @@ export function ResultsPage() {
             <Box
               component="form"
               sx={{ display: 'grid', gap: 1.5 }}
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault()
-                addResultReport({
-                  homeTeam,
-                  awayTeam,
-                  homeScore: typeof homeScore === 'number' ? homeScore : parseInt(String(homeScore), 10),
-                  awayScore: typeof awayScore === 'number' ? awayScore : parseInt(String(awayScore), 10),
-                  venue,
-                  playedOn,
-                  reportedBy,
-                })
+                try {
+                  await addResultReport({
+                    homeTeam,
+                    awayTeam,
+                    homeScore: typeof homeScore === 'number' ? homeScore : parseInt(String(homeScore), 10),
+                    awayScore: typeof awayScore === 'number' ? awayScore : parseInt(String(awayScore), 10),
+                    venue,
+                    playedOn,
+                    reportedBy,
+                  })
+                } catch {
+                  // Keep the form filled so the report can be retried.
+                  return
+                }
                 setHomeTeam('')
                 setAwayTeam('')
                 setHomeScore(0)
@@ -64,6 +69,7 @@ export function ResultsPage() {
                 setVenue('')
                 setPlayedOn('')
                 setReportedBy('')
+                navigate('/')
               }}
             >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { Link, Navigate, useLocation, useOutletContext } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
@@ -64,6 +64,7 @@ export function TeamDashboardPage() {
   const { loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam } = useOutletContext<AuthOutletContext>()
   const { team, createTeam, addResultReport, friendlies } = useAppData()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const [myMatches, setMyMatches] = useState<MatchAnnouncement[]>([])
   const [loadingMyMatches, setLoadingMyMatches] = useState(false)
@@ -478,6 +479,7 @@ export function TeamDashboardPage() {
       setGlobalError('')
       setGlobalMessage('Match created successfully.')
       await loadMyMatches()
+      navigate('/')
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to create match.')
     }
@@ -528,6 +530,7 @@ export function TeamDashboardPage() {
       setOpenCreateForm(null)
       setGlobalError('')
       setGlobalMessage('Friendly request sent.')
+      navigate('/')
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to create friendly request.')
     }
@@ -560,6 +563,9 @@ export function TeamDashboardPage() {
       return
     }
 
+    // Only bounce home for a brand-new team — editing a profile should stay put.
+    const wasNewTeam = !team.name?.trim()
+
     try {
       await createTeam({
         name: teamName,
@@ -573,6 +579,9 @@ export function TeamDashboardPage() {
       setOpenCreateForm(null)
       setGlobalError('')
       setGlobalMessage('Team saved successfully.')
+      if (wasNewTeam) {
+        navigate('/')
+      }
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to save team.')
     }
@@ -601,6 +610,7 @@ export function TeamDashboardPage() {
       setOpenCreateForm(null)
       setGlobalError('')
       setGlobalMessage('Result submitted successfully.')
+      navigate('/')
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to submit result.')
     }
@@ -701,6 +711,7 @@ export function TeamDashboardPage() {
     setOpenCreateForm(null)
     setGlobalError('')
     setGlobalMessage('Tournament created successfully.')
+    navigate('/')
   }
 
   const handleKickoffUpdate = async (matchId: string) => {

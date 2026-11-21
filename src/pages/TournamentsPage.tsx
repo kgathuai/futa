@@ -669,6 +669,7 @@ export function TournamentsPage() {
       setShowNewForm(false)
       setCreateTeams([])
       setMessage('Tournament created successfully.')
+      navigate('/')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to create tournament.')
       return

@@ -11,7 +11,7 @@ import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
 import type { MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
@@ -27,6 +27,7 @@ interface AuthOutletContext {
 
 export function FriendliesPage() {
   const { friendlies } = useAppData()
+  const navigate = useNavigate()
   const { loggedInUser, loggedInRole, loggedInAccountId, loggedInTeam, loggedInSports } = useOutletContext<AuthOutletContext>()
 
   const [teamName, setTeamName] = useState('')
@@ -284,12 +285,12 @@ export function FriendliesPage() {
                       },
                       token,
                     )
-                    setRequestMessage('Sisi kwa sisi match created and announced.')
                     setShowRequestForm(false)
                     setPreferredDate('')
                     setPreferredTime('')
                     setReferee('')
                     setNote('')
+                    navigate('/')
                   } catch (error) {
                     setRequestMessage(error instanceof Error ? error.message : 'Could not create the match.')
                   }
@@ -327,7 +328,7 @@ export function FriendliesPage() {
                   setNote('')
                   setReferee('')
                   setShowRequestForm(false)
-                  window.location.reload()
+                  navigate('/')
                 } catch (error) {
                   setRequestMessage(error instanceof Error ? error.message : 'Failed to create friendly request.')
                 }
