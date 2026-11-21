@@ -161,9 +161,15 @@ export function MatchSpotlight({
       <Button component={Link} to="/friendlies?request=1" variant="outlined" size="large" sx={{ fontWeight: 800 }}>
         Request a friendly
       </Button>
-      <Button component={Link} to="/tournaments" variant="outlined" size="large" sx={{ fontWeight: 800 }}>
-        Explore tournaments
-      </Button>
+      {isGuest ? (
+        <Button onClick={onRegister} variant="outlined" size="large" sx={{ fontWeight: 800 }}>
+          Login
+        </Button>
+      ) : (
+        <Button component={Link} to="/tournaments" variant="outlined" size="large" sx={{ fontWeight: 800 }}>
+          Explore tournaments
+        </Button>
+      )}
       {isGuest ? (
         <Button onClick={onRegister} variant="outlined" size="large" sx={{ fontWeight: 800 }}>
           Register your team
