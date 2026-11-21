@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Avatar, Box, Button, Card, CardContent, Chip, IconButton, Stack, Typography } from '@mui/material'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
@@ -27,6 +27,8 @@ export interface MatchSpotlightProps {
   matches: MatchAnnouncement[]
   /** Team name → crest URL, used for the logo next to each side. */
   teamLogos: Record<string, string | undefined>
+  /** Player profile photos, used as a subtle background mosaic. */
+  playerPhotos: string[]
   isGuest: boolean
   canCreateMatch: boolean
   onCreateMatch: () => void
@@ -42,6 +44,7 @@ export interface MatchSpotlightProps {
 export function MatchSpotlight({
   matches,
   teamLogos,
+  playerPhotos,
   isGuest,
   canCreateMatch,
   onCreateMatch,
@@ -102,6 +105,16 @@ export function MatchSpotlight({
     }, SLIDE_INTERVAL_MS)
     return () => window.clearInterval(timer)
   }, [autoplayPaused, slides.length])
+
+  // Shuffle a handful of player photos for the banner backdrop.
+  const mosaic = useMemo(() => {
+    const pool = [...playerPhotos]
+    for (let index = pool.length - 1; index > 0; index -= 1) {
+      const swap = Math.floor(Math.random() * (index + 1))
+      ;[pool[index], pool[swap]] = [pool[swap], pool[index]]
+    }
+    return pool.slice(0, 8)
+  }, [playerPhotos])
 
   if (slides.length === 0 && !isGuest) {
     return null
@@ -170,6 +183,7 @@ export function MatchSpotlight({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       sx={{
+        position: 'relative',
         display: 'flex',
         // On phones the banner runs edge to edge: cancel the page container's
         // 16px side padding (Layout uses px: { xs: 2, md: 3 }).
@@ -188,8 +202,50 @@ export function MatchSpotlight({
         overflow: 'hidden',
       }}
     >
+      {mosaic.length > 0 && (
+        <>
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: 'none',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateRows: 'repeat(2, 1fr)',
+              opacity: 0.22,
+              filter: 'saturate(0.8)',
+            }}
+          >
+            {mosaic.map((src, index) => (
+              <Box
+                key={`player-photo-${index}`}
+                component="img"
+                src={src}
+                alt=""
+                sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            ))}
+          </Box>
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: 'none',
+              background:
+                'linear-gradient(135deg, rgba(13,21,36,0.82) 0%, rgba(20,32,52,0.62) 45%, rgba(13,21,36,0.86) 100%)',
+            }}
+          />
+        </>
+      )}
+
       <CardContent
         sx={{
+          position: 'relative',
+          zIndex: 1,
           display: 'flex',
           flexDirection: 'column',
           flex: 1,

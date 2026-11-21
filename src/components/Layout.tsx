@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import {
   Alert,
   AppBar,
+  Avatar,
   Box,
   Button,
   Card,
@@ -177,6 +178,8 @@ export function Layout() {
   const [registerSport, setRegisterSport] = useState('')
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')
+  const [registerAvatar, setRegisterAvatar] = useState('')
+  const [isReadingRegisterPhoto, setIsReadingRegisterPhoto] = useState(false)
 
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null)
   const [loggedInRole, setLoggedInRole] = useState<string | null>(null)
@@ -398,6 +401,30 @@ export function Layout() {
     }
   }
 
+  const handleRegisterPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      setAuthMessage('Choose an image file (JPG, PNG or WebP).')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setAuthMessage('That photo is too large. Pick one under 8 MB.')
+      return
+    }
+    setIsReadingRegisterPhoto(true)
+    try {
+      setRegisterAvatar(await fileToAvatarDataUrl(file))
+    } catch {
+      setAuthMessage('That photo could not be read. Try another image.')
+    } finally {
+      setIsReadingRegisterPhoto(false)
+    }
+  }
+
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const isReferee = registerRole === 'Referee'
@@ -438,6 +465,8 @@ export function Layout() {
         sport: safeSport,
         email: safeEmail,
         password: safePassword,
+        // One optional photo, only collected for players.
+        avatar: safeRole === 'player' && registerAvatar ? registerAvatar : undefined,
       })
 
       setAuthView('login')
@@ -452,6 +481,7 @@ export function Layout() {
       setRegisterSport('')
       setRegisterEmail('')
       setRegisterPassword('')
+      setRegisterAvatar('')
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : 'Registration failed.')
     }
@@ -2116,6 +2146,47 @@ export function Layout() {
                 <Typography variant="caption" color="text.secondary" sx={{ mt: -0.6 }}>
                   Referees are not attached to a team.
                 </Typography>
+              )}
+              {registerRole === 'player' && (
+                <Stack spacing={0.8}>
+                  <Stack direction="row" spacing={1.2} sx={{ alignItems: 'center' }}>
+                    <Avatar
+                      src={registerAvatar || undefined}
+                      alt="Player photo"
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        bgcolor: 'rgba(76,227,163,0.16)',
+                        color: 'primary.main',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {registerName.trim().charAt(0).toUpperCase() || (
+                        <PhotoCameraRoundedIcon sx={{ fontSize: '1.2rem' }} />
+                      )}
+                    </Avatar>
+                    <Box>
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        size="small"
+                        disabled={isReadingRegisterPhoto}
+                        startIcon={<PhotoCameraRoundedIcon sx={{ fontSize: '1rem' }} />}
+                      >
+                        {isReadingRegisterPhoto ? 'Reading…' : registerAvatar ? 'Change photo' : 'Upload photo'}
+                        <input hidden type="file" accept="image/*" onChange={handleRegisterPhoto} />
+                      </Button>
+                      {registerAvatar && (
+                        <Button size="small" onClick={() => setRegisterAvatar('')} sx={{ ml: 1 }}>
+                          Remove
+                        </Button>
+                      )}
+                    </Box>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    Optional — one photo. Player photos are used in the homepage banner.
+                  </Typography>
+                </Stack>
               )}
               <FormControl required>
                 <InputLabel id="register-sport-label">Sport</InputLabel>

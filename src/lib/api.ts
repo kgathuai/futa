@@ -253,7 +253,7 @@ export const api = {
       { token },
     ),
   getPlayersBySport: (sport: string) =>
-    request<{ players: Array<{ id: string; name: string; sport: string }> }>(
+    request<{ players: Array<{ id: string; name: string; sport: string; avatar?: string }> }>(
       `/api/players?sport=${encodeURIComponent(sport)}`,
     ),
   getFollowedTeams: (token: string) => request<{ teams: string[] }>('/api/follows', { token }),
@@ -300,7 +300,7 @@ export const api = {
       method: 'POST',
       token,
     }),
-  register: (payload: { name: string; team: string; county: string; homeGround: string; role: string; sport: string; email: string; password: string }) =>
+  register: (payload: { name: string; team: string; county: string; homeGround: string; role: string; sport: string; email: string; password: string; avatar?: string }) =>
     request<{ token: string; user: AuthUser }>('/api/auth/register', {
       method: 'POST',
       body: payload,

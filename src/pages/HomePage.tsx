@@ -48,6 +48,7 @@ export function HomePage() {
   const [showAnnounceForm, setShowAnnounceForm] = useState(false)
   const [onlyMySports, setOnlyMySports] = useState(false)
   const [teamLogos, setTeamLogos] = useState<Record<string, string | undefined>>({})
+  const [playerPhotos, setPlayerPhotos] = useState<string[]>([])
   const [teamOptions, setTeamOptions] = useState<string[]>([])
   const [refereeOptions, setRefereeOptions] = useState<Array<{ id: string; name: string }>>([])
   const [groundOptions, setGroundOptions] = useState<string[]>([])
@@ -118,6 +119,26 @@ export function HomePage() {
 
     void loadTeams()
     void loadGrounds()
+  }, [])
+
+  // Player profile photos feed the banner's background mosaic.
+  useEffect(() => {
+    let active = true
+    void api
+      .getPlayersBySport('')
+      .then((response) => {
+        if (!active) {
+          return
+        }
+        const photos = response.players
+          .map((player) => player.avatar)
+          .filter((avatar): avatar is string => Boolean(avatar && avatar.trim()))
+        setPlayerPhotos(photos)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
   }, [])
 
   const getTeamLogo = useMemo(() => {
@@ -361,6 +382,7 @@ export function HomePage() {
       <MatchSpotlight
         matches={matches}
         teamLogos={teamLogos}
+        playerPhotos={playerPhotos}
         isGuest={!loggedInUser}
         canCreateMatch={canCreateHere}
         onCreateMatch={() => setShowAnnounceForm(true)}

@@ -1380,6 +1380,7 @@ export const store = {
       sports: [payload.sport],
       email: payload.email.toLowerCase(),
       password: hashPassword(payload.password),
+      avatar: payload.avatar ?? '',
       emailVerified: false,
     })
 
@@ -1980,10 +1981,15 @@ export const store = {
         }
       : {}
     const accounts = await AccountModel.find({ role: { $in: ['player', 'fan'] }, ...sportFilter })
-      .select({ name: 1, sport: 1 })
+      .select({ name: 1, sport: 1, avatar: 1 })
       .sort({ name: 1 })
-      .lean<Array<{ _id: mongoose.Types.ObjectId; name: string; sport: string }>>()
-    return accounts.map((account) => ({ id: account._id.toString(), name: account.name, sport: account.sport }))
+      .lean<Array<{ _id: mongoose.Types.ObjectId; name: string; sport: string; avatar?: string }>>()
+    return accounts.map((account) => ({
+      id: account._id.toString(),
+      name: account.name,
+      sport: account.sport,
+      avatar: account.avatar ?? '',
+    }))
   },
   getReferees: async () => {
     const referees = await AccountModel.find({ role: 'referee' })

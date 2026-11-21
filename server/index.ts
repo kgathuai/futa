@@ -1943,10 +1943,25 @@ app.post('/api/auth/register', async (req, res) => {
   const sport = body.sport?.trim() ?? ''
   const email = body.email?.trim().toLowerCase() ?? ''
   const password = body.password?.trim() ?? ''
+  const avatar = (body.avatar ?? '').trim()
 
   if (!name || !role || !sport || !email || !password) {
     res.status(400).json({ error: 'Missing required registration fields.' })
     return
+  }
+
+  // One optional profile photo, stored on the account (players only).
+  if (avatar) {
+    const isRemoteUrl = /^https?:\/\//i.test(avatar)
+    const isDataUrl = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(avatar)
+    if (!isRemoteUrl && !isDataUrl) {
+      res.status(400).json({ error: 'That profile photo could not be read. Use a JPG, PNG or WebP image.' })
+      return
+    }
+    if (avatar.length > 600_000) {
+      res.status(400).json({ error: 'That profile photo is too large. Pick a smaller image.' })
+      return
+    }
   }
 
   const requestedRole = normalizeRole(role)
@@ -1978,6 +1993,7 @@ app.post('/api/auth/register', async (req, res) => {
     sport,
     email,
     password,
+    avatar: avatar || undefined,
   })
   const session = await store.createSession(account.id)
 
