@@ -48,6 +48,7 @@ import type { FriendlyRequest, MatchAnnouncement, NotificationItem } from '../ty
 import { useAppData } from '../context/AppContext'
 import { LoadingBar } from './LoadingBar'
 import { TopToast } from './TopToast'
+import { BannerStudioDialog } from './BannerStudioDialog'
 import type { ToastMessage } from './TopToast'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { SPORTS, isIndividualSport } from '../lib/sports'
@@ -150,6 +151,7 @@ export function Layout() {
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login')
   const [authMessage, setAuthMessage] = useState('')
   const [toast, setToast] = useState<ToastMessage | null>(null)
+  const [isBannerStudioOpen, setIsBannerStudioOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [isSendingReset, setIsSendingReset] = useState(false)
   const [emailVerified, setEmailVerified] = useState(true)
@@ -1528,6 +1530,14 @@ export function Layout() {
                     Remove
                   </Button>
                 )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setIsBannerStudioOpen(true)}
+                  sx={{ ml: 'auto' }}
+                >
+                  Create banner
+                </Button>
               </Stack>
 
 
@@ -2440,6 +2450,15 @@ export function Layout() {
           </Stack>
         </Container>
       </Box>
+
+      <BannerStudioDialog
+        open={isBannerStudioOpen}
+        onClose={() => setIsBannerStudioOpen(false)}
+        name={loggedInUser ?? 'Player'}
+        team={loggedInTeam ?? ''}
+        sport={activeSport || profileSports[0] || ''}
+        avatar={profileAvatar || undefined}
+      />
     </Box>
   )
 }
