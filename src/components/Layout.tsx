@@ -41,7 +41,7 @@ import FacebookIcon from '@mui/icons-material/Facebook'
 import InstagramIcon from '@mui/icons-material/Instagram'
 import XIcon from '@mui/icons-material/X'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api, subscribeToApiLoading } from '../lib/api'
 import type { FriendlyRequest, MatchAnnouncement, NotificationItem } from '../types'
 import { useAppData } from '../context/AppContext'
@@ -140,6 +140,7 @@ const roleLabel = (role: string | null | undefined) => {
 export function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
   const { refreshTeam, matches, team } = useAppData()
   const currentYear = new Date().getFullYear()
   const { language, setLanguage, t } = useI18n()
@@ -894,19 +895,25 @@ export function Layout() {
         <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
           <Toolbar disableGutters sx={{ height: { xs: 48, sm: 52 }, minHeight: { xs: 48, sm: 52 }, gap: { xs: 0.5, sm: 2 }, overflow: 'visible' }}>
             <Box
-              component="img"
-              src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
-              alt="Futa logo"
-              sx={{
-                height: { xs: 22, sm: 26, md: 30 },
-                maxWidth: { xs: 110, sm: 150, md: 180 },
-                width: 'auto',
-                display: 'block',
-                flexShrink: 1,
-                objectFit: 'contain',
-              }}
-              onClick={() => navigate('/')}
-            />
+              component={Link}
+              to="/"
+              aria-label="Kambumbu home"
+              onClick={scrollToTop}
+              sx={{ display: 'inline-flex', alignItems: 'center', minWidth: 0, flexShrink: 1 }}
+            >
+              <Box
+                component="img"
+                src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
+                alt="Kambumbu"
+                sx={{
+                  height: { xs: 22, sm: 26, md: 30 },
+                  maxWidth: { xs: 110, sm: 150, md: 180 },
+                  width: 'auto',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
+            </Box>
 
             <Box
               sx={{
@@ -1037,12 +1044,19 @@ export function Layout() {
         }}
       >
         <Box
-          component="img"
-          src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
-          alt="Kambumbu"
-          onClick={() => navigate('/')}
-          sx={{ height: 24, maxWidth: 150, width: 'auto', objectFit: 'contain', cursor: 'pointer' }}
-        />
+          component={Link}
+          to="/"
+          aria-label="Kambumbu home"
+          onClick={scrollToTop}
+          sx={{ display: 'inline-flex', lineHeight: 0 }}
+        >
+          <Box
+            component="img"
+            src={mode === 'light' ? '/kambumbu.png' : '/kambumbu-dark.png'}
+            alt="Kambumbu"
+            sx={{ height: 24, maxWidth: 150, width: 'auto', objectFit: 'contain' }}
+          />
+        </Box>
       </Box>
 
       {location.pathname.startsWith('/team-dashboard') && canAccessDashboard && (
