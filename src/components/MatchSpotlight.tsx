@@ -127,8 +127,8 @@ export function MatchSpotlight({
       src={teamLogos[team]}
       alt={`${team} logo`}
       sx={{
-        width: { xs: 34, md: 48 },
-        height: { xs: 34, md: 48 },
+        width: { xs: 42, md: 48 },
+        height: { xs: 42, md: 48 },
         bgcolor: 'rgba(76,227,163,0.14)',
         color: '#4ce3a3',
         fontWeight: 800,
@@ -193,7 +193,7 @@ export function MatchSpotlight({
         // Match slides use the tall hero; the no-match welcome fallback sizes to
         // its content so it doesn't leave a dead band above the CTAs.
         // Phone height is ~5 cm taller than the previous 400px (1 cm ≈ 38px).
-        minHeight: slides.length > 0 ? { xs: 590, sm: 400, md: 440 } : 'auto',
+        minHeight: slides.length > 0 ? { xs: 480, sm: 420, md: 440 } : 'auto',
         // Square-edged banner.
         borderRadius: 0,
         borderColor: 'rgba(76,227,163,0.32)',
@@ -302,7 +302,13 @@ export function MatchSpotlight({
                       <Stack
                         direction="row"
                         spacing={1}
-                        sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.8, mb: { xs: 0.9, md: 1.2 } }}
+                        sx={{
+                          alignItems: 'center',
+                          justifyContent: { xs: 'center', sm: 'flex-start' },
+                          flexWrap: 'wrap',
+                          rowGap: 0.8,
+                          mb: { xs: 0.9, md: 1.2 },
+                        }}
                       >
                         <Chip
                           size="small"
@@ -331,21 +337,76 @@ export function MatchSpotlight({
                           {length ? ` · ${length}` : ''}
                         </Typography>
                       </Stack>
-                      <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={{ xs: 0.6, sm: 1.4 }}
+                      {/* Phones: two crest columns with the names underneath. */}
+                      <Box
                         sx={{
-                          alignItems: { xs: 'flex-start', sm: 'center' },
+                          display: { xs: 'grid', sm: 'none' },
+                          gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+                          alignItems: 'center',
+                          columnGap: 1.2,
+                          my: 0.4,
+                        }}
+                      >
+                        <Stack spacing={0.8} sx={{ alignItems: 'center', minWidth: 0 }}>
+                          {teamLogo(match.homeTeam)}
+                          <Typography
+                            sx={{
+                              fontSize: '1.12rem',
+                              fontWeight: 800,
+                              lineHeight: 1.15,
+                              letterSpacing: '-0.01em',
+                              textAlign: 'center',
+                              overflowWrap: 'anywhere',
+                            }}
+                          >
+                            {match.homeTeam}
+                          </Typography>
+                        </Stack>
+                        <Typography
+                          sx={{
+                            color: 'text.secondary',
+                            fontWeight: 700,
+                            fontSize: '0.68rem',
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          vs
+                        </Typography>
+                        <Stack spacing={0.8} sx={{ alignItems: 'center', minWidth: 0 }}>
+                          {teamLogo(match.awayTeam)}
+                          <Typography
+                            sx={{
+                              fontSize: '1.12rem',
+                              fontWeight: 800,
+                              lineHeight: 1.15,
+                              letterSpacing: '-0.01em',
+                              textAlign: 'center',
+                              overflowWrap: 'anywhere',
+                            }}
+                          >
+                            {match.awayTeam}
+                          </Typography>
+                        </Stack>
+                      </Box>
+
+                      {/* Tablet & desktop: inline crest + name row. */}
+                      <Stack
+                        direction="row"
+                        spacing={1.4}
+                        sx={{
+                          display: { xs: 'none', sm: 'flex' },
+                          alignItems: 'center',
                           flexWrap: 'wrap',
                           rowGap: 0.6,
                           maxWidth: 920,
                         }}
                       >
-                        <Stack direction="row" spacing={{ xs: 0.8, md: 1.2 }} sx={{ alignItems: 'center', minWidth: 0 }}>
+                        <Stack direction="row" spacing={1.2} sx={{ alignItems: 'center', minWidth: 0 }}>
                           {teamLogo(match.homeTeam)}
                           <Typography
                             sx={{
-                              fontSize: { xs: '1.35rem', sm: '1.8rem', md: '2.15rem' },
+                              fontSize: { sm: '1.8rem', md: '2.15rem' },
                               fontWeight: 800,
                               lineHeight: 1.12,
                               letterSpacing: '-0.02em',
@@ -359,19 +420,19 @@ export function MatchSpotlight({
                           sx={{
                             color: 'text.secondary',
                             fontWeight: 700,
-                            fontSize: { xs: '0.72rem', md: '0.85rem' },
+                            fontSize: { sm: '0.75rem', md: '0.85rem' },
                             letterSpacing: '0.06em',
                             textTransform: 'uppercase',
-                            alignSelf: { xs: 'flex-start', sm: 'center' },
+                            alignSelf: 'center',
                           }}
                         >
                           vs
                         </Box>
-                        <Stack direction="row" spacing={{ xs: 0.8, md: 1.2 }} sx={{ alignItems: 'center', minWidth: 0 }}>
+                        <Stack direction="row" spacing={1.2} sx={{ alignItems: 'center', minWidth: 0 }}>
                           {teamLogo(match.awayTeam)}
                           <Typography
                             sx={{
-                              fontSize: { xs: '1.35rem', sm: '1.8rem', md: '2.15rem' },
+                              fontSize: { sm: '1.8rem', md: '2.15rem' },
                               fontWeight: 800,
                               lineHeight: 1.12,
                               letterSpacing: '-0.02em',
@@ -387,9 +448,11 @@ export function MatchSpotlight({
                         sx={{
                           mt: { xs: 1, md: 1.3 },
                           alignItems: 'center',
+                          justifyContent: { xs: 'center', sm: 'flex-start' },
                           flexWrap: 'wrap',
                           rowGap: 0.6,
                           color: 'text.secondary',
+                          textAlign: { xs: 'center', sm: 'left' },
                         }}
                       >
                         <Stack direction="row" spacing={0.4} sx={{ alignItems: 'center' }}>
@@ -416,7 +479,11 @@ export function MatchSpotlight({
             </Box>
 
             {slides.length > 1 && (
-              <Stack direction="row" spacing={0.6} sx={{ mt: 1.4, alignItems: 'center' }}>
+              <Stack
+                direction="row"
+                spacing={0.6}
+                sx={{ mt: 1.4, alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' } }}
+              >
                 {slides.map((match, index) => (
                   <Box
                     key={`spotlight-dot-${match.id}`}
