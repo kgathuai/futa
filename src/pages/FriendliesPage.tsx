@@ -77,6 +77,12 @@ export function FriendliesPage() {
       return
     }
 
+    // Wait for the session restore before deciding — otherwise a signed-in
+    // manager can be told to sign in, and the form never opens.
+    if (!loggedInUser && api.getToken()) {
+      return
+    }
+
     if (requestedTeam) {
       setTeamName(requestedTeam)
     }
@@ -165,6 +171,7 @@ export function FriendliesPage() {
   }
 
   const mySports = loggedInSports ?? []
+  const isPoolFriendly = friendlySport === 'Pool Table'
   const matchesMySports = (sport?: string) =>
     !onlyMySports || mySports.length === 0 || (sport ? mySports.includes(sport) : true)
 
@@ -307,6 +314,11 @@ export function FriendliesPage() {
                   return
                 }
 
+                if (isPoolFriendly && !teamName.trim()) {
+                  setRequestMessage('Enter the name of the pool player you want to challenge.')
+                  return
+                }
+
                 const contactCheck = validateTeamContact(contact)
                 if (!contactCheck.ok) {
                   setRequestMessage(contactCheck.error ?? 'Enter a valid contact.')
@@ -320,9 +332,10 @@ export function FriendliesPage() {
                     preferredDate,
                     preferredTime,
                     location,
-                    note,
+                    note: note.trim() || (isPoolFriendly ? 'Pool challenge' : note),
                     sport: friendlySport,
                     raceTo: isRaceSport(friendlySport) ? raceTo : undefined,
+                    opponentType: isPoolFriendly ? 'player' : undefined,
                     referee: referee.trim() || undefined,
                   }, token)
                   setTeamName('')
@@ -348,8 +361,8 @@ export function FriendliesPage() {
                 value={teamName}
                 onChange={(event) => setTeamName(event.target.value)}
                 helperText={teamOptions.length === 0 ? 'No teams available yet. Create teams first.' : undefined}
-                required={!intraSquad}
-                sx={{ display: intraSquad ? 'none' : undefined }}
+                required={!intraSquad && !isPoolFriendly}
+                sx={{ display: intraSquad || isPoolFriendly ? 'none' : undefined }}
               >
                 {teamOptions.map((teamOption) => (
                   <MenuItem key={teamOption.name} value={teamOption.name} sx={{ gap: 1.2 }}>
@@ -382,20 +395,39 @@ export function FriendliesPage() {
                   </MenuItem>
                 ))}
               </TextField>
-              <Button
-                type="button"
-                variant={intraSquad ? 'contained' : 'outlined'}
-                onClick={() => setIntraSquad((prev) => !prev)}
-                sx={{ alignSelf: 'flex-start', fontSize: '0.74rem' }}
-              >
-                🤝 Sisi kwa sisi (Team A vs Team B)
-              </Button>
+              {!isPoolFriendly && (
+                <Button
+                  type="button"
+                  variant={intraSquad ? 'contained' : 'outlined'}
+                  onClick={() => setIntraSquad((prev) => !prev)}
+                  sx={{ alignSelf: 'flex-start', fontSize: '0.74rem' }}
+                >
+                  🤝 Sisi kwa sisi (Team A vs Team B)
+                </Button>
+              )}
+
+              {isPoolFriendly && !intraSquad && (
+                <TextField
+                  label="Player name"
+                  value={teamName}
+                  onChange={(event) => setTeamName(event.target.value)}
+                  placeholder="The pool player you want to challenge"
+                  helperText="We send the challenge to this registered player."
+                  required
+                />
+              )}
 
               <TextField
                 select
                 label="Sport"
                 value={friendlySport}
-                onChange={(event) => setFriendlySport(event.target.value)}
+                onChange={(event) => {
+                  const nextSport = event.target.value
+                  setFriendlySport(nextSport)
+                  if (nextSport === 'Pool Table') {
+                    setIntraSquad(false)
+                  }
+                }}
                 helperText={intraSquad ? undefined : 'The friendly will be played in this sport.'}
               >
                 {['Football', 'Handball', 'Volleyball', 'Basketball', 'Rugby', 'Tennis', 'Paddle Tennis', 'Table Tennis', 'Pool Table', 'Darts', 'Golf', 'Chess', 'Fifa'].map((name) => (
@@ -466,6 +498,14 @@ export function FriendliesPage() {
                   <MenuItem value="Online">Online</MenuItem>
                   <MenuItem value="Offline">Offline</MenuItem>
                 </TextField>
+              ) : isPoolFriendly ? (
+                <TextField
+                  label="Venue"
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  placeholder="e.g. Cue Lounge, Westlands"
+                  required
+                />
               ) : (
                 <TextField
                   select
@@ -482,14 +522,16 @@ export function FriendliesPage() {
                   ))}
                 </TextField>
               )}
-              <TextField
-                label="Notes"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                multiline
-                rows={3}
-                required
-              />
+              {!isPoolFriendly && (
+                <TextField
+                  label="Notes"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  multiline
+                  rows={3}
+                  required
+                />
+              )}
               <TextField
                 select
                 label="Referee"
