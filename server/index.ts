@@ -1309,6 +1309,7 @@ app.post('/api/friendlies', async (req, res) => {
       note: body.note!,
       sport: body.sport,
       raceTo: body.raceTo !== undefined ? raceTo : undefined,
+      opponentType,
       referee: body.referee,
     }, user.id)
 

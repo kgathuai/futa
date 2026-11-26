@@ -2511,6 +2511,7 @@ export const store = {
     note: string
     sport?: string
     raceTo?: number
+    opponentType?: 'team' | 'player'
     referee?: string
     },
     senderAccountId: string,
@@ -2521,12 +2522,12 @@ export const store = {
     }
 
     const recipientTeamName = payload.teamName.trim()
-    let recipientAccountId = await findTeamOwnerAccountId(recipientTeamName)
-    if (!recipientAccountId && payload.teamName) {
-      // Pool-style individual opponent: the "team" field carries the player's name,
-      // and the opponent is a registered player account rather than a club.
-      recipientAccountId = await store.getAccountIdByName(recipientTeamName)
-    }
+    // Pool-style individual opponent: resolve the player's account by name so
+    // the request never lands on a club owner with the same name.
+    const recipientAccountId =
+      payload.opponentType === 'player'
+        ? await store.getAccountIdByName(recipientTeamName)
+        : await findTeamOwnerAccountId(recipientTeamName)
     if (!recipientAccountId) {
       throw new Error('That opponent does not have an account yet.')
     }
