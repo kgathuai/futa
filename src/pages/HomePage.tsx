@@ -7,7 +7,7 @@ import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import { useAppData } from '../context/AppContext'
 import type { MatchAnnouncement } from '../types'
 import { api } from '../lib/api'
-import { Link, useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { MatchEngagementPanel } from '../components/MatchEngagementPanel'
 import { useAutoHide } from '../lib/useAutoHide'
 import { getMatchRuntimeStatus, getMatchStatusLabel, hasRecordedScore } from '../lib/matchStatus'
@@ -78,6 +78,22 @@ export function HomePage() {
       normalizedRole === 'captain' ||
       normalizedRole === 'admin' ||
       normalizedRole === 'superadmin')
+
+  // Dashboard quick actions send people here as /?create=match — open the form.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('create') !== 'match') {
+      return
+    }
+    if (!loggedInUser && api.getToken()) {
+      // Wait for the session restore so managers land with the form open.
+      return
+    }
+    if (canCreateHere) {
+      setShowAnnounceForm(true)
+    }
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams, loggedInUser, canCreateHere])
 
   useEffect(() => {
     const loadReferees = async () => {

@@ -1118,7 +1118,7 @@ export function Layout() {
               }}
             >
               {[
-                { to: '/team-dashboard?create=match', label: 'Create match' },
+                { to: '/?create=match', label: 'Create match' },
                 { to: '/team-dashboard?create=friendly', label: 'Request friendly' },
                 { to: '/team-dashboard?create=team', label: 'Team profile' },
                 { to: '/team-dashboard?create=result', label: 'Submit result' },
