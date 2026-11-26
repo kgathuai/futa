@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import EventIcon from '@mui/icons-material/Event'
@@ -41,6 +41,7 @@ export function FriendliesPage() {
   const [friendlySport, setFriendlySport] = useState('Football')
   const [intraDuration, setIntraDuration] = useState(90)
   const [raceTo, setRaceTo] = useState(DEFAULT_RACE_TO)
+  const [poolPlayers, setPoolPlayers] = useState<string[]>([])
   const [referee, setReferee] = useState('')
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [teamOptions, setTeamOptions] = useState<{ name: string; logoUrl?: string }[]>([])
@@ -121,6 +122,29 @@ export function FriendliesPage() {
 
     void loadFriendlyOptions()
   }, [])
+
+  // Registered Pool Table players to pick from when challenging someone.
+  useEffect(() => {
+    if (friendlySport !== 'Pool Table') {
+      return
+    }
+    let active = true
+    void api
+      .getPlayersBySport('Pool Table')
+      .then((response) => {
+        if (!active) {
+          return
+        }
+        const names = response.players
+          .map((player) => player.name.trim())
+          .filter((name) => name && name.toLowerCase() !== (loggedInUser ?? '').trim().toLowerCase())
+        setPoolPlayers([...new Set(names)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })))
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [friendlySport, loggedInUser])
 
   const handleAccept = async (id: string) => {
     const token = api.getToken()
@@ -407,13 +431,22 @@ export function FriendliesPage() {
               )}
 
               {isPoolFriendly && !intraSquad && (
-                <TextField
-                  label="Player name"
-                  value={teamName}
-                  onChange={(event) => setTeamName(event.target.value)}
-                  placeholder="The pool player you want to challenge"
-                  helperText="We send the challenge to this registered player."
-                  required
+                <Autocomplete
+                  freeSolo
+                  options={poolPlayers}
+                  value={teamName || null}
+                  onChange={(_event, value) => setTeamName(typeof value === 'string' ? value : value ?? '')}
+                  onInputChange={(_event, value) => setTeamName(value)}
+                  noOptionsText="No Pool Table players registered yet — ask them to sign up first"
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Opponent player name"
+                      placeholder="Search registered players"
+                      helperText="The registered player you want to challenge — not your own name."
+                      required
+                    />
+                  )}
                 />
               )}
 

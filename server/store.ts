@@ -2530,6 +2530,9 @@ export const store = {
     if (!recipientAccountId) {
       throw new Error('That opponent does not have an account yet.')
     }
+    if (recipientAccountId === senderAccount._id.toString()) {
+      throw new Error('You cannot send a friendly request to yourself — pick your opponent.')
+    }
 
     const refereeName = payload.referee?.trim() || ''
     const refereeAccount = refereeName
