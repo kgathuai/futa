@@ -671,6 +671,7 @@ export function TournamentsPage() {
       setCreateTeams([])
       setMessage('Tournament created successfully.')
       navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to create tournament.')
       return

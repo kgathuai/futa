@@ -327,6 +327,7 @@ export function FriendliesPage() {
                     setReferee('')
                     setNote('')
                     navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
                   } catch (error) {
                     setRequestMessage(error instanceof Error ? error.message : 'Could not create the match.')
                   }
@@ -371,6 +372,7 @@ export function FriendliesPage() {
                   setReferee('')
                   setShowRequestForm(false)
                   navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
                 } catch (error) {
                   setRequestMessage(error instanceof Error ? error.message : 'Failed to create friendly request.')
                 }

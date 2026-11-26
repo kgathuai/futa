@@ -485,6 +485,7 @@ export function TeamDashboardPage() {
       setGlobalMessage('Match created successfully.')
       await loadMyMatches()
       navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to create match.')
     }
@@ -564,6 +565,7 @@ export function TeamDashboardPage() {
       setGlobalError('')
       setGlobalMessage('Friendly request sent.')
       navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to create friendly request.')
     }
@@ -614,6 +616,7 @@ export function TeamDashboardPage() {
       setGlobalMessage('Team saved successfully.')
       if (wasNewTeam) {
         navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to save team.')
@@ -644,6 +647,7 @@ export function TeamDashboardPage() {
       setGlobalError('')
       setGlobalMessage('Result submitted successfully.')
       navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : 'Failed to submit result.')
     }
@@ -745,6 +749,7 @@ export function TeamDashboardPage() {
     setGlobalError('')
     setGlobalMessage('Tournament created successfully.')
     navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleKickoffUpdate = async (matchId: string) => {

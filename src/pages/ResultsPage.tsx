@@ -70,6 +70,7 @@ export function ResultsPage() {
                 setPlayedOn('')
                 setReportedBy('')
                 navigate('/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
             >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
