@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Typography } from '@mui/material'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
 import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -15,7 +15,7 @@ import { useMatchClock } from '../lib/useMatchClock'
 import { MatchForm } from '../components/MatchForm'
 import { MatchSpotlight } from '../components/MatchSpotlight'
 import { SportFilterBar } from '../components/SportFilterBar'
-import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, formatMatchLength, isRaceSport } from '../lib/matchFormat'
+import { DEFAULT_RACE_TO, RACE_TO_HINT, formatMatchLength, isRaceSport, isValidRaceTo } from '../lib/matchFormat'
 import { CardSkeleton } from '../components/LoadingSkeleton'
 
 interface AuthOutletContext {
@@ -270,6 +270,10 @@ export function HomePage() {
     }
 
     const raceMatch = editingMatch ? isRaceSport(editingMatch.sport) : false
+    if (raceMatch && !isValidRaceTo(editRaceTo)) {
+      setEditError('Enter an odd number of racks (1, 3, 5 … 15).')
+      return
+    }
 
     setIsSavingEdit(true)
     setEditError('')
@@ -527,18 +531,14 @@ export function HomePage() {
             />
             {isRaceSport(editingMatch?.sport) ? (
               <TextField
-                select
                 label="Race to (racks)"
+                type="number"
                 size="small"
-                value={editRaceTo}
-                onChange={(event) => setEditRaceTo(Number(event.target.value))}
-              >
-                {RACE_TO_OPTIONS.map((racks) => (
-                  <MenuItem key={racks} value={racks}>
-                    Race to {racks}
-                  </MenuItem>
-                ))}
-              </TextField>
+                value={editRaceTo === 0 ? '' : editRaceTo}
+                onChange={(event) => setEditRaceTo(event.target.value === '' ? 0 : Number(event.target.value))}
+                slotProps={{ htmlInput: { min: 1, max: 15, step: 2, inputMode: 'numeric' } }}
+                helperText={RACE_TO_HINT}
+              />
             ) : (
               <TextField
                 label="Duration (min)"

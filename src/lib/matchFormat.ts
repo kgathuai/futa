@@ -13,6 +13,9 @@ export const DEFAULT_RACE_TO = 5
 /** Racks a player/team can race to. Kept small — these are social friendlies. */
 // Pool is raced to an odd number of racks so a match can't finish level.
 export const RACE_TO_OPTIONS = [1, 3, 5, 7, 9, 11, 13, 15]
+export const RACE_TO_HINT = 'Odd numbers only: 1, 3, 5 … 15.'
+export const isValidRaceTo = (value: number) =>
+  Number.isInteger(value) && value >= 1 && value <= 15 && value % 2 === 1
 
 export const isRaceSport = (sport?: string | null) =>
   RACE_SPORTS.includes((sport ?? '').trim() as (typeof RACE_SPORTS)[number])

@@ -25,7 +25,7 @@ import { RowSkeleton } from '../components/LoadingSkeleton'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { KENYA_COUNTIES } from '../lib/kenyaCounties'
 import { isIndividualSport } from '../lib/sports'
-import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, isRaceSport } from '../lib/matchFormat'
+import { DEFAULT_RACE_TO, RACE_TO_HINT, isRaceSport, isValidRaceTo } from '../lib/matchFormat'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -449,6 +449,11 @@ export function TeamDashboardPage() {
       return
     }
 
+    if (isRaceSport(sport) && !isValidRaceTo(matchRaceTo)) {
+      setGlobalError('Enter an odd number of racks (1, 3, 5 … 15).')
+      return
+    }
+
     try {
       await api.createMatch(
         {
@@ -495,6 +500,11 @@ export function TeamDashboardPage() {
     const token = api.getToken()
     if (!token) {
       setGlobalError('Please log in before sending a friendly request.')
+      return
+    }
+
+    if (isRaceSport(friendlySport) && !isValidRaceTo(friendlyRaceTo)) {
+      setGlobalError('Enter an odd number of racks (1, 3, 5 … 15).')
       return
     }
 
@@ -1669,19 +1679,14 @@ export function TeamDashboardPage() {
                           />
                           {isRaceSport(sport) ? (
                             <TextField
-                              select
                               label="Race to (racks) *"
-                              value={matchRaceTo}
-                              onChange={(event) => setMatchRaceTo(Number(event.target.value))}
-                              helperText="Pool is played to a set number of racks."
+                              type="number"
+                              value={matchRaceTo === 0 ? '' : matchRaceTo}
+                              onChange={(event) => setMatchRaceTo(event.target.value === '' ? 0 : Number(event.target.value))}
+                              slotProps={{ htmlInput: { min: 1, max: 15, step: 2, inputMode: 'numeric' } }}
+                              helperText={RACE_TO_HINT}
                               required
-                            >
-                              {RACE_TO_OPTIONS.map((racks) => (
-                                <MenuItem key={racks} value={racks}>
-                                  Race to {racks}
-                                </MenuItem>
-                              ))}
-                            </TextField>
+                            />
                           ) : (
                             <TextField
                               label="Duration (Min) *"
@@ -1932,18 +1937,13 @@ export function TeamDashboardPage() {
                   />
                   {isRaceSport(friendlySport) && (
                     <TextField
-                      select
                       label="Race to (racks)"
-                      value={friendlyRaceTo}
-                      onChange={(event) => setFriendlyRaceTo(Number(event.target.value))}
-                      helperText="Pool friendlies are decided by racks won, not by the clock."
-                    >
-                      {RACE_TO_OPTIONS.map((racks) => (
-                        <MenuItem key={racks} value={racks}>
-                          Race to {racks}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                      type="number"
+                      value={friendlyRaceTo === 0 ? '' : friendlyRaceTo}
+                      onChange={(event) => setFriendlyRaceTo(event.target.value === '' ? 0 : Number(event.target.value))}
+                      slotProps={{ htmlInput: { min: 1, max: 15, step: 2, inputMode: 'numeric' } }}
+                      helperText={RACE_TO_HINT}
+                    />
                   )}
                   {friendlySport === 'Fifa' ? (
                     <TextField

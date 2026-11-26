@@ -15,7 +15,7 @@ import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-rout
 import { useAutoHide } from '../lib/useAutoHide'
 import type { MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
-import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, isRaceSport } from '../lib/matchFormat'
+import { DEFAULT_RACE_TO, RACE_TO_HINT, isRaceSport, isValidRaceTo } from '../lib/matchFormat'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -254,6 +254,11 @@ export function FriendliesPage() {
                   return
                 }
 
+                if (isRaceSport(friendlySport) && !isValidRaceTo(raceTo)) {
+                  setRequestMessage('Enter an odd number of racks (1, 3, 5 … 15).')
+                  return
+                }
+
                 if (intraSquad) {
                   if (!loggedInTeam) {
                     setRequestMessage('Set your team before booking a sisi kwa sisi match.')
@@ -402,18 +407,13 @@ export function FriendliesPage() {
 
               {isRaceSport(friendlySport) ? (
                 <TextField
-                  select
                   label="Race to (racks)"
-                  value={raceTo}
-                  onChange={(event) => setRaceTo(Number(event.target.value))}
-                  helperText="Pool is decided by racks won, not by the clock."
-                >
-                  {RACE_TO_OPTIONS.map((racks) => (
-                    <MenuItem key={racks} value={racks}>
-                      Race to {racks}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  type="number"
+                  value={raceTo === 0 ? '' : raceTo}
+                  onChange={(event) => setRaceTo(event.target.value === '' ? 0 : Number(event.target.value))}
+                  slotProps={{ htmlInput: { min: 1, max: 15, step: 2, inputMode: 'numeric' } }}
+                  helperText={RACE_TO_HINT}
+                />
               ) : intraSquad ? (
                 <TextField
                   label="Match duration (min)"

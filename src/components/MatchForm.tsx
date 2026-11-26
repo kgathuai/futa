@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { api } from '../lib/api'
-import { DEFAULT_RACE_TO, RACE_TO_OPTIONS, isRaceSport } from '../lib/matchFormat'
+import { DEFAULT_RACE_TO, RACE_TO_HINT, isRaceSport, isValidRaceTo } from '../lib/matchFormat'
 import type { MatchAnnouncement } from '../types'
 
 export interface MatchFormProps {
@@ -69,8 +69,8 @@ export function MatchForm({
       setError('Enter a valid match duration in minutes.')
       return
     }
-    if (racesToRacks && (!Number.isFinite(raceTo) || raceTo <= 0)) {
-      setError('Pick how many racks this match races to.')
+    if (racesToRacks && !isValidRaceTo(raceTo)) {
+      setError('Enter an odd number of racks (1, 3, 5 … 15).')
       return
     }
     if (!venue || !kickoff) {
@@ -208,20 +208,15 @@ export function MatchForm({
         />
         {racesToRacks ? (
           <TextField
-            select
             label="Race to (racks)"
-            value={raceTo}
-            onChange={(event) => setRaceTo(Number(event.target.value))}
-            helperText="Pool is played to a set number of racks — not a clock."
+            type="number"
+            value={raceTo === 0 ? '' : raceTo}
+            onChange={(event) => setRaceTo(event.target.value === '' ? 0 : Number(event.target.value))}
+            slotProps={{ htmlInput: { min: 1, max: 15, step: 2, inputMode: 'numeric' } }}
+            helperText={RACE_TO_HINT}
             required
             fullWidth
-          >
-            {RACE_TO_OPTIONS.map((racks) => (
-              <MenuItem key={racks} value={racks}>
-                Race to {racks}
-              </MenuItem>
-            ))}
-          </TextField>
+          />
         ) : (
           <TextField
             label="Duration (min)"
