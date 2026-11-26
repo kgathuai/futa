@@ -11,7 +11,8 @@ export const RACE_SPORTS = ['Pool Table'] as const
 export const DEFAULT_RACE_TO = 5
 
 /** Racks a player/team can race to. Kept small — these are social friendlies. */
-export const RACE_TO_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+// Pool is raced to an odd number of racks so a match can't finish level.
+export const RACE_TO_OPTIONS = [1, 3, 5, 7, 9, 11, 13, 15]
 
 export const isRaceSport = (sport?: string | null) =>
   RACE_SPORTS.includes((sport ?? '').trim() as (typeof RACE_SPORTS)[number])

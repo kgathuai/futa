@@ -403,8 +403,8 @@ app.post('/api/matches', async (req, res) => {
 
   // Pool sports are a race to a number of racks, not a timed game.
   const raceTo = Number(body.raceTo)
-  if (body.raceTo !== undefined && (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 50)) {
-    res.status(400).json({ error: 'Pick a race-to target between 1 and 50 racks.' })
+  if (body.raceTo !== undefined && (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 15 || raceTo % 2 === 0)) {
+    res.status(400).json({ error: 'Pick an odd race-to target: 1, 3, 5 … 15 racks.' })
     return
   }
 
@@ -712,8 +712,8 @@ app.patch('/api/matches/:matchId', async (req, res) => {
 
   if (body.raceTo !== undefined) {
     const raceTo = Number(body.raceTo)
-    if (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 50) {
-      res.status(400).json({ error: 'Pick a race-to target between 1 and 50 racks.' })
+    if (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 15 || raceTo % 2 === 0) {
+      res.status(400).json({ error: 'Pick an odd race-to target: 1, 3, 5 … 15 racks.' })
       return
     }
     body.raceTo = raceTo
@@ -1294,8 +1294,8 @@ app.post('/api/friendlies', async (req, res) => {
   }
 
   const raceTo = Number(body.raceTo)
-  if (body.raceTo !== undefined && (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 50)) {
-    res.status(400).json({ error: 'Pick a race-to target between 1 and 50 racks.' })
+  if (body.raceTo !== undefined && (!Number.isInteger(raceTo) || raceTo < 1 || raceTo > 15 || raceTo % 2 === 0)) {
+    res.status(400).json({ error: 'Pick an odd race-to target: 1, 3, 5 … 15 racks.' })
     return
   }
 
