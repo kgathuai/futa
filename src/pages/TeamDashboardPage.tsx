@@ -508,6 +508,29 @@ export function TeamDashboardPage() {
       return
     }
 
+    const challengingPlayer = isIndividualSport(friendlySport) && opponentType === 'player'
+    const opponentName = (challengingPlayer ? poolOpponent : friendlyTeamName).trim()
+    if (!opponentName) {
+      setGlobalError(
+        challengingPlayer
+          ? `No ${friendlySport} players are registered yet — switch the opponent to Team, or ask a player to sign up first.`
+          : 'Pick the team you want to challenge.',
+      )
+      return
+    }
+    if (!friendlyPreferredDate || !friendlyPreferredTime) {
+      setGlobalError('Pick the date and time for the friendly.')
+      return
+    }
+    if (!friendlyLocation.trim()) {
+      setGlobalError('Pick the venue for the friendly.')
+      return
+    }
+    if (!friendlyNote.trim()) {
+      setGlobalError('Add a short note for the request.')
+      return
+    }
+
     const contactCheck = validateTeamContact(friendlyContact)
     if (!contactCheck.ok) {
       setGlobalError(contactCheck.error ?? 'Enter a valid contact.')
@@ -517,7 +540,7 @@ export function TeamDashboardPage() {
     try {
       await api.createFriendlyRequest(
         {
-          teamName: isIndividualSport(friendlySport) && opponentType === 'player' ? poolOpponent : friendlyTeamName,
+          teamName: opponentName,
           contact: contactCheck.value,
           preferredDate: friendlyPreferredDate,
           preferredTime: friendlyPreferredTime,

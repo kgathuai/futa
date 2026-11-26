@@ -1247,15 +1247,15 @@ app.post('/api/friendlies', async (req, res) => {
     raceTo?: number
   }
 
-  if (
-    !body.teamName ||
-    !body.contact ||
-    !body.preferredDate ||
-    !body.preferredTime ||
-    !body.location ||
-    !body.note
-  ) {
-    res.status(400).json({ error: 'Missing friendly request fields.' })
+  const missingFields: string[] = []
+  if (!body.teamName) missingFields.push('opponent')
+  if (!body.contact) missingFields.push('contact')
+  if (!body.preferredDate) missingFields.push('date')
+  if (!body.preferredTime) missingFields.push('time')
+  if (!body.location) missingFields.push('venue')
+  if (!body.note) missingFields.push('note')
+  if (missingFields.length > 0) {
+    res.status(400).json({ error: `Missing friendly request fields: ${missingFields.join(', ')}.` })
     return
   }
 
@@ -1275,7 +1275,7 @@ app.post('/api/friendlies', async (req, res) => {
     }
   }
 
-  const rawContact = body.contact.trim()
+  const rawContact = (body.contact ?? '').trim()
   const contact = isEmailAddress(rawContact) ? rawContact : normalizeKenyanPhone(rawContact)
   if (!contact) {
     res.status(400).json({
@@ -1287,7 +1287,7 @@ app.post('/api/friendlies', async (req, res) => {
   const opponentType = (req.body as { opponentType?: string }).opponentType === 'player' ? 'player' : 'team'
   if (opponentType === 'team') {
     const registeredTeamNames = await store.getRegisteredTeamNames()
-    if (!registeredTeamNames.includes(body.teamName)) {
+    if (!registeredTeamNames.includes(body.teamName!)) {
       res.status(400).json({ error: `${body.teamName} is not a registered team.` })
       return
     }
@@ -1301,12 +1301,12 @@ app.post('/api/friendlies', async (req, res) => {
 
   try {
     const request = await store.addFriendlyRequest({
-      teamName: body.teamName,
+      teamName: body.teamName!,
       contact,
-      preferredDate: body.preferredDate,
-      preferredTime: body.preferredTime,
-      location: body.location,
-      note: body.note,
+      preferredDate: body.preferredDate!,
+      preferredTime: body.preferredTime!,
+      location: body.location!,
+      note: body.note!,
       sport: body.sport,
       raceTo: body.raceTo !== undefined ? raceTo : undefined,
       referee: body.referee,
