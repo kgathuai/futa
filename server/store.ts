@@ -665,6 +665,65 @@ const buildKickoffIso = (date: string, time: string) => {
   return kickoff.toISOString()
 }
 
+const BOOKING_WINDOW_MS = 2 * 60 * 60 * 1000
+
+/**
+ * A team/player can only be in one friendly around a given kickoff. Returns a
+ * human-readable reason when either side is already booked (match or pending /
+ * accepted friendly request), or null when the slot is free.
+ */
+const findBookingConflict = async ({
+  teamNames,
+  kickoffIso,
+  excludeMatchId,
+  excludeRequestId,
+}: {
+  teamNames: string[]
+  kickoffIso: string
+  excludeMatchId?: string
+  excludeRequestId?: string
+}): Promise<string | null> => {
+  const names = [...new Set(teamNames.map((name) => name.trim()).filter(Boolean))]
+  const target = new Date(kickoffIso).getTime()
+  if (names.length === 0 || !Number.isFinite(target)) {
+    return null
+  }
+
+  const patterns = names.map((name) => new RegExp(`^${escapeRegExp(name)}$`, 'i'))
+
+  const matches = await MatchModel.find({
+    status: { $ne: 'postponed' },
+    $or: [{ homeTeam: { $in: patterns } }, { awayTeam: { $in: patterns } }],
+  }).lean<Array<{ id: string; homeTeam: string; awayTeam: string; kickoff: string }>>()
+
+  for (const match of matches) {
+    if (excludeMatchId && match.id === excludeMatchId) {
+      continue
+    }
+    const time = new Date(match.kickoff).getTime()
+    if (Number.isFinite(time) && Math.abs(time - target) < BOOKING_WINDOW_MS) {
+      return `${match.homeTeam} vs ${match.awayTeam} is already booked around that time.`
+    }
+  }
+
+  const requests = await FriendlyRequestModel.find({
+    status: { $in: ['pending', 'accepted'] },
+    $or: [{ requesterTeam: { $in: patterns } }, { recipientTeam: { $in: patterns } }],
+  }).lean<FriendlyRequestRecord[]>()
+
+  for (const request of requests) {
+    if (excludeRequestId && request.id === excludeRequestId) {
+      continue
+    }
+    const time = new Date(buildKickoffIso(request.preferredDate, request.preferredTime)).getTime()
+    if (Number.isFinite(time) && Math.abs(time - target) < BOOKING_WINDOW_MS) {
+      return `${request.requesterTeam} vs ${request.recipientTeam} already has a friendly request around that time.`
+    }
+  }
+
+  return null
+}
+
 const findTeamOwnerAccountId = async (teamName: string) => {
   const team = await TeamModel.findOne({ name: teamName.trim() }).lean<{ ownerAccountId?: mongoose.Types.ObjectId } | null>()
   if (team?.ownerAccountId) {
@@ -968,6 +1027,7 @@ export const store = {
     })
     return result.deletedCount > 0
   },
+  findBookingConflict,
   findVenueClash: async (venue: string, kickoff: string, excludeMatchId?: string) => {
     const target = new Date(kickoff).getTime()
     if (!Number.isFinite(target) || !venue.trim()) {
@@ -2535,6 +2595,27 @@ export const store = {
       throw new Error('You cannot send a friendly request to yourself — pick your opponent.')
     }
 
+    // One request per pair per slot, and nobody can be double booked.
+    const friendlyDate = payload.preferredDate.trim()
+    const friendlyTime = payload.preferredTime.trim()
+    const duplicate = await FriendlyRequestModel.findOne({
+      requesterAccountId: senderAccount._id,
+      recipientAccountId,
+      preferredDate: friendlyDate,
+      status: { $in: ['pending', 'accepted'] },
+    }).lean<FriendlyRequestRecord | null>()
+    if (duplicate && duplicate.preferredTime.slice(0, 5) === friendlyTime.slice(0, 5)) {
+      throw new Error('You already sent this friendly request for that time — wait for a reply.')
+    }
+
+    const bookingConflict = await findBookingConflict({
+      teamNames: [senderAccount.team ?? '', recipientTeamName],
+      kickoffIso: buildKickoffIso(friendlyDate, friendlyTime),
+    })
+    if (bookingConflict) {
+      throw new Error(bookingConflict)
+    }
+
     const refereeName = payload.referee?.trim() || ''
     const refereeAccount = refereeName
       ? await AccountModel.findOne({
@@ -2710,6 +2791,17 @@ export const store = {
     const request = await FriendlyRequestModel.findOne({ id: requestId }).lean<FriendlyRequestRecord | null>()
     if (!request || request.recipientAccountId.toString() !== ownerAccountId) {
       return null
+    }
+
+    // Refuse to confirm a friendly if either side is already booked elsewhere.
+    // Checked before flipping the status so a conflicting request stays pending.
+    const bookingConflict = await findBookingConflict({
+      teamNames: [request.requesterTeam, request.recipientTeam],
+      kickoffIso: buildKickoffIso(request.preferredDate, request.preferredTime),
+      excludeRequestId: request.id,
+    })
+    if (bookingConflict) {
+      return { status: 'conflict' as const, message: bookingConflict }
     }
 
     const updatedRequest = await FriendlyRequestModel.findOneAndUpdate(

@@ -440,6 +440,18 @@ app.post('/api/matches', async (req, res) => {
     return
   }
 
+  // Friendlies follow the same rule as requests: a team can only be booked once.
+  if (body.category === 'Friendly') {
+    const bookingConflict = await store.findBookingConflict({
+      teamNames: [homeTeam, awayTeam],
+      kickoffIso: body.kickoff,
+    })
+    if (bookingConflict) {
+      res.status(409).json({ error: `That time is unavailable — ${bookingConflict}` })
+      return
+    }
+  }
+
   if (body.referee?.trim()) {
     const registered = await findRefereeByName(body.referee)
     if (!registered) {
@@ -1337,6 +1349,10 @@ app.post('/api/friendlies/:requestId/accept', async (req, res) => {
   const result = await store.acceptFriendlyRequest(requestId, user.id)
   if (!result) {
     res.status(404).json({ error: 'Friendly request not found.' })
+    return
+  }
+  if ('status' in result && result.status === 'conflict') {
+    res.status(409).json({ error: result.message })
     return
   }
 
