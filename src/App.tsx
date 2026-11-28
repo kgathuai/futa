@@ -6,7 +6,6 @@ import { AdminPage } from './pages/AdminPage'
 import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FriendliesPage } from './pages/FriendliesPage'
-import { FriendlyInvitePage } from './pages/FriendlyInvitePage'
 import { ResultsPage } from './pages/ResultsPage'
 import { PlayerPage } from './pages/PlayerPage'
 import { TeamPage } from './pages/TeamPage'
@@ -21,7 +20,6 @@ function App() {
         <Route path="/dashboard" element={<Navigate to="/" replace />} />
         <Route path="/matches" element={<Navigate to="/" replace />} />
         <Route path="/friendlies" element={<FriendliesPage />} />
-        <Route path="/friendlies/invite/:token" element={<FriendlyInvitePage />} />
         <Route path="/team-dashboard" element={<TeamDashboardPage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/chat" element={<ChatPage />} />

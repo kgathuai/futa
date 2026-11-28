@@ -49,9 +49,8 @@ export interface FriendlyRequestRecord {
   requesterAccountId: string
   requesterName: string
   requesterTeam: string
-  recipientAccountId?: string
+  recipientAccountId: string
   recipientTeam: string
-  inviteToken?: string
   contact: string
   preferredDate: string
   preferredTime: string
@@ -352,11 +351,8 @@ const friendlyRequestSchema = new Schema(
     requesterAccountId: { type: Schema.Types.ObjectId, required: true, ref: 'Account' },
     requesterName: { type: String, required: true },
     requesterTeam: { type: String, required: true },
-    // Empty when the opponent was invited by link (not registered yet).
-    recipientAccountId: { type: Schema.Types.ObjectId, required: false, ref: 'Account' },
+    recipientAccountId: { type: Schema.Types.ObjectId, required: true, ref: 'Account' },
     recipientTeam: { type: String, required: true },
-    // Shareable invite token for unregistered opponents.
-    inviteToken: { type: String, required: false, unique: true, sparse: true },
     contact: { type: String, required: true },
     preferredDate: { type: String, required: true },
     preferredTime: { type: String, required: true },
@@ -669,8 +665,6 @@ const buildKickoffIso = (date: string, time: string) => {
   return kickoff.toISOString()
 }
 
-const makeInviteToken = () => crypto.randomBytes(24).toString('base64url')
-
 const BOOKING_WINDOW_MS = 2 * 60 * 60 * 1000
 
 /**
@@ -774,24 +768,6 @@ export const connectDatabase = async (mongoUri: string) => {
   await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 })
   isConnected = true
 }
-
-const createMatchFromFriendlyRequest = async (request: FriendlyRequestRecord, ownerAccountId: string) =>
-  MatchModel.create({
-    id: makeEntityId(),
-    homeTeam: request.requesterTeam,
-    awayTeam: request.recipientTeam,
-    venue: request.location,
-    kickoff: buildKickoffIso(request.preferredDate, request.preferredTime),
-    durationMinutes: 90,
-    raceTo: request.raceTo ?? (request.sport === 'Pool Table' ? 5 : undefined),
-    category: 'Friendly',
-    sport: request.sport?.trim() || 'Football',
-    createdByTeam: request.recipientTeam,
-    createdByAccountId: ownerAccountId,
-    status: 'scheduled',
-    comments: [],
-    engagement: { likes: 0, comments: 0, rating: 0, ratingCount: 0 },
-  })
 
 export const store = {
   createPayment: async (payload: {
@@ -2607,23 +2583,24 @@ export const store = {
 
     const recipientTeamName = payload.teamName.trim()
     // Pool-style individual opponent: resolve the player's account by name so
-    // the request never lands on a club owner with the same name. Unregistered
-    // opponents get a shareable invite link instead of an error.
+    // the request never lands on a club owner with the same name.
     const recipientAccountId =
       payload.opponentType === 'player'
         ? await store.getAccountIdByName(recipientTeamName)
         : await findTeamOwnerAccountId(recipientTeamName)
-    if (recipientAccountId && recipientAccountId === senderAccount._id.toString()) {
+    if (!recipientAccountId) {
+      throw new Error('That opponent does not have an account yet.')
+    }
+    if (recipientAccountId === senderAccount._id.toString()) {
       throw new Error('You cannot send a friendly request to yourself — pick your opponent.')
     }
-    const inviteToken = recipientAccountId ? undefined : makeInviteToken()
 
     // One request per pair per slot, and nobody can be double booked.
     const friendlyDate = payload.preferredDate.trim()
     const friendlyTime = payload.preferredTime.trim()
     const duplicate = await FriendlyRequestModel.findOne({
       requesterAccountId: senderAccount._id,
-      ...(recipientAccountId ? { recipientAccountId } : { recipientTeam: recipientTeamName }),
+      recipientAccountId,
       preferredDate: friendlyDate,
       status: { $in: ['pending', 'accepted'] },
     }).lean<FriendlyRequestRecord | null>()
@@ -2654,7 +2631,6 @@ export const store = {
       requesterTeam: senderAccount.team,
       recipientAccountId,
       recipientTeam: recipientTeamName,
-      inviteToken,
       contact: payload.contact,
       preferredDate: payload.preferredDate,
       preferredTime: payload.preferredTime,
@@ -2691,15 +2667,13 @@ export const store = {
       }
     }
 
-    if (recipientAccountId) {
-      await createNotification({
-        accountId: recipientAccountId,
-        type: 'friendly-request',
-        title: 'New friendly match request',
-        message: `${senderAccount.name} wants a friendly against ${recipientTeamName} on ${payload.preferredDate} at ${payload.preferredTime}.`,
-        relatedFriendlyRequestId: request.id,
-      })
-    }
+    await createNotification({
+      accountId: recipientAccountId,
+      type: 'friendly-request',
+      title: 'New friendly match request',
+      message: `${senderAccount.name} wants a friendly against ${recipientTeamName} on ${payload.preferredDate} at ${payload.preferredTime}.`,
+      relatedFriendlyRequestId: request.id,
+    })
 
     return request.toObject()
   },
@@ -2815,7 +2789,7 @@ export const store = {
   },
   acceptFriendlyRequest: async (requestId: string, ownerAccountId: string) => {
     const request = await FriendlyRequestModel.findOne({ id: requestId }).lean<FriendlyRequestRecord | null>()
-    if (!request || !request.recipientAccountId || request.recipientAccountId.toString() !== ownerAccountId) {
+    if (!request || request.recipientAccountId.toString() !== ownerAccountId) {
       return null
     }
 
@@ -2843,7 +2817,27 @@ export const store = {
       return null
     }
 
-    const match = await createMatchFromFriendlyRequest(updatedRequest, ownerAccountId)
+    const match = await MatchModel.create({
+      id: makeEntityId(),
+      homeTeam: updatedRequest.requesterTeam,
+      awayTeam: updatedRequest.recipientTeam,
+      venue: updatedRequest.location,
+      kickoff: buildKickoffIso(updatedRequest.preferredDate, updatedRequest.preferredTime),
+      durationMinutes: 90,
+      raceTo: updatedRequest.raceTo ?? (updatedRequest.sport === 'Pool Table' ? 5 : undefined),
+      category: 'Friendly',
+      sport: updatedRequest.sport?.trim() || 'Football',
+      createdByTeam: updatedRequest.recipientTeam,
+      createdByAccountId: ownerAccountId,
+      status: 'scheduled',
+      comments: [],
+      engagement: {
+        likes: 0,
+        comments: 0,
+        rating: 0,
+        ratingCount: 0,
+      },
+    })
 
     await createNotification({
       accountId: updatedRequest.requesterAccountId.toString(),
@@ -2855,74 +2849,6 @@ export const store = {
     })
 
     return { request: updatedRequest, match: match.toObject() }
-  },
-  getFriendlyRequestByToken: async (token: string) => {
-    if (!token.trim()) {
-      return null
-    }
-    return FriendlyRequestModel.findOne({ inviteToken: token.trim(), status: 'pending' }).lean<FriendlyRequestRecord | null>()
-  },
-  claimFriendlyInvite: async (token: string, accountId: string) => {
-    const invite = await FriendlyRequestModel.findOne({ inviteToken: token.trim(), status: 'pending' }).lean<
-      FriendlyRequestRecord | null
-    >()
-    if (!invite) {
-      return { status: 'not-found' as const }
-    }
-    if (invite.recipientAccountId) {
-      return { status: 'taken' as const }
-    }
-
-    const account = await AccountModel.findById(accountId).lean<AccountDoc | null>()
-    if (!account) {
-      return { status: 'unauthorized' as const }
-    }
-    if (invite.requesterAccountId.toString() === account._id.toString()) {
-      return { status: 'self' as const }
-    }
-
-    const claimantTeam = account.team?.trim() || account.name.trim()
-    const bookingConflict = await findBookingConflict({
-      teamNames: [invite.requesterTeam, claimantTeam],
-      kickoffIso: buildKickoffIso(invite.preferredDate, invite.preferredTime),
-      excludeRequestId: invite.id,
-    })
-    if (bookingConflict) {
-      return { status: 'conflict' as const, message: bookingConflict }
-    }
-
-    const updated = await FriendlyRequestModel.findOneAndUpdate(
-      {
-        id: invite.id,
-        status: 'pending',
-        $or: [{ recipientAccountId: { $exists: false } }, { recipientAccountId: null }],
-      },
-      {
-        $set: {
-          recipientAccountId: account._id,
-          recipientTeam: claimantTeam,
-          status: 'accepted',
-          respondedAt: new Date().toISOString(),
-        },
-        $unset: { inviteToken: 1 },
-      },
-      { returnDocument: 'after' },
-    ).lean<FriendlyRequestRecord | null>()
-    if (!updated) {
-      return { status: 'taken' as const }
-    }
-
-    const match = await createMatchFromFriendlyRequest(updated, accountId)
-    await createNotification({
-      accountId: invite.requesterAccountId.toString(),
-      type: 'friendly-accepted',
-      title: 'Friendly invite accepted',
-      message: `${claimantTeam} accepted your friendly invite. The match is now scheduled at ${invite.location}.`,
-      relatedFriendlyRequestId: invite.id,
-      relatedMatchId: match.id,
-    })
-
-    return { status: 'ok' as const, request: updated, match: match.toObject() }
   },
   declineFriendlyRequest: async (requestId: string, ownerAccountId: string) => {
     const updatedRequest = await FriendlyRequestModel.findOneAndUpdate(
@@ -2955,7 +2881,7 @@ export const store = {
   ) => {
     if (status === 'accepted') {
       const accepted = await store.acceptFriendlyRequest(requestId, accountId)
-      return accepted && 'request' in accepted ? accepted.request : null
+      return accepted ? accepted.request : null
     }
 
     if (status === 'declined') {
