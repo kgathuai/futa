@@ -138,7 +138,7 @@ export interface FriendlyRequest {
   requesterAccountId: string
   requesterName: string
   requesterTeam: string
-  recipientAccountId: string
+  recipientAccountId?: string
   recipientTeam: string
   contact: string
   preferredDate: string
@@ -146,6 +146,8 @@ export interface FriendlyRequest {
   location: string
   note: string
   sport?: string
+  /** Shareable invite token when the opponent isn't registered yet. */
+  inviteToken?: string
   /** Pool-style friendlies: race to this many racks instead of a timed match. */
   raceTo?: number
   referee?: string

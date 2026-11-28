@@ -58,6 +58,8 @@ export function FriendliesPage() {
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null)
   const [statusEditId, setStatusEditId] = useState<string | null>(null)
   const [presetMessage, setPresetMessage] = useState('')
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [inviteCopied, setInviteCopied] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
   const canCreateHere =
@@ -351,7 +353,7 @@ export function FriendliesPage() {
                 }
 
                 try {
-                  await api.createFriendlyRequest({
+                  const created = await api.createFriendlyRequest({
                     teamName,
                     contact: contactCheck.value,
                     preferredDate,
@@ -371,8 +373,13 @@ export function FriendliesPage() {
                   setNote('')
                   setReferee('')
                   setShowRequestForm(false)
-                  navigate('/')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+                  if (created?.invitePath) {
+                    // Unregistered opponent: hand over a shareable invite link.
+                    setInviteLink(`${window.location.origin}${created.invitePath}`)
+                  } else {
+                    navigate('/')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }
                 } catch (error) {
                   setRequestMessage(error instanceof Error ? error.message : 'Failed to create friendly request.')
                 }
@@ -381,46 +388,23 @@ export function FriendliesPage() {
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Request a Friendly Match
               </Typography>
-              <TextField
-                select
-                label="I want friendly with"
-                value={teamName}
-                onChange={(event) => setTeamName(event.target.value)}
-                helperText={teamOptions.length === 0 ? 'No teams available yet. Create teams first.' : undefined}
-                required={!intraSquad && !isPoolFriendly}
+              <Autocomplete
+                freeSolo
+                options={teamOptions.map((teamOption) => teamOption.name)}
+                value={teamName || null}
+                onChange={(_event, value) => setTeamName(typeof value === 'string' ? value : value ?? '')}
+                onInputChange={(_event, value) => setTeamName(value)}
                 sx={{ display: intraSquad || isPoolFriendly ? 'none' : undefined }}
-              >
-                {teamOptions.map((teamOption) => (
-                  <MenuItem key={teamOption.name} value={teamOption.name} sx={{ gap: 1.2 }}>
-                    {teamOption.logoUrl ? (
-                      <Box
-                        component="img"
-                        src={teamOption.logoUrl}
-                        alt={`${teamOption.name} logo`}
-                        sx={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: '50%',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: 'rgba(76,227,163,0.16)',
-                          color: 'primary.main',
-                          fontSize: 11,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {teamOption.name.charAt(0).toUpperCase()}
-                      </Box>
-                    )}
-                    {teamOption.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="I want friendly with"
+                    placeholder="Search teams, or type an unregistered team"
+                    helperText="Not registered? Type the name and we'll create a shareable invite link."
+                    required={!intraSquad && !isPoolFriendly}
+                  />
+                )}
+              />
               {!isPoolFriendly && (
                 <Button
                   type="button"
@@ -899,6 +883,82 @@ export function FriendliesPage() {
           </Stack>
         )}
       </Stack>
+
+      <Dialog
+        open={Boolean(inviteLink)}
+        onClose={() => {
+          setInviteLink(null)
+          setInviteCopied(false)
+          navigate('/')
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Share this invite link</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              This opponent isn&apos;t registered yet. Send them this link — they can create an account and accept
+              the friendly from it.
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={inviteLink ?? ''}
+              slotProps={{ htmlInput: { readOnly: true } }}
+            />
+            {inviteCopied && (
+              <Typography variant="caption" color="primary.main">
+                Link copied to your clipboard.
+              </Typography>
+            )}
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  if (!inviteLink) {
+                    return
+                  }
+                  if (!navigator.clipboard) {
+                    setInviteCopied(false)
+                    return
+                  }
+                  void navigator.clipboard
+                    .writeText(inviteLink)
+                    .then(() => setInviteCopied(true))
+                    .catch(() => setInviteCopied(false))
+                }}
+              >
+                {inviteCopied ? 'Copied ✓' : 'Copy link'}
+              </Button>
+              <Button
+                variant="outlined"
+                component="a"
+                href={
+                  inviteLink
+                    ? `https://wa.me/?text=${encodeURIComponent(`Friendly invite: ${inviteLink}`)}`
+                    : undefined
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setInviteLink(null)
+              setInviteCopied(false)
+              navigate('/')
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={Boolean(selectedFriendlyForDetails && friendlies.find((f) => f.id === selectedFriendlyForDetails))} onClose={() => setSelectedFriendlyForDetails(null)} maxWidth="sm" fullWidth>
         {(() => {

@@ -449,11 +449,18 @@ export const api = {
     },
     token?: string | null,
   ) =>
-    request('/api/friendlies', {
+    request<FriendlyRequest & { invitePath?: string }>('/api/friendlies', {
       method: 'POST',
       body: payload,
       token,
     }),
+  getFriendlyInvite: (inviteToken: string) =>
+    request<FriendlyRequest>(`/api/friendlies/invite/${encodeURIComponent(inviteToken)}`),
+  claimFriendlyInvite: (inviteToken: string, token: string) =>
+    request<{ request: FriendlyRequest; match: MatchAnnouncement }>(
+      `/api/friendlies/invite/${encodeURIComponent(inviteToken)}/claim`,
+      { method: 'POST', token },
+    ),
   acceptFriendlyRequest: (requestId: string, token: string) =>
     request(`/api/friendlies/${requestId}/accept`, {
       method: 'POST',
