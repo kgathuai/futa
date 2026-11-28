@@ -152,11 +152,24 @@ export function Layout() {
   const [authMessage, setAuthMessage] = useState('')
   const [toast, setToast] = useState<ToastMessage | null>(null)
   const [isBannerStudioOpen, setIsBannerStudioOpen] = useState(false)
+  const [friendInviteLink, setFriendInviteLink] = useState<string | null>(null)
+  const [friendInviteCopied, setFriendInviteCopied] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [isSendingReset, setIsSendingReset] = useState(false)
   const [emailVerified, setEmailVerified] = useState(true)
   const [isResendingVerification, setIsResendingVerification] = useState(false)
   const refereeNoticeShown = useRef(false)
+
+  // Join links can open the auth drawer straight on the register form.
+  useEffect(() => {
+    const openAuth = (event: Event) => {
+      const detail = (event as CustomEvent<{ view?: 'login' | 'register' }>).detail
+      setAuthView(detail?.view === 'register' ? 'register' : 'login')
+      setIsAuthOpen(true)
+    }
+    window.addEventListener('kambumbu:open-auth', openAuth)
+    return () => window.removeEventListener('kambumbu:open-auth', openAuth)
+  }, [])
 
   // Auth messages surface at the top of the screen and clear themselves.
   useEffect(() => {
@@ -1538,6 +1551,17 @@ export function Layout() {
                 >
                   Create banner
                 </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    const link = `${window.location.origin}/join?from=${encodeURIComponent(loggedInUser ?? '')}`
+                    setFriendInviteLink(link)
+                    setFriendInviteCopied(false)
+                  }}
+                >
+                  Invite a friend
+                </Button>
               </Stack>
 
 
@@ -2459,6 +2483,76 @@ export function Layout() {
         sport={activeSport || profileSports[0] || ''}
         avatar={profileAvatar || undefined}
       />
+
+      <Dialog
+        open={Boolean(friendInviteLink)}
+        onClose={() => {
+          setFriendInviteLink(null)
+          setFriendInviteCopied(false)
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Invite a friend to Kambumbu</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              Share this link with a friend. It opens a welcome page where they can create their Kambumbu account and
+              join the community.
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={friendInviteLink ?? ''}
+              slotProps={{ htmlInput: { readOnly: true } }}
+            />
+            {friendInviteCopied && (
+              <Typography variant="caption" color="primary.main">
+                Link copied to your clipboard.
+              </Typography>
+            )}
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  if (!friendInviteLink || !navigator.clipboard) {
+                    return
+                  }
+                  void navigator.clipboard
+                    .writeText(friendInviteLink)
+                    .then(() => setFriendInviteCopied(true))
+                    .catch(() => setFriendInviteCopied(false))
+                }}
+              >
+                {friendInviteCopied ? 'Copied ✓' : 'Copy link'}
+              </Button>
+              <Button
+                variant="outlined"
+                component="a"
+                href={
+                  friendInviteLink
+                    ? `https://wa.me/?text=${encodeURIComponent(`Join me on Kambumbu: ${friendInviteLink}`)}`
+                    : undefined
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Share on WhatsApp
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setFriendInviteLink(null)
+              setFriendInviteCopied(false)
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

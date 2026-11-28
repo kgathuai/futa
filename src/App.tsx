@@ -6,6 +6,7 @@ import { AdminPage } from './pages/AdminPage'
 import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FriendliesPage } from './pages/FriendliesPage'
+import { JoinPage } from './pages/JoinPage'
 import { ResultsPage } from './pages/ResultsPage'
 import { PlayerPage } from './pages/PlayerPage'
 import { TeamPage } from './pages/TeamPage'
@@ -24,6 +25,7 @@ function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/join" element={<JoinPage />} />
         <Route path="/player" element={<PlayerPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/archive" element={<ArchivePage />} />
