@@ -2514,6 +2514,20 @@ export function Layout() {
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
               <Button
                 variant="contained"
+                component="a"
+                href={
+                  friendInviteLink
+                    ? `https://wa.me/?text=${encodeURIComponent(`Join me on Kambumbu: ${friendInviteLink}`)}`
+                    : undefined
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                startIcon={<WhatsAppIcon sx={{ fontSize: '1.1rem' }} />}
+              >
+                Send to WhatsApp
+              </Button>
+              <Button
+                variant="outlined"
                 onClick={() => {
                   if (!friendInviteLink || !navigator.clipboard) {
                     return
@@ -2525,19 +2539,6 @@ export function Layout() {
                 }}
               >
                 {friendInviteCopied ? 'Copied ✓' : 'Copy link'}
-              </Button>
-              <Button
-                variant="outlined"
-                component="a"
-                href={
-                  friendInviteLink
-                    ? `https://wa.me/?text=${encodeURIComponent(`Join me on Kambumbu: ${friendInviteLink}`)}`
-                    : undefined
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Share on WhatsApp
               </Button>
             </Stack>
           </Stack>
