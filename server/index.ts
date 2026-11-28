@@ -1325,12 +1325,60 @@ app.post('/api/friendlies', async (req, res) => {
       referee: body.referee,
     }, user.id)
 
-    res.status(201).json(request)
+    const data = typeof request === 'object' && request && 'toObject' in request ? request.toObject() : request
+    res.status(201).json({
+      ...data,
+      invitePath: (data as { inviteToken?: string }).inviteToken
+        ? `/friendlies/invite/${(data as { inviteToken?: string }).inviteToken}`
+        : undefined,
+    })
   } catch (error) {
     res.status(400).json({
       error: error instanceof Error ? error.message : 'Failed to create friendly request.',
     })
   }
+})
+
+app.get('/api/friendlies/invite/:token', async (req, res) => {
+  const token = String(req.params.token ?? '').trim()
+  const request = await store.getFriendlyRequestByToken(token)
+  if (!request) {
+    res.status(404).json({ error: 'This friendly invite is no longer available.' })
+    return
+  }
+  res.json(request)
+})
+
+app.post('/api/friendlies/invite/:token/claim', async (req, res) => {
+  const user = await getRequestUser(req.header('authorization'))
+  if (!user) {
+    res.status(401).json({ error: 'Log in with your team account to accept this invite.' })
+    return
+  }
+
+  const token = String(req.params.token ?? '').trim()
+  const result = await store.claimFriendlyInvite(token, user.id)
+  if (result.status === 'ok') {
+    res.status(201).json({ request: result.request, match: result.match })
+    return
+  }
+  if (result.status === 'not-found') {
+    res.status(404).json({ error: 'This friendly invite is no longer available.' })
+    return
+  }
+  if (result.status === 'taken') {
+    res.status(409).json({ error: 'This invite has already been accepted.' })
+    return
+  }
+  if (result.status === 'self') {
+    res.status(400).json({ error: 'You sent this invite — share the link with your opponent instead.' })
+    return
+  }
+  if (result.status === 'conflict') {
+    res.status(409).json({ error: result.message })
+    return
+  }
+  res.status(401).json({ error: 'Log in with your team account to accept this invite.' })
 })
 
 app.post('/api/friendlies/:requestId/accept', async (req, res) => {
