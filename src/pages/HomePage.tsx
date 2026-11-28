@@ -716,7 +716,8 @@ export function HomePage() {
                       <IconButton
                         size="small"
                         aria-label={`Report ${match.homeTeam} vs ${match.awayTeam}`}
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation()
                           setReportMatchId(match.id)
                           setReportReason('')
                         }}
@@ -729,7 +730,10 @@ export function HomePage() {
                         size="small"
                         color="error"
                         aria-label={`Delete ${match.homeTeam} vs ${match.awayTeam}`}
-                        onClick={() => void handleDeleteMatch(match.id)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void handleDeleteMatch(match.id)
+                        }}
                       >
                         <DeleteOutlineRoundedIcon fontSize="small" />
                       </IconButton>

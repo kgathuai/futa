@@ -195,7 +195,7 @@ export function MatchEngagementPanel({
   )
 
   return (
-    <>
+    <Box onClick={(event) => event.stopPropagation()}>
       <Stack
         direction="row"
         spacing={{ xs: 0.36, sm: 0.72, md: 1.32 }}
@@ -364,6 +364,6 @@ export function MatchEngagementPanel({
           </Button>
         </Stack>
       )}
-    </>
+    </Box>
   )
 }
