@@ -2696,11 +2696,16 @@ export const store = {
     }
 
     if (recipientAccountId) {
+      // Address the receiving account directly — this notification is for them.
+      const recipientAccount = await AccountModel.findById(recipientAccountId).lean<AccountDoc | null>()
+      const recipientLabel = recipientAccount?.name?.trim() || recipientTeamName
+      const senderLabel = senderAccount.name?.trim() || senderAccount.team?.trim() || 'A Kambumbu player'
+      const venueSuffix = payload.location?.trim() ? ` at ${payload.location.trim()}` : ''
       await createNotification({
         accountId: recipientAccountId,
         type: 'friendly-request',
         title: 'New friendly match request',
-        message: `${senderAccount.name} wants a friendly against ${recipientTeamName} on ${payload.preferredDate} at ${payload.preferredTime}.`,
+        message: `Hi ${recipientLabel}, you have a new friendly request from ${senderLabel} for ${payload.preferredDate} at ${payload.preferredTime}${venueSuffix}.`,
         relatedFriendlyRequestId: request.id,
       })
     }
