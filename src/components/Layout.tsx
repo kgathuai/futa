@@ -143,7 +143,7 @@ export function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
-  const { refreshTeam, matches, team } = useAppData()
+  const { refreshTeam, matches, team, friendlies } = useAppData()
   const currentYear = new Date().getFullYear()
   const { language, setLanguage, t } = useI18n()
   const { mode, toggleMode } = useColorMode()
@@ -213,6 +213,7 @@ export function Layout() {
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [friendlyResponses, setFriendlyResponses] = useState<Record<string, 'accepted' | 'declined'>>({})
   const [isApiLoading, setIsApiLoading] = useState(false)
 
   const myTeamName = (loggedInTeam ?? '').trim()
@@ -871,6 +872,10 @@ export function Layout() {
       setNotifications((prev) =>
         prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
       )
+      setFriendlyResponses((prev) => ({
+        ...prev,
+        [requestId]: action === 'accept' ? 'accepted' : 'declined',
+      }))
       setToast({
         message: action === 'accept' ? 'Friendly confirmed.' : 'Friendly declined.',
         severity: action === 'accept' ? 'success' : 'info',
@@ -2306,38 +2311,68 @@ export function Layout() {
                     </Box>
                     <Badge variant="dot" color="primary" invisible={notification.read} />
                   </Stack>
-                  {notification.type === 'friendly-request' && notification.relatedFriendlyRequestId && (
-                    <Stack direction="row" spacing={0.8} sx={{ mt: 0.9 }} onClick={(event) => event.stopPropagation()}>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
-                        onClick={() => void respondToFriendlyRequest(notification, 'accept')}
-                      >
-                        Accept
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="inherit"
-                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
-                        onClick={() => void respondToFriendlyRequest(notification, 'decline')}
-                      >
-                        Decline
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="text"
-                        sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
-                        onClick={() => {
-                          setIsNotificationsOpen(false)
-                          navigate('/friendlies')
-                        }}
-                      >
-                        Change date
-                      </Button>
-                    </Stack>
-                  )}
+                  {(() => {
+                    if (notification.type !== 'friendly-request' || !notification.relatedFriendlyRequestId) {
+                      return null
+                    }
+                    const related = friendlies.find(
+                      (friendly) => friendly.id === notification.relatedFriendlyRequestId,
+                    )
+                    // If the request isn't in the loaded list yet, keep the legacy buttons.
+                    const isRecipient = related ? related.recipientAccountId === loggedInAccountId : true
+                    const status =
+                      friendlyResponses[notification.relatedFriendlyRequestId] ?? related?.status
+                    if (!isRecipient) {
+                      return null
+                    }
+                    if (status === 'accepted' || status === 'declined') {
+                      return (
+                        <Stack direction="row" spacing={0.8} sx={{ mt: 0.9, alignItems: 'center' }} onClick={(event) => event.stopPropagation()}>
+                          <Chip
+                            size="small"
+                            label={status === 'accepted' ? 'CONFIRMED' : 'DECLINED'}
+                            color={status === 'accepted' ? 'success' : 'default'}
+                            sx={{ fontWeight: 800, fontSize: '0.62rem' }}
+                          />
+                          <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
+                            {status === 'accepted' ? 'This friendly is confirmed.' : 'You declined this request.'}
+                          </Typography>
+                        </Stack>
+                      )
+                    }
+                    return (
+                      <Stack direction="row" spacing={0.8} sx={{ mt: 0.9 }} onClick={(event) => event.stopPropagation()}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                          onClick={() => void respondToFriendlyRequest(notification, 'accept')}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="inherit"
+                          sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                          onClick={() => void respondToFriendlyRequest(notification, 'decline')}
+                        >
+                          Decline
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="text"
+                          sx={{ fontSize: '0.66rem', py: 0.2, px: 1 }}
+                          onClick={() => {
+                            setIsNotificationsOpen(false)
+                            navigate('/friendlies')
+                          }}
+                        >
+                          Change date
+                        </Button>
+                      </Stack>
+                    )
+                  })()}
                   <Divider sx={{ my: 1.2 }} />
                   <Typography variant="caption" color="text.secondary">
                     {new Date(notification.createdAt).toLocaleString()}
