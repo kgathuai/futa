@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import EventIcon from '@mui/icons-material/Event'
@@ -9,11 +9,12 @@ import PhoneIcon from '@mui/icons-material/Phone'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded'
 import { useAppData } from '../context/AppContext'
 import { api } from '../lib/api'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { useAutoHide } from '../lib/useAutoHide'
-import type { MatchAnnouncement } from '../types'
+import type { FriendlyRequest, MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { DEFAULT_RACE_TO, RACE_TO_HINT, isRaceSport, isValidRaceTo } from '../lib/matchFormat'
 
@@ -58,6 +59,7 @@ export function FriendliesPage() {
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null)
   const [statusEditId, setStatusEditId] = useState<string | null>(null)
   const [presetMessage, setPresetMessage] = useState('')
+  useAutoHide(presetMessage, () => setPresetMessage(''))
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [inviteCopied, setInviteCopied] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -70,6 +72,27 @@ export function FriendliesPage() {
       normalizedRole === 'admin' ||
       normalizedRole === 'superadmin')
   const pageSize = 3
+
+  const inviteLinkFor = (request: FriendlyRequest) =>
+    request.inviteToken ? `${window.location.origin}/friendlies/invite/${request.inviteToken}` : ''
+
+  const canShareInvite = (request: FriendlyRequest) =>
+    Boolean(request.inviteToken && request.requesterAccountId === loggedInAccountId)
+
+  const copyInviteLink = (request: FriendlyRequest) => {
+    const link = inviteLinkFor(request)
+    if (!link) {
+      return
+    }
+    if (!navigator.clipboard) {
+      setPresetMessage(`Invite link: ${link}`)
+      return
+    }
+    void navigator.clipboard
+      .writeText(link)
+      .then(() => setPresetMessage(`Invite link copied — send it to ${request.recipientTeam}.`))
+      .catch(() => setPresetMessage(`Invite link: ${link}`))
+  }
 
   // "Challenge this team" links from the team directory arrive as
   // /friendlies?team=<name>&request=1 — prefill the form and open it.
@@ -793,6 +816,16 @@ export function FriendliesPage() {
                       ) : null}
                     </Stack>
 
+                    {canShareInvite(request) && (
+                      <IconButton
+                        size="small"
+                        aria-label={`Copy invite link for ${request.recipientTeam}`}
+                        onClick={() => copyInviteLink(request)}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <LinkRoundedIcon fontSize="small" />
+                      </IconButton>
+                    )}
                     <Button variant="outlined" size="small" sx={{ minWidth: { xs: 0, md: 102 }, px: { xs: 1, md: 1.5 }, fontWeight: 700, flexShrink: 0 }} onClick={() => setSelectedFriendlyForDetails(request.id)}>
                       Details
                     </Button>
@@ -1032,6 +1065,39 @@ export function FriendliesPage() {
                       <Typography sx={{ fontWeight: 500, fontSize: '1rem' }}>
                         Race to {selectedFriendly.raceTo} racks — no clock.
                       </Typography>
+                    </Box>
+                  ) : null}
+
+                  {selectedFriendly && canShareInvite(selectedFriendly) ? (
+                    <Box>
+                      <Typography sx={{ color: '#7f88a0', fontSize: '0.75rem', letterSpacing: '0.08em', fontWeight: 700, mb: 0.8 }}>
+                        INVITE LINK
+                      </Typography>
+                      <Stack spacing={1}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={inviteLinkFor(selectedFriendly)}
+                          slotProps={{ htmlInput: { readOnly: true } }}
+                        />
+                        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+                          <Button size="small" variant="contained" onClick={() => copyInviteLink(selectedFriendly)}>
+                            Copy link
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            component="a"
+                            href={`https://wa.me/?text=${encodeURIComponent(
+                              `Friendly invite (${selectedFriendly.requesterTeam} vs ${selectedFriendly.recipientTeam}): ${inviteLinkFor(selectedFriendly)}`,
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            WhatsApp
+                          </Button>
+                        </Stack>
+                      </Stack>
                     </Box>
                   ) : null}
 
