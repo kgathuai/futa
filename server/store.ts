@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import mongoose, { Schema, type InferSchemaType } from 'mongoose'
 import type { TeamLevel, TournamentItem, TournamentStatus } from '../src/types.ts'
 import { getTournamentStatus } from '../src/lib/tournamentStatus.ts'
+import { isIndividualSport } from '../src/lib/sports.ts'
 
 // Sessions expire after 2 hours by default; override with SESSION_TTL_MINUTES.
 const SESSION_TTL_MINUTES = Number(process.env.SESSION_TTL_MINUTES ?? 120)
@@ -2064,7 +2065,10 @@ export const store = {
           ],
         }
       : {}
-    const accounts = await AccountModel.find({ role: { $in: ['player', 'fan'] }, ...sportFilter })
+    // Individual sports are open to every role (a TM can also play pool), so
+    // only restrict roles when no individual sport is being searched.
+    const roleFilter = isIndividualSport(wanted) ? {} : { role: { $in: ['player', 'fan'] } }
+    const accounts = await AccountModel.find({ ...roleFilter, ...sportFilter })
       .select({ name: 1, sport: 1, avatar: 1 })
       .sort({ name: 1 })
       .lean<Array<{ _id: mongoose.Types.ObjectId; name: string; sport: string; avatar?: string }>>()

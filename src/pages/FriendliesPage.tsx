@@ -17,6 +17,7 @@ import { useAutoHide } from '../lib/useAutoHide'
 import type { FriendlyRequest, MatchAnnouncement } from '../types'
 import { KENYAN_PHONE_HINT, validateTeamContact } from '../lib/phone'
 import { DEFAULT_RACE_TO, RACE_TO_HINT, isRaceSport, isValidRaceTo } from '../lib/matchFormat'
+import { isIndividualSport } from '../lib/sports'
 
 interface AuthOutletContext {
   loggedInUser: string | null
@@ -64,13 +65,15 @@ export function FriendliesPage() {
   const [inviteCopied, setInviteCopied] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const normalizedRole = loggedInRole?.trim().toLowerCase() ?? ''
-  const canCreateHere =
+  const isManagement =
     Boolean(loggedInUser) &&
     (normalizedRole === 'tm' ||
       normalizedRole === 'coach' ||
       normalizedRole === 'captain' ||
       normalizedRole === 'admin' ||
       normalizedRole === 'superadmin')
+  // Anyone signed in can open the form; the sport decides whether they can send.
+  const canUseForm = Boolean(loggedInUser)
   const pageSize = 3
 
   const inviteLinkFor = (request: FriendlyRequest) =>
@@ -112,7 +115,7 @@ export function FriendliesPage() {
     if (requestedTeam) {
       setTeamName(requestedTeam)
     }
-    if (canCreateHere) {
+    if (canUseForm) {
       setShowRequestForm(true)
     } else {
       setPresetMessage(
@@ -127,7 +130,7 @@ export function FriendliesPage() {
     }
     setSearchParams({}, { replace: true })
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [searchParams, setSearchParams, canCreateHere, loggedInUser])
+  }, [searchParams, setSearchParams, canUseForm, loggedInUser])
 
   useEffect(() => {
     const loadFriendlyOptions = async () => {
@@ -148,14 +151,14 @@ export function FriendliesPage() {
     void loadFriendlyOptions()
   }, [])
 
-  // Registered Pool Table players to pick from when challenging someone.
+  // Registered players to pick from when challenging someone in an individual sport.
   useEffect(() => {
-    if (friendlySport !== 'Pool Table') {
+    if (!isIndividualSport(friendlySport)) {
       return
     }
     let active = true
     void api
-      .getPlayersBySport('Pool Table')
+      .getPlayersBySport(friendlySport)
       .then((response) => {
         if (!active) {
           return
@@ -220,7 +223,7 @@ export function FriendliesPage() {
   }
 
   const mySports = loggedInSports ?? []
-  const isPoolFriendly = friendlySport === 'Pool Table'
+  const isIndividualFriendly = isIndividualSport(friendlySport)
   const matchesMySports = (sport?: string) =>
     !onlyMySports || mySports.length === 0 || (sport ? mySports.includes(sport) : true)
 
@@ -296,7 +299,7 @@ export function FriendliesPage() {
         </Alert>
       )}
 
-      {canCreateHere && showRequestForm && (
+      {canUseForm && showRequestForm && (
         <Card variant="outlined">
           <CardContent>
             <Box
@@ -307,6 +310,13 @@ export function FriendliesPage() {
                 const token = api.getToken()
                 if (!token) {
                   setRequestMessage('Please log in before sending a friendly request.')
+                  return
+                }
+
+                if (!isManagement && !isIndividualSport(friendlySport)) {
+                  setRequestMessage(
+                    'Only a TM, Coach, captain or admin can request team-sport friendlies. Pick an individual sport (pool, tennis, darts…) or use a manager account.',
+                  )
                   return
                 }
 
@@ -364,7 +374,7 @@ export function FriendliesPage() {
                   return
                 }
 
-                if (isPoolFriendly && !teamName.trim()) {
+                if (isIndividualFriendly && !teamName.trim()) {
                   setRequestMessage('Enter the name of the pool player you want to challenge.')
                   return
                 }
@@ -382,10 +392,10 @@ export function FriendliesPage() {
                     preferredDate,
                     preferredTime,
                     location,
-                    note: note.trim() || (isPoolFriendly ? 'Pool challenge' : note),
+                    note: note.trim() || (isIndividualFriendly ? `${friendlySport} challenge` : note),
                     sport: friendlySport,
                     raceTo: isRaceSport(friendlySport) ? raceTo : undefined,
-                    opponentType: isPoolFriendly ? 'player' : undefined,
+                    opponentType: isIndividualFriendly ? 'player' : undefined,
                     referee: referee.trim() || undefined,
                   }, token)
                   setTeamName('')
@@ -417,18 +427,18 @@ export function FriendliesPage() {
                 value={teamName || null}
                 onChange={(_event, value) => setTeamName(typeof value === 'string' ? value : value ?? '')}
                 onInputChange={(_event, value) => setTeamName(value)}
-                sx={{ display: intraSquad || isPoolFriendly ? 'none' : undefined }}
+                sx={{ display: intraSquad || isIndividualFriendly ? 'none' : undefined }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="I want friendly with"
                     placeholder="Search teams, or type an unregistered team"
                     helperText="Not registered? Type the name and we'll create a shareable invite link."
-                    required={!intraSquad && !isPoolFriendly}
+                    required={!intraSquad && !isIndividualFriendly}
                   />
                 )}
               />
-              {!isPoolFriendly && (
+              {!isIndividualFriendly && (
                 <Button
                   type="button"
                   variant={intraSquad ? 'contained' : 'outlined'}
@@ -439,7 +449,7 @@ export function FriendliesPage() {
                 </Button>
               )}
 
-              {isPoolFriendly && !intraSquad && (
+              {isIndividualFriendly && !intraSquad && (
                 <Autocomplete
                   freeSolo
                   options={poolPlayers}
@@ -451,7 +461,7 @@ export function FriendliesPage() {
                     <TextField
                       {...params}
                       label="Opponent player name"
-                      placeholder="Search registered players"
+                      placeholder={`Search ${friendlySport} players`}
                       helperText="The registered player you want to challenge — not your own name."
                       required
                     />
@@ -540,7 +550,7 @@ export function FriendliesPage() {
                   <MenuItem value="Online">Online</MenuItem>
                   <MenuItem value="Offline">Offline</MenuItem>
                 </TextField>
-              ) : isPoolFriendly ? (
+              ) : isIndividualFriendly ? (
                 <TextField
                   label="Venue"
                   value={location}
@@ -564,7 +574,7 @@ export function FriendliesPage() {
                   ))}
                 </TextField>
               )}
-              {!isPoolFriendly && (
+              {!isIndividualFriendly && (
                 <TextField
                   label="Notes"
                   value={note}
@@ -660,7 +670,7 @@ export function FriendliesPage() {
             </TextField>
             <Button
               variant="contained"
-              disabled={!canCreateHere}
+              disabled={!canUseForm}
               onClick={() => setShowRequestForm(true)}
               
             >
@@ -718,7 +728,7 @@ export function FriendliesPage() {
                   {loggedInAccountId ? (
                     <Button
                       variant="contained"
-                      disabled={!canCreateHere}
+                      disabled={!canUseForm}
                       onClick={() => setShowRequestForm(true)}
                       startIcon={<SportsSoccerOutlinedIcon sx={{ fontSize: '1rem' }} />}
                       sx={{ fontSize: '0.78rem' }}
@@ -748,9 +758,10 @@ export function FriendliesPage() {
                   </Button>
                 </Stack>
 
-                {loggedInAccountId && !canCreateHere && (
+                {loggedInAccountId && !isManagement && (
                   <Typography sx={{ color: 'text.secondary', fontSize: '0.7rem', mt: 1.4 }}>
-                    Only TM, Coach, captain or an admin can schedule a friendly.
+                    Individual sports (pool, tennis, darts…) are open to every account. Team sports need a TM, Coach,
+                    captain or admin.
                   </Typography>
                 )}
               </CardContent>

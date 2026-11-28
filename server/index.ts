@@ -7,6 +7,7 @@ import mongoose from 'mongoose'
 import { connectDatabase, store, type AccountRecord, type TeamPayload } from './store.ts'
 import { buildLink, isEmailConfigured, sendEmail } from './email.ts'
 import { initiateStkPush, isMpesaConfigured } from './mpesa.ts'
+import { isIndividualSport } from '../src/lib/sports.ts'
 
 const app = express()
 const port = Number(process.env.PORT ?? 4000)
@@ -1242,11 +1243,6 @@ app.post('/api/friendlies', async (req, res) => {
     return
   }
 
-  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
-    res.status(403).json({ error: 'Only TM, Coach, or captain can request friendlies.' })
-    return
-  }
-
   const body = req.body as {
     teamName?: string
     contact?: string
@@ -1268,6 +1264,13 @@ app.post('/api/friendlies', async (req, res) => {
   if (!body.note) missingFields.push('note')
   if (missingFields.length > 0) {
     res.status(400).json({ error: `Missing friendly request fields: ${missingFields.join(', ')}.` })
+    return
+  }
+
+  // Individual sports (pool, darts, chess…) are open to every account; team
+  // sports still require a management account to request a friendly.
+  if (!isIndividualSport(body.sport) && !allowedRoles.has(user.role.trim().toLowerCase())) {
+    res.status(403).json({ error: 'Only TM, Coach, or captain can request team-sport friendlies.' })
     return
   }
 
@@ -1580,11 +1583,13 @@ app.post('/api/tournaments/:tournamentId/generate-fixtures', async (req, res) =>
     return
   }
 
-  const registeredTeamNames = await store.getRegisteredTeamNames()
-  const unregisteredTeams = teams.filter((team) => !registeredTeamNames.includes(team))
-  if (unregisteredTeams.length > 0) {
-    res.status(400).json({ error: `These teams are not registered: ${unregisteredTeams.join(', ')}` })
-    return
+  if (!isIndividualSport(tournament.sport)) {
+    const registeredTeamNames = await store.getRegisteredTeamNames()
+    const unregisteredTeams = teams.filter((team) => !registeredTeamNames.includes(team))
+    if (unregisteredTeams.length > 0) {
+      res.status(400).json({ error: `These teams are not registered: ${unregisteredTeams.join(', ')}` })
+      return
+    }
   }
 
   // Check fixtures don't already exist
@@ -2480,7 +2485,7 @@ app.post('/api/tournaments', async (req, res) => {
       ]
     : []
 
-  if (requestedTeams.length > 0) {
+  if (requestedTeams.length > 0 && !isIndividualSport(body.sport)) {
     const registeredTeamNames = await store.getRegisteredTeamNames()
     const unregistered = requestedTeams.filter((team) => !registeredTeamNames.includes(team))
     if (unregistered.length > 0) {
@@ -2705,17 +2710,6 @@ app.post('/api/tournaments/:tournamentId/register', async (req, res) => {
     return
   }
 
-  if (!allowedRoles.has(user.role.trim().toLowerCase())) {
-    res.status(403).json({ error: 'Only TM, Coach, or captain can register a team to a tournament.' })
-    return
-  }
-
-  const teamName = user.team?.trim()
-  if (!teamName) {
-    res.status(400).json({ error: 'Your account has no team set.' })
-    return
-  }
-
   const tournamentId = req.params.tournamentId?.trim()
   if (!tournamentId) {
     res.status(400).json({ error: 'Tournament id is required.' })
@@ -2723,7 +2717,32 @@ app.post('/api/tournaments/:tournamentId/register', async (req, res) => {
   }
 
   const details = await store.getTournamentById(tournamentId)
-  const entryFee = details?.entryFee ?? 0
+  if (!details) {
+    res.status(404).json({ error: 'Tournament not found.' })
+    return
+  }
+
+  // Individual sports are open to every account; team sports need a manager.
+  const individual = isIndividualSport(details.sport)
+  if (!individual) {
+    if (!allowedRoles.has(user.role.trim().toLowerCase())) {
+      res.status(403).json({ error: 'Only TM, Coach, or captain can register a team to a team-sport tournament.' })
+      return
+    }
+    if (!user.team?.trim()) {
+      res.status(400).json({ error: 'Your account has no team set.' })
+      return
+    }
+  }
+
+  // Individuals join under their own name; team sports register the club.
+  const teamName = individual ? user.team?.trim() || user.name.trim() : user.team?.trim() || ''
+  if (!teamName) {
+    res.status(400).json({ error: 'Could not determine a participant name for this tournament.' })
+    return
+  }
+
+  const entryFee = details.entryFee ?? 0
   if (entryFee > 0) {
     const paid = await store.getPaidRegistration(tournamentId, teamName)
     if (!paid) {

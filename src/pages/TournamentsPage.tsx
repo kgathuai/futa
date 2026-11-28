@@ -5,7 +5,7 @@ import { api } from '../lib/api'
 import type { MatchAnnouncement, TournamentItem, TournamentStatus } from '../types'
 import { FixturesTab } from '../components/FixturesTab'
 import { SportFilterBar } from '../components/SportFilterBar'
-import { SPORTS } from '../lib/sports'
+import { SPORTS, isIndividualSport } from '../lib/sports'
 import { CardSkeleton } from '../components/LoadingSkeleton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { ShareButtons } from '../components/ShareButtons'
@@ -121,6 +121,11 @@ export function TournamentsPage() {
         : null,
     [filteredTournaments, selectedTournamentId],
   )
+  const selectedIsIndividual = Boolean(selectedTournament && isIndividualSport(selectedTournament.sport))
+  const participantName = selectedIsIndividual
+    ? loggedInTeam?.trim() || loggedInUser?.trim() || ''
+    : loggedInTeam?.trim() || ''
+  const canRegisterSelected = Boolean(loggedInUser) && (selectedIsIndividual || canRegisterTeam)
   const isOwner = Boolean(loggedInTeam && selectedTournament?.ownerTeam === loggedInTeam)
   const selectedTournamentTeams = useMemo(
     () => selectedTournament?.registeredTeams ?? [],
@@ -690,8 +695,12 @@ export function TournamentsPage() {
       return
     }
 
-    if (!canRegisterTeam) {
-      setMessage('Only logged in captain, TM, or coach can register a team.')
+    if (!canRegisterSelected || !participantName) {
+      setMessage(
+        selectedIsIndividual
+          ? 'Log in to join this individual tournament.'
+          : 'Only logged in captain, TM, or coach can register a team.',
+      )
       return
     }
 
@@ -705,7 +714,7 @@ export function TournamentsPage() {
       const updatedTournament = await api.registerTournamentTeam(selectedTournament.id, token)
       setTournaments((prev) => prev.map((item) => (item.id === updatedTournament.id ? updatedTournament : item)))
       await loadMatches()
-      setMessage('Team registered successfully.')
+      setMessage(selectedIsIndividual ? 'You are registered for this tournament.' : 'Team registered successfully.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to register team.')
     }
@@ -1291,7 +1300,7 @@ export function TournamentsPage() {
                       fullWidth
                       variant="contained"
                       onClick={() => void handleRegisterTeam()}
-                      disabled={selectedTournament.status !== 'registration open' || !canRegisterTeam || !loggedInTeam || selectedTournamentTeams.includes(loggedInTeam) || isTournamentFull}
+                      disabled={selectedTournament.status !== 'registration open' || !canRegisterSelected || !participantName || selectedTournamentTeams.includes(participantName) || isTournamentFull}
                       
                     >
                       {isTournamentFull ? 'Tournament Full' : selectedTournament.status === 'finished' ? 'Registration Closed' : selectedTournament.status === 'upcoming' ? 'Registration Not Open' : 'Join Tournament'}
